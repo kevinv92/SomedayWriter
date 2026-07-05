@@ -195,6 +195,29 @@ const proseTheme = EditorView.theme({
     maxWidth: '46rem',
     margin: '0 auto',
     padding: '2.5rem 1.5rem 40vh'
+  },
+  // Make diagnostics obvious: a tinted highlight behind the span plus a thicker
+  // wavy underline (overriding CM's faint default).
+  '.cm-lintRange-warning': {
+    backgroundImage: 'none',
+    backgroundColor: 'rgba(217, 119, 6, 0.22)',
+    textDecoration: 'underline wavy #d97706',
+    textDecorationThickness: '2px',
+    borderRadius: '2px'
+  },
+  '.cm-lintRange-error': {
+    backgroundImage: 'none',
+    backgroundColor: 'rgba(220, 38, 38, 0.22)',
+    textDecoration: 'underline wavy #dc2626',
+    textDecorationThickness: '2px',
+    borderRadius: '2px'
+  },
+  '.cm-lintRange-info': {
+    backgroundImage: 'none',
+    backgroundColor: 'rgba(37, 99, 235, 0.18)',
+    textDecoration: 'underline wavy #2563eb',
+    textDecorationThickness: '2px',
+    borderRadius: '2px'
   }
 })
 
