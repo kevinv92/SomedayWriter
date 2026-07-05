@@ -1,0 +1,4 @@
+# Extra excludes for the AI repo digest (on top of .gitignore).
+out/
+dist/
+repomix-output.*

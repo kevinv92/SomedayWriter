@@ -93,21 +93,21 @@ itself. This keeps a future editor swap contained to one implementation.
 ```ts
 interface EditorAdapter {
   // Content — Markdown text is the canonical representation in/out
-  loadDoc(uri: string, text: string): void;
-  getText(): string;
-  onChange(cb: (changes: TextChange[]) => void): void;
+  loadDoc(uri: string, text: string): void
+  getText(): string
+  onChange(cb: (changes: TextChange[]) => void): void
 
   // Analysis surface (what AnalysisService drives)
-  setDiagnostics(diags: Diagnostic[]): void;      // squiggles (off by default)
-  showCompletions(items: Completion[]): void;     // intellisense popup
+  setDiagnostics(diags: Diagnostic[]): void // squiggles (off by default)
+  showCompletions(items: Completion[]): void // intellisense popup
 
   // Navigation (visualiser / references click-to-open)
-  focusRange(range: Range): void;
-  getCursor(): Position;
+  focusRange(range: Range): void
+  getCursor(): Position
 
   // Editing UX
-  setVimMode(on: boolean): void;
-  dispose(): void;
+  setVimMode(on: boolean): void
+  dispose(): void
 }
 ```
 
@@ -115,12 +115,12 @@ Rules that keep the seam cheap:
 
 - **Markdown text is canonical.** Every editor is fed Markdown and returns
   Markdown, so the on-disk "plain files, no lock-in" contract never depends on
-  the editor. Any WYSIWYG serialization would live *inside* an adapter, not leak
+  the editor. Any WYSIWYG serialization would live _inside_ an adapter, not leak
   out.
 - **Only the adapter imports CodeMirror.** Providers, `StoryIndex`, the tree, and
   the visualiser never reference the editor library directly.
 - **Swap cost is bounded** to re-implementing this interface (+ re-doing Vim and
-  the `@mention` UI). See *Decision history — Editor choice* for the analysis.
+  the `@mention` UI). See _Decision history — Editor choice_ for the analysis.
 
 ## Core features (v1)
 
@@ -133,11 +133,11 @@ Rules that keep the seam cheap:
    **new file**, **new folder**, **rename**, **delete**.
 7. **Word count** — live count for the active file in the status bar.
 8. **Search & replace (project-wide)** — find text across all files in the
-   project and replace across matches. *Near-essential; a writer needs this on
-   day one (find a phrase, rename a place everywhere).*
+   project and replace across matches. _Near-essential; a writer needs this on
+   day one (find a phrase, rename a place everywhere)._
 9. **Reorder & manuscript order** — an explicit ordering of scenes/chapters,
    editable by **drag in the tree**. Order is the spine the visualiser x-axis and
-   any future export both read. *Near-essential.*
+   any future export both read. _Near-essential._
 
 Order is stored per file (frontmatter `order`, sparse/fractional so a single
 insert is one write) — see [Manuscript order](#manuscript-order).
@@ -219,22 +219,22 @@ continuity) is **opt-in**:
 
 ```ts
 interface AnalysisProvider {
-  id: string;
-  capabilities: Array<"diagnostics" | "completion" | "hover">;
+  id: string
+  capabilities: Array<'diagnostics' | 'completion' | 'hover'>
 
   // Document lifecycle (mirrors LSP didOpen/didChange/didClose)
-  didOpen?(doc: Doc): void;
-  didChange?(doc: Doc, changes: TextChange[]): void;
-  didClose?(uri: string): void;
+  didOpen?(doc: Doc): void
+  didChange?(doc: Doc, changes: TextChange[]): void
+  didClose?(uri: string): void
 
   // Push: provider emits diagnostics whenever it has new results
-  onDiagnostics?(cb: (uri: string, diags: Diagnostic[]) => void): void;
+  onDiagnostics?(cb: (uri: string, diags: Diagnostic[]) => void): void
 
   // Pull: editor asks for completions/hover at a position
-  complete?(uri: string, pos: Position): Promise<Completion[]>;
-  hover?(uri: string, pos: Position): Promise<Hover | null>;
+  complete?(uri: string, pos: Position): Promise<Completion[]>
+  hover?(uri: string, pos: Position): Promise<Hover | null>
 
-  dispose?(): void;
+  dispose?(): void
 }
 ```
 
@@ -271,7 +271,7 @@ we'd only write the TS `LspProvider` adapter, not the server.
 
 The signature features — linking a character to everywhere it's mentioned,
 tracking story threads — are **deterministic** "language server" features for
-prose. They're the prose equivalent of *go-to-definition* and *find-references*,
+prose. They're the prose equivalent of _go-to-definition_ and _find-references_,
 where the "symbols" are characters, threads, and locations. **No AI required**
 (AI is split out — see below).
 
@@ -293,7 +293,7 @@ This is the prose analog of a language server's symbol table.
 How an entity is declared is what keeps linking deterministic (vs. AI guessing):
 
 - **Profile files** (most reliable) — e.g. `characters/kelsier.md` with
-  frontmatter. The file *is* the entity's "definition."
+  frontmatter. The file _is_ the entity's "definition."
 - **`@mentions`** — typing `@Kelsier` creates an explicit, unambiguous link and
   drives autocomplete.
 - **Plain-name detection** (convenience) — auto-match the bare word "Kelsier"
@@ -332,7 +332,7 @@ Threads may optionally be registered in `project.json` (display name, color) so
 they render consistently; an unregistered tag still works with defaults.
 
 **Intersecting threads (many-to-many).** A file — or a scene inside it — can
-belong to *multiple* threads at once, and threads freely overlap. `StoryIndex`
+belong to _multiple_ threads at once, and threads freely overlap. `StoryIndex`
 models thread membership as many-to-many, so it can also surface **intersection
 points**: places where two or more threads co-occur (useful for spotting where
 subplots collide or converge).
@@ -342,14 +342,14 @@ because a subplot's beats may be scattered:
 
 - **Default** — manuscript order (file/scene position on disk / in the tree).
 - **Explicit per-thread order** — an optional `order` value on a membership sets
-  a beat's position *within that thread*, without moving the file. The same
+  a beat's position _within that thread_, without moving the file. The same
   scene can be beat 3 of `rebellion` and beat 1 of `romance`.
 
   ```md
   ---
   threads:
     - { name: rebellion, order: 3 }
-    - { name: romance,   order: 1 }
+    - { name: romance, order: 1 }
   ---
   ```
 
@@ -377,12 +377,12 @@ the board is a two-way view onto them.
 - **Navigation** — click a node → open that file/scene in the editor; the view is
   a navigator, not just a picture.
 
-**Edit side (drag to rearrange) — *stretch / at risk***
+**Edit side (drag to rearrange) — _stretch / at risk_**
 
 > Editing the braid is now a **stretch goal, not a committed requirement.**
 > Tree-drag reordering + `@`-lane frontmatter already let a writer rearrange
 > structure and membership without it, so this ships only if the read-only braid
-> proves people want to edit *from the board*. Kept here as the intended design
+> proves people want to edit _from the board_. Kept here as the intended design
 > if it does.
 
 This is the intended way to set order and membership — no hand-typed order
@@ -418,14 +418,14 @@ first, drag-to-edit second.
 ## AI features (split out — deferred)
 
 AI is deliberately **separated from the deterministic core** and deferred to
-post-v1. It rides the *same* provider/facade pipe, so nothing about the editor or
+post-v1. It rides the _same_ provider/facade pipe, so nothing about the editor or
 `AnalysisService` changes when it lands — an AI feature is just another provider
 whose brain happens to be an LLM.
 
 - **`ContinuityProvider`** — surfaces **conflicting behavior / continuity errors**
   ("blue eyes in ch1, brown in ch9") as `diagnostics`. This genuinely needs
   semantic understanding of prose → an LLM.
-- **Thread inference** — *suggesting* threads/links the writer hasn't tagged
+- **Thread inference** — _suggesting_ threads/links the writer hasn't tagged
   (deterministic threads stay in the core; inference is AI).
 
 Constraints when it lands:
@@ -478,9 +478,9 @@ Make it a real workspace, not just a viewer.
 
 - **M3** — New Project flow; `explorer.ignore`; word count + unsaved indicator.
 - **M4** — Explorer file ops: new file / new folder / rename / delete.
-- **M5** — **Project-wide search & replace** *(near-essential requirement)*.
+- **M5** — **Project-wide search & replace** _(near-essential requirement)_.
 - **M6** — **Reorder & manuscript order**: drag scenes in the tree; write sparse
-  `order` back to frontmatter *(near-essential requirement)*.
+  `order` back to frontmatter _(near-essential requirement)_.
 
 **Exit:** can create a project from scratch, manage and reorder its files, and
 search/replace across it.
@@ -507,11 +507,11 @@ The signature features, no AI.
   (many-to-many) threads, per-thread ordering.
 - **M10** — **Thread visualiser (read)** — braid view: lane per thread,
   intersections, ordering toggle, click-to-open.
-- **M11** *(stretch / at risk)* — **Thread visualiser (edit)** — drag to reorder
+- **M11** _(stretch / at risk)_ — **Thread visualiser (edit)** — drag to reorder
   within a thread, move / add / remove membership; writes tags back to files.
   **May be dropped**: tree-drag reordering (M6) already covers the core "move
   things around" need, and editable-braid drag is costly. Ships only if the
-  read-only braid proves people want to *edit* from it.
+  read-only braid proves people want to _edit_ from it.
 
 **Exit:** click a character → see every mention; follow a thread across chapters
 in the braid. (Editing the braid is a stretch goal, not part of the exit.)
@@ -522,8 +522,8 @@ in the braid. (Editing the braid is a stretch goal, not part of the exit.)
 
 **Exit:** feels like a tool you'd use daily.
 
-> **AI features are out of scope for these phases** — see *AI features (split out
-> — deferred)*. They ride the same facade and can be added later without
+> **AI features are out of scope for these phases** — see _AI features (split out
+> — deferred)_. They ride the same facade and can be added later without
 > reworking the phases above.
 
 ## Terminology
@@ -558,7 +558,7 @@ Plain-language definitions of terms used above.
   the cursor (e.g. a character name). "Intellisense" is just Microsoft's brand
   name for this; we use **completion**.
 - **Diagnostic** — one reported problem: a text range + severity (error/warning)
-  + message. Renders as a squiggle. Spellcheck/grammar hits are diagnostics.
+  - message. Renders as a squiggle. Spellcheck/grammar hits are diagnostics.
 - **LSP (Language Server Protocol)** — a standard that lets an editor get
   intelligence (errors, completions, hovers) from a separate "language server"
   program, over a common message format. Decouples the editor from the language.
@@ -580,7 +580,7 @@ Plain-language definitions of terms used above.
   so we don't re-analyze on every single keystroke.
 - **Web Worker** — a background thread in the UI process for heavy work, so the
   editor stays responsive while analysis runs.
-- **Incremental change / text patch** — sending just *what changed* (a range +
+- **Incremental change / text patch** — sending just _what changed_ (a range +
   new text) instead of the whole file. Cheaper, and the basis for future
   auto-save.
 - **TOML / JSON** — plain-text formats for config files. We use **JSON** for
@@ -598,77 +598,77 @@ Plain-language definitions of terms used above.
   JSON-RPC; registers behind the same facade (see Analysis section).
 - **AI features** — `ContinuityProvider` (continuity/conflict detection) and
   thread inference. Split out from the deterministic core; same facade, LLM
-  brain, main-process only. See *AI features (split out — deferred)*.
-- **Export / compile** — **TBD.** Get the manuscript *out*: assemble scenes in
+  brain, main-process only. See _AI features (split out — deferred)_.
+- **Export / compile** — **TBD.** Get the manuscript _out_: assemble scenes in
   order into a single deliverable (`.docx` / PDF / standard manuscript format).
   A core writer need, but format, ordering source, and styling are unscoped —
   design later.
 
 ## Decision history
 
-A running log of the choices behind this spec and *why*, so future changes don't
+A running log of the choices behind this spec and _why_, so future changes don't
 re-litigate settled ground. Newest at the bottom. (All dated 2026-07-05, the
 initial design conversation.)
 
 1. **Product shape** — Electron desktop app: file explorer on the left, editor on
-   the right. *Why:* familiar, trusted layout for a writing tool.
+   the right. _Why:_ familiar, trusted layout for a writing tool.
 2. **A "Project" is a folder with a marker file** — the app treats a directory as
-   a Project when a marker config sits at its root. *Why:* plain files on disk,
+   a Project when a marker config sits at its root. _Why:_ plain files on disk,
    no database, no lock-in.
-3. **Config format: JSON (`project.json`), not TOML** — *Why:* native to JS, zero
+3. **Config format: JSON (`project.json`), not TOML** — _Why:_ native to JS, zero
    dependency, leaner to start. TOML kept as a possible later swap if
    hand-editing gets clunky.
-4. **Single active editor in v1**, but modeled as a collection-of-one. *Why:*
+4. **Single active editor in v1**, but modeled as a collection-of-one. _Why:_
    simplest useful thing now; split view / tabs stays additive, not a rewrite.
-5. **Explicit save only (`Cmd/Ctrl+S`)** — *Why:* predictable. Auto-save deferred
+5. **Explicit save only (`Cmd/Ctrl+S`)** — _Why:_ predictable. Auto-save deferred
    and, when built, should be patch/diff-based.
-6. **Explorer file ops in v1** — new file, new folder, rename, delete. *Why:* it's
+6. **Explorer file ops in v1** — new file, new folder, rename, delete. _Why:_ it's
    a workspace, not just a viewer.
 7. **Analysis is a pluggable provider/facade (LSP-shaped)** — the editor talks to
-   one `AnalysisService`; intelligence is swappable providers. *Why:* keeps the
+   one `AnalysisService`; intelligence is swappable providers. _Why:_ keeps the
    editor dumb and lets a real external LSP drop in later unchanged.
 8. **Providers are TypeScript** (renderer / Web Worker / main as needed). Only a
    future external LSP server could be another language, reached via a TS adapter.
 9. **Story features are deterministic, not AI** — character linking (find-refs,
-   go-to-definition) and threads run off a project-wide `StoryIndex`. *Why:* these
+   go-to-definition) and threads run off a project-wide `StoryIndex`. _Why:_ these
    are the differentiator and don't need an LLM to be reliable.
 10. **Threads: file-level + inline markers, many-to-many, per-thread ordering.**
     A scene can sit on multiple threads; each thread can order its beats
     independently of manuscript order.
 11. **Thread visualiser is editable (two-way)** — a braid view where dragging
     reorders beats / changes membership and **writes tags back to the files**.
-    *Why:* also resolved decision #10's ordering — you drag instead of
+    _Why:_ also resolved decision #10's ordering — you drag instead of
     hand-typing order numbers.
 12. **AI is split out and deferred** — continuity/conflict detection and thread
-    *inference* ride the same facade later, main-process only, opt-in. *Why:* keep
+    _inference_ ride the same facade later, main-process only, opt-in. _Why:_ keep
     the deterministic core independent of any LLM.
-13. **Diagnostics (squiggles) off by default**, with a toggle. *Why (writer
-    feedback):* squiggles fight drafting; prose isn't correct/incorrect. Pull
+13. **Diagnostics (squiggles) off by default**, with a toggle. _Why (writer
+    feedback):_ squiggles fight drafting; prose isn't correct/incorrect. Pull
     features (completions/references) stay on.
-14. **Export/compile acknowledged as a core need — TBD.** *Why:* a writer must be
+14. **Export/compile acknowledged as a core need — TBD.** _Why:_ a writer must be
     able to get the manuscript out; scoped later (see Deferred).
 15. **Editor: committed to CodeMirror 6.** Evaluated TipTap / Lexical (prose-model,
-    built-in `@mention`, WYSIWYG) vs. CM6 / Monaco (text-model). *Why CM6:*
+    built-in `@mention`, WYSIWYG) vs. CM6 / Monaco (text-model). _Why CM6:_
     keyboard-first product stance + real **Vim mode**, which prose-model editors
     lack; Monaco excluded as too IDE-feeling. Trade-off accepted: hand-roll the
     `@mention` UI on CM's completion API, and edit visible Markdown source rather
     than WYSIWYG.
-16. **`EditorAdapter` seam added** so #15 stays reversible. *Why:* switching within
+16. **`EditorAdapter` seam added** so #15 stays reversible. _Why:_ switching within
     text-model editors is a few days; the only expensive move is crossing to a
     WYSIWYG document model (content re-serialization + losing Vim) — which the
     keyboard-first stance makes unlikely anyway. Markdown text is the canonical
     in-memory representation to keep the on-disk contract editor-independent.
 17. **Scope: Markdown (`.md`) only in v1.** Editor, analysis, and story features
     target Markdown; other file types are out of scope (may show in the tree but
-    aren't edited). *Why:* one format keeps parsing, frontmatter, and the story
+    aren't edited). _Why:_ one format keeps parsing, frontmatter, and the story
     model simple; prose is Markdown anyway.
 18. **Near-essential requirements added: project-wide search/replace and
-    scene reordering + manuscript order.** *Why:* a writer would notice both
+    scene reordering + manuscript order.** _Why:_ a writer would notice both
     missing on day one — finding/renaming across the book, and structuring scene
     order. Manuscript order is stored as sparse frontmatter `order`, edited by
     tree drag.
-19. **Thread-visualiser *editing* downgraded from requirement to stretch/at-risk.**
-    *Why:* tree-drag reordering (#18) already covers rearranging structure, so an
+19. **Thread-visualiser _editing_ downgraded from requirement to stretch/at-risk.**
+    _Why:_ tree-drag reordering (#18) already covers rearranging structure, so an
     editable braid is no longer load-bearing. The read-only braid stays a
     committed feature; drag-to-edit ships only if demand shows up. Trade
     considered: CodeMirror fully supports the prose **typography** goals (font,

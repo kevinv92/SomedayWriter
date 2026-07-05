@@ -1,0 +1,7 @@
+# Keep AI code indexes lean — skip generated / vendored output.
+# (Claude Code and Copilot already honor .gitignore; this covers index-based tools.)
+node_modules/
+out/
+dist/
+package-lock.json
+*.log
