@@ -7,16 +7,37 @@ import type { CompletionSource, Diagnostic } from './types'
  * separate from the editor.
  */
 
-// Later derived from StoryIndex; hard-coded here.
-const CHARACTERS = ['Mara', 'Corvin']
+// Later derived from StoryIndex (canonical name + aliases from profile files);
+// hard-coded here to mirror the sample-project fixture. Every surface form
+// resolves to one character.
+interface DemoCharacter {
+  /** Canonical name (the entity). */
+  name: string
+  /** Full names, nicknames, epithets — all link back to `name`. */
+  aliases: string[]
+}
 
+const CHARACTERS: DemoCharacter[] = [
+  { name: 'Mara', aliases: ['Mara Venn', 'the courier'] },
+  { name: 'Corvin', aliases: ['Captain Corvin', 'the captain'] }
+]
+
+/**
+ * Offers the canonical name and every alias, each tagged with the character it
+ * resolves to. Inserts the braced mention form `@{surface}` so multi-word names
+ * ("the courier", "Captain Corvin") work; export strips the `@{…}` wrapper,
+ * leaving the surface text. You filter by typing (`@the` → "the courier"),
+ * the display shows `@surface`, and the inserted text is `@{surface}`.
+ */
 export const characterCompletionSource: CompletionSource = (_ctx) =>
-  CHARACTERS.map((name) => ({
-    label: `@${name}`,
-    apply: `@${name}`,
-    detail: 'character',
-    type: 'character'
-  }))
+  CHARACTERS.flatMap((character) =>
+    [character.name, ...character.aliases].map((surface) => ({
+      label: `@${surface}`,
+      apply: `@{${surface}}`,
+      detail: surface === character.name ? 'character' : `→ ${character.name}`,
+      type: 'character'
+    }))
+  )
 
 // Overused "crutch" words a writer might want flagged — demo diagnostics only.
 const CRUTCH_WORDS = [

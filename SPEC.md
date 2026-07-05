@@ -299,13 +299,21 @@ This is the prose analog of a language server's symbol table.
 
 How an entity is declared is what keeps linking deterministic (vs. AI guessing):
 
-- **Profile files** (most reliable) — e.g. `characters/kelsier.md` with
-  frontmatter. The file _is_ the entity's "definition."
-- **`@mentions`** — typing `@Kelsier` creates an explicit, unambiguous link and
-  drives autocomplete.
-- **Plain-name detection** (convenience) — auto-match the bare word "Kelsier"
-  against known characters. Ambiguous cases ("the captain") are left unlinked in
-  v1 rather than guessed.
+- **Profile files** (most reliable) — e.g. `characters/mara.md` with frontmatter.
+  The file _is_ the entity's "definition." Frontmatter carries a canonical
+  `name` plus **`aliases`** — full names, nicknames, epithets (e.g. `Mara`,
+  `Mara Venn`, `the courier`). Every surface form resolves to the one entity.
+- **Plain-name detection** (the natural path for prose) — match any known
+  surface form (canonical **or** alias) in ordinary text and link it, no markup.
+  This is what handles multi-word names like "Captain Corvin" and "the courier"
+  as they read naturally. Genuinely ambiguous cases (an alias shared by two
+  characters) are left unlinked in v1 rather than guessed.
+- **`@{…}` mentions** (explicit path) — `@{the courier}` forces an unambiguous
+  link and drives autocomplete. Braces are required so a mention can span
+  **multiple words** (plain `@word` stops at the first space). The text inside
+  is the surface form shown in the draft; **export strips the `@{…}` wrapper**,
+  leaving clean prose ("the courier"). Use it to disambiguate or to link a form
+  the detector wouldn't catch.
 
 ### Deterministic providers (behind the same facade)
 
@@ -466,6 +474,9 @@ longer a bake-off — it de-risks that choice and builds the seam:
 - Prove **Vim mode**, one **squiggle** (decoration), and one **completion popup**
   work through the adapter.
 - Confirm prose feel: soft wrap, comfortable typography, no code-gutter noise.
+- **Prose Markdown styling** — style Markdown _source_ in place (headings render
+  larger, strong/emphasis bold/italic, syntax marks dimmed) so it reads like
+  prose while staying editable text. No colored code-editor tokens.
 - **Sample project fixture** — a real writer-gui Project checked into the repo at
   `examples/sample-project/` to open while developing and to assert against in
   tests. It exercises the core model: `project.json` (with a `threads` registry),
@@ -614,7 +625,9 @@ Plain-language definitions of terms used above.
 - **Export / compile** — **TBD.** Get the manuscript _out_: assemble scenes in
   order into a single deliverable (`.docx` / PDF / standard manuscript format).
   A core writer need, but format, ordering source, and styling are unscoped —
-  design later.
+  design later. **Contract already fixed:** export must **strip `@{…}` mention
+  wrappers**, leaving the surface text (`@{the courier}` → "the courier"), so the
+  output is clean prose.
 
 ## Decision history
 
@@ -696,3 +709,10 @@ initial design conversation.)
     (pull) rather than a pushed `showCompletions` list — matching how editors and
     the future AnalysisService actually work. _Why:_ keep the seam faithful to
     real editor + analysis mechanics.
+21. **Mentions use `@{surface}` (braced); names carry aliases; Markdown styled in
+    source.** _Why:_ braces let a mention span multiple words and be stripped on
+    export, so plain `@word` (space-terminated) isn't a limit; a character's
+    canonical `name` + `aliases` all resolve to one entity, so full names and
+    nicknames link too (plain-name detection is the natural prose path, `@{…}`
+    the explicit one). Also: Markdown source is styled in place (big headings,
+    real bold/italic, dimmed marks) for prose feel without leaving source mode.

@@ -1,11 +1,8 @@
 import { Compartment, EditorState } from '@codemirror/state'
 import { EditorView, keymap, drawSelection, type ViewUpdate } from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
-import {
-  defaultHighlightStyle,
-  indentOnInput,
-  syntaxHighlighting
-} from '@codemirror/language'
+import { HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language'
+import { tags as t } from '@lezer/highlight'
 import { markdown } from '@codemirror/lang-markdown'
 import {
   setDiagnostics as setLintDiagnostics,
@@ -117,7 +114,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         drawSelection(),
         indentOnInput(),
         markdown(),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        syntaxHighlighting(proseHighlightStyle),
         EditorView.lineWrapping,
         autocompletion({ override: [this.completionDelegate], activateOnTyping: true }),
         keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap]),
@@ -163,6 +160,28 @@ class CodeMirrorAdapter implements EditorAdapter {
     return this.view
   }
 }
+
+/**
+ * Styles Markdown *source* in place so it reads like prose while staying
+ * editable text (Obsidian-style): headings render larger, strong/emphasis are
+ * bold/italic, and the syntax marks (`#`, `**`, `_`) are dimmed rather than
+ * hidden. No colored code-editor tokens.
+ */
+const proseHighlightStyle = HighlightStyle.define([
+  { tag: t.heading1, fontSize: '1.8em', fontWeight: '700', lineHeight: '1.3' },
+  { tag: t.heading2, fontSize: '1.5em', fontWeight: '700', lineHeight: '1.3' },
+  { tag: t.heading3, fontSize: '1.25em', fontWeight: '700' },
+  { tag: [t.heading4, t.heading5, t.heading6], fontWeight: '700' },
+  { tag: t.strong, fontWeight: '700' },
+  { tag: t.emphasis, fontStyle: 'italic' },
+  { tag: t.strikethrough, textDecoration: 'line-through' },
+  { tag: t.link, color: 'var(--accent)', textDecoration: 'underline' },
+  { tag: t.url, color: 'var(--muted)' },
+  { tag: t.monospace, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' },
+  { tag: t.quote, color: 'var(--muted)', fontStyle: 'italic' },
+  // Dim the literal Markdown syntax marks.
+  { tag: [t.processingInstruction, t.meta], color: 'var(--muted)', fontWeight: '400' }
+])
 
 const proseTheme = EditorView.theme({
   '&': { height: '100%', fontSize: '16px', backgroundColor: 'transparent' },
