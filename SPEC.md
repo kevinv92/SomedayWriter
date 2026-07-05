@@ -454,7 +454,12 @@ Constraints when it lands:
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-### Phase 0 — Scaffold
+> **Status (2026-07-05):** Phase 0 ✅ and Phase 1 ✅ complete. **Next: Phase 2**
+> (real file tree + open/save over IPC). Phase 1 currently loads the sample
+> project via a build-time `?raw` import — Phase 2 replaces that with real file
+> I/O and saving.
+
+### Phase 0 — Scaffold ✅
 
 Stand up the Electron shell before any features.
 
@@ -465,7 +470,7 @@ Stand up the Electron shell before any features.
 
 **Exit:** blank window runs in dev and packaged builds; IPC round-trips a ping.
 
-### Phase 1 — Editor validation
+### Phase 1 — Editor validation ✅
 
 Editor is **committed: CodeMirror 6** (see Decision history). This phase is no
 longer a bake-off — it de-risks that choice and builds the seam:
