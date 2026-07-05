@@ -477,6 +477,8 @@ longer a bake-off — it de-risks that choice and builds the seam:
 - **Prose Markdown styling** — style Markdown _source_ in place (headings render
   larger, strong/emphasis bold/italic, syntax marks dimmed) so it reads like
   prose while staying editable text. No colored code-editor tokens.
+- **Inline notes** — `%% note to self %%` comments (Obsidian-compatible), styled
+  as quiet asides, excluded from word count, and stripped on export.
 - **Sample project fixture** — a real writer-gui Project checked into the repo at
   `examples/sample-project/` to open while developing and to assert against in
   tests. It exercises the core model: `project.json` (with a `threads` registry),
@@ -625,9 +627,9 @@ Plain-language definitions of terms used above.
 - **Export / compile** — **TBD.** Get the manuscript _out_: assemble scenes in
   order into a single deliverable (`.docx` / PDF / standard manuscript format).
   A core writer need, but format, ordering source, and styling are unscoped —
-  design later. **Contract already fixed:** export must **strip `@{…}` mention
-  wrappers**, leaving the surface text (`@{the courier}` → "the courier"), so the
-  output is clean prose.
+  design later. **Contract already fixed:** export must (1) **strip `@{…}` mention
+  wrappers**, leaving the surface text (`@{the courier}` → "the courier"), and
+  (2) **remove `%% … %%` note comments** entirely, so the output is clean prose.
 
 ## Decision history
 
@@ -716,3 +718,8 @@ initial design conversation.)
     nicknames link too (plain-name detection is the natural prose path, `@{…}`
     the explicit one). Also: Markdown source is styled in place (big headings,
     real bold/italic, dimmed marks) for prose feel without leaving source mode.
+22. **Inline notes via `%% … %%` (Obsidian-compatible).** Notes-to-self live in
+    the source as dimmed asides, are excluded from word count, and are stripped
+    on export. _Why:_ fits the plain-files, strip-on-export model (like `@{…}`) —
+    no sidecar store. Margin/anchored (Google-Docs-style) comments considered but
+    deferred as heavier (needs range-anchoring + a separate store).

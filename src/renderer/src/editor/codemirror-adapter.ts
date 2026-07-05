@@ -1,5 +1,14 @@
 import { Compartment, EditorState } from '@codemirror/state'
-import { EditorView, keymap, drawSelection, type ViewUpdate } from '@codemirror/view'
+import {
+  Decoration,
+  EditorView,
+  MatchDecorator,
+  ViewPlugin,
+  keymap,
+  drawSelection,
+  type DecorationSet,
+  type ViewUpdate
+} from '@codemirror/view'
 import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
 import { HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
@@ -115,6 +124,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         indentOnInput(),
         markdown(),
         syntaxHighlighting(proseHighlightStyle),
+        notesPlugin,
         EditorView.lineWrapping,
         autocompletion({ override: [this.completionDelegate], activateOnTyping: true }),
         keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap]),
@@ -162,6 +172,29 @@ class CodeMirrorAdapter implements EditorAdapter {
 }
 
 /**
+ * Inline `%% note to self %%` comments (Obsidian-compatible). Styled as
+ * de-emphasized asides so they don't read as prose; the export step strips them.
+ * Single-line only for now.
+ */
+const noteMatcher = new MatchDecorator({
+  regexp: /%%[^\n]*?%%/g,
+  decoration: Decoration.mark({ class: 'cm-note' })
+})
+
+const notesPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = noteMatcher.createDeco(view)
+    }
+    update(update: ViewUpdate) {
+      this.decorations = noteMatcher.updateDeco(update, this.decorations)
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+/**
  * Styles Markdown *source* in place so it reads like prose while staying
  * editable text (Obsidian-style): headings render larger, strong/emphasis are
  * bold/italic, and the syntax marks (`#`, `**`, `_`) are dimmed rather than
@@ -195,6 +228,15 @@ const proseTheme = EditorView.theme({
     maxWidth: '46rem',
     margin: '0 auto',
     padding: '2.5rem 1.5rem 40vh'
+  },
+  // Inline `%% note %%` comments: a quiet aside, not prose.
+  '.cm-note': {
+    color: 'var(--muted)',
+    backgroundColor: 'rgba(120, 120, 120, 0.12)',
+    fontStyle: 'italic',
+    fontSize: '0.9em',
+    borderRadius: '3px',
+    padding: '0 2px'
   },
   // Make diagnostics obvious: a tinted highlight behind the span plus a thicker
   // wavy underline (overriding CM's faint default).
