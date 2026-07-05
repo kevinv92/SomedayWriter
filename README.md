@@ -45,6 +45,9 @@ npm run dev      # launch the app with hot-reload
 | `npm run format`    | Format with Prettier                       |
 | `npm run package`   | Build a distributable app                  |
 
+Git hooks are set up automatically on `npm install`: **pre-commit** formats and
+lints staged files; **pre-push** runs a full type-check + lint.
+
 ## Project layout
 
 ```

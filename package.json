@@ -6,6 +6,7 @@
   "license": "MIT",
   "main": "./out/main/index.js",
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
@@ -16,6 +17,15 @@
     "format:check": "prettier --check .",
     "pack:ai": "repomix",
     "package": "electron-vite build && electron-builder"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{js,mjs,cjs,json,css,html,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
@@ -30,6 +40,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "lint-staged": "^17.0.8",
     "prettier": "^3.9.4",
     "repomix": "^1.16.0",
     "typescript": "^6.0.3",

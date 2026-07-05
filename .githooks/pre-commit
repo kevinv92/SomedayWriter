@@ -1,0 +1,3 @@
+#!/bin/sh
+# Format + lint only the staged files (fast). See package.json "lint-staged".
+npx lint-staged

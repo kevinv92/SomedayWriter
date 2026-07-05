@@ -43,6 +43,17 @@ npm run lint         # eslint
 npm run format       # prettier --write
 ```
 
+## Git hooks
+
+Native hooks live in `.githooks/` and are activated automatically on
+`npm install` (the `prepare` script sets `core.hooksPath`). No Husky.
+
+- **pre-commit** → `lint-staged`: `eslint --fix` + `prettier --write` on staged
+  files only (fast).
+- **pre-push** → `npm run typecheck && npm run lint` across the repo.
+
+Bypass in a pinch with `git commit --no-verify` — but fix it, don't leave it.
+
 ## Standards & practices
 
 - **Security is non-negotiable.** `contextIsolation: true`, `sandbox: true`,

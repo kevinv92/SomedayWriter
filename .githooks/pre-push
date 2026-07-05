@@ -1,0 +1,3 @@
+#!/bin/sh
+# Whole-repo safety net before sharing: types + lint must pass.
+npm run typecheck && npm run lint
