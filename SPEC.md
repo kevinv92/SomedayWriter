@@ -90,24 +90,31 @@ that. Everything else talks to the editor through a thin **`EditorAdapter`**
 interface — the same isolation trick as `AnalysisService`, applied to the editor
 itself. This keeps a future editor swap contained to one implementation.
 
+Implemented in Phase 1 (`src/renderer/src/editor/`): the interface and shared
+types live in `editor-adapter.ts` / `types.ts`; `codemirror-adapter.ts` is the
+only file that imports CodeMirror.
+
 ```ts
 interface EditorAdapter {
+  // Lifecycle
+  mount(parent: HTMLElement): void
+  dispose(): void
+
   // Content — Markdown text is the canonical representation in/out
-  loadDoc(uri: string, text: string): void
+  loadDoc(doc: EditorDoc): void // { uri, text }
   getText(): string
-  onChange(cb: (changes: TextChange[]) => void): void
+  onChange(cb: (text: string) => void): () => void // returns an unsubscribe fn
 
   // Analysis surface (what AnalysisService drives)
   setDiagnostics(diags: Diagnostic[]): void // squiggles (off by default)
-  showCompletions(items: Completion[]): void // intellisense popup
+  setCompletionSource(source: CompletionSource | null): void // pull-based intellisense
 
   // Navigation (visualiser / references click-to-open)
   focusRange(range: Range): void
-  getCursor(): Position
+  getCursor(): CursorPosition
 
   // Editing UX
   setVimMode(on: boolean): void
-  dispose(): void
 }
 ```
 
@@ -680,3 +687,12 @@ initial design conversation.)
     measure, line height, soft wrap, themes, focus-dimming via decorations;
     typewriter scrolling via a small custom extension), so the writing-experience
     bar isn't what's at risk — the braid-editing complexity is.
+20. **Phase 1 built; `EditorAdapter` interface refined from the sketch.** CM6 is
+    mounted behind the seam with Vim, prose typography (centered measure, serif,
+    no gutter), a demo squiggle (crutch-word linter), and `@`-mention completion
+    — all through the adapter, loading the sample-project fixture. Refinements vs.
+    the original sketch: added `mount()`; `onChange` yields the new text and
+    returns an unsubscribe fn; completions are a registered **`CompletionSource`**
+    (pull) rather than a pushed `showCompletions` list — matching how editors and
+    the future AnalysisService actually work. _Why:_ keep the seam faithful to
+    real editor + analysis mechanics.

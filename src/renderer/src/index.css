@@ -3,9 +3,10 @@
   --bg: #ffffff;
   --fg: #1a1a1a;
   --muted: #6b7280;
+  --border: #e5e7eb;
+  --panel: #f8f9fa;
   --accent: #2563eb;
-  --ok: #16a34a;
-  --error: #dc2626;
+  --accent-fg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -13,9 +14,10 @@
     --bg: #1e1e1e;
     --fg: #e5e5e5;
     --muted: #9ca3af;
-    --accent: #60a5fa;
-    --ok: #4ade80;
-    --error: #f87171;
+    --border: #333333;
+    --panel: #252526;
+    --accent: #3b82f6;
+    --accent-fg: #ffffff;
   }
 }
 
@@ -23,8 +25,14 @@
   box-sizing: border-box;
 }
 
-body {
+html,
+body,
+#root {
+  height: 100%;
   margin: 0;
+}
+
+body {
   font-family:
     system-ui,
     -apple-system,
@@ -34,35 +42,88 @@ body {
   color: var(--fg);
 }
 
-.shell {
+.app {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+}
+
+/* --- toolbar --- */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
-  padding: 3rem;
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
 }
 
-h1 {
-  margin: 0;
-  font-size: 1.75rem;
+.toolbar__group {
+  display: flex;
+  gap: 0.35rem;
 }
 
-.tagline {
-  margin: 0;
+.tab,
+.toggle {
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.tab:hover,
+.toggle:hover {
+  border-color: var(--accent);
+}
+
+.tab--active {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+.toggle--on {
+  background: var(--accent);
+  color: var(--accent-fg);
+  border-color: var(--accent);
+}
+
+/* --- editor --- */
+.editor-host {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.editor-host .cm-editor {
+  height: 100%;
+}
+
+/* --- status bar --- */
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 0.3rem 0.75rem;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
   color: var(--muted);
+  font-size: 0.75rem;
 }
 
-.ipc {
-  margin-top: 1rem;
+.statusbar__hint {
+  margin-left: auto;
 }
 
-.ipc code {
+.statusbar code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
-
-.ipc--ok strong {
-  color: var(--ok);
-}
-
-.ipc--error strong {
-  color: var(--error);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0 0.25rem;
 }
