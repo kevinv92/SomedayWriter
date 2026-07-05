@@ -122,6 +122,52 @@ npm run format       # prettier --write
 - `npm run format && npm run lint && npm run typecheck && npm run build` all
   clean. Don't disable a lint rule to pass — fix the code or justify inline.
 
+## Contributing — workflow & keeping docs in sync
+
+Code is only half the job; the docs are the memory that survives across sessions.
+When you change something, update the record in the same change.
+
+**`SPEC.md` — the design + decision record. Update it when:**
+
+- You **finish a phase or milestone** → mark it done (`✅`) and update the
+  **Status** line at the top of the Phases section (what's done, what's next).
+- You **make a non-trivial decision** (a choice with a trade-off, a scope
+  change, a reversal) → append a numbered entry to **Decision history** with the
+  _why_. Never silently contradict an existing entry — add a new one that
+  supersedes it and say so.
+- **Behavior or a contract changes** (an interface, a config key, the export
+  rules, a feature's shape) → edit the relevant section so the prose matches
+  reality. Stale spec is worse than no spec.
+
+**`AGENTS.md` (this file) — update when:**
+
+- Project structure, tooling, commands, or a standard changes.
+- A new seam/convention is introduced that future work must respect.
+
+**Other files:**
+
+- **`examples/sample-project/`** — keep the fixture in sync with the model. If
+  you add a frontmatter field or change the entity/thread shape, reflect it here
+  so it stays a valid, useful test target. Keep it small and stable.
+- **`README.md`** — human-facing; update the status blurb, features, or scripts
+  when they change. Don't put design rationale here (that's SPEC.md).
+- **Project memory** (`MEMORY.md` + `memory/`) — when the "where we are / what's
+  next" changes materially, update the status memory so a fresh session resumes
+  correctly.
+
+**Commits & verification:**
+
+- Verify first: `npm run format && npm run lint && npm run typecheck &&
+npm run build` clean; launch `npm run dev` if runtime behavior changed.
+- One logical change per commit. Imperative subject; body explains _why_ and
+  notes any spec/docs updated in the same commit.
+- End commit messages with the `Co-Authored-By: Claude …` trailer (project
+  preference).
+- Commit or push only when asked. If work isn't committed, don't claim it is.
+
+**Definition of done:** code works _and_ is verified, the spec/docs reflect it,
+and the decision (if any) is logged.
+
 ## For AI indexing
 
 - Generated/vendored dirs (`node_modules/`, `out/`, `dist/`) are git-ignored and
