@@ -459,9 +459,14 @@ longer a bake-off — it de-risks that choice and builds the seam:
 - Prove **Vim mode**, one **squiggle** (decoration), and one **completion popup**
   work through the adapter.
 - Confirm prose feel: soft wrap, comfortable typography, no code-gutter noise.
+- **Sample project fixture** — a real writer-gui Project checked into the repo at
+  `examples/sample-project/` to open while developing and to assert against in
+  tests. It exercises the core model: `project.json` (with a `threads` registry),
+  manuscript files with sparse `order` + thread tags, and character profiles the
+  prose mentions by name. Kept small and stable.
 
-**Exit:** CM6 edits a markdown file through `EditorAdapter`, with Vim + a sample
-squiggle + a sample completion working.
+**Exit:** CM6 edits a markdown file from the sample project through
+`EditorAdapter`, with Vim + a sample squiggle + a sample completion working.
 
 ### Phase 2 — Read & Edit (MVP)
 

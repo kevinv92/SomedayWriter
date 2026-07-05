@@ -27,6 +27,10 @@ src/
   preload/    contextBridge — the ONLY renderer↔main surface (window.api)
   renderer/   React UI (sandboxed; no direct fs/Node)
 electron.vite.config.ts   build config for all three
+examples/
+  sample-project/   a real writer-gui Project fixture (open it while developing;
+                    assert against it in tests) — project.json, manuscript/*.md
+                    with order + thread tags, characters/*.md profiles
 ```
 
 ## Commands

@@ -1,0 +1,19 @@
+{
+  "project": {
+    "name": "Sample Project",
+    "version": "1"
+  },
+  "editor": {
+    "defaultExtension": "md",
+    "wordWrap": true,
+    "diagnostics": false
+  },
+  "explorer": {
+    "ignore": [".git", "node_modules"]
+  },
+  "threads": {
+    "main": { "name": "Main Plot", "color": "#2563eb" },
+    "rebellion": { "name": "The Rebellion", "color": "#dc2626" },
+    "romance": { "name": "Mara & Corvin", "color": "#db2777" }
+  }
+}
