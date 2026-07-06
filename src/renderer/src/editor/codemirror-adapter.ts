@@ -1,4 +1,4 @@
-import { Compartment, EditorState } from '@codemirror/state'
+import { Compartment, EditorState, RangeSetBuilder } from '@codemirror/state'
 import {
   Decoration,
   EditorView,
@@ -135,6 +135,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         markdown(),
         syntaxHighlighting(proseHighlightStyle),
         notesPlugin,
+        frontmatterPlugin,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
         // the text rather than at the bottom, which reads better for prose.
@@ -208,6 +209,48 @@ const notesPlugin = ViewPlugin.fromClass(
     }
     update(update: ViewUpdate) {
       this.decorations = noteMatcher.updateDeco(update, this.decorations)
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+/**
+ * A leading `---` … `---` block is YAML frontmatter, but the Markdown parser
+ * doesn't know that — it reads `text\n---` as a setext H2, so the last metadata
+ * line renders as a giant heading. Tag every line of the block so CSS can style
+ * it as compact, dimmed metadata (and neutralise the stray heading styling).
+ */
+const frontmatterLine = Decoration.line({ class: 'cm-frontmatter-line' })
+
+function frontmatterDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  const { doc } = view.state
+  if (doc.lines >= 2 && doc.line(1).text.trim() === '---') {
+    let close = -1
+    for (let n = 2; n <= doc.lines; n++) {
+      if (doc.line(n).text.trim() === '---') {
+        close = n
+        break
+      }
+    }
+    if (close !== -1) {
+      for (let n = 1; n <= close; n++) {
+        builder.add(doc.line(n).from, doc.line(n).from, frontmatterLine)
+      }
+    }
+  }
+  return builder.finish()
+}
+
+const frontmatterPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = frontmatterDecorations(view)
+    }
+    update(update: ViewUpdate) {
+      // Frontmatter only sits at the top; recompute only when the doc changes.
+      if (update.docChanged) this.decorations = frontmatterDecorations(update.view)
     }
   },
   { decorations: (v) => v.decorations }
@@ -303,6 +346,17 @@ const proseTheme = EditorView.theme({
   '.cm-completionLabel': { color: 'inherit' },
   '.cm-completionDetail': { color: 'var(--muted)', fontStyle: 'italic' },
   'li[aria-selected] .cm-completionDetail': { color: 'var(--accent-fg)' },
+  // Frontmatter block: compact, dimmed metadata. `!important` + the descendant
+  // selector override the setext-heading styling the parser applies to the last
+  // line before the closing `---`.
+  '.cm-frontmatter-line, .cm-frontmatter-line *': {
+    fontSize: '0.8rem !important',
+    fontWeight: 'normal !important',
+    fontStyle: 'normal !important',
+    lineHeight: '1.35 !important',
+    color: 'var(--muted) !important',
+    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace !important'
+  },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {
     color: 'var(--muted)',
