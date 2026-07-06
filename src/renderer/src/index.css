@@ -641,6 +641,16 @@ body {
   background: #dc2626;
 }
 
+.tree:focus {
+  outline: none;
+}
+
+/* Keyboard-focused row: an accent ring that coexists with the active-file bg. */
+.tree-focused {
+  box-shadow: inset 0 0 0 1px var(--accent);
+  border-radius: 5px;
+}
+
 /* --- drag-and-drop target highlight (tree) --- */
 .tree-drop {
   outline: 2px solid var(--accent);

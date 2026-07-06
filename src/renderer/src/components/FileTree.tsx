@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TreeNode } from '@shared/types'
 import { parentDir } from '../lib/paths'
 
@@ -28,93 +28,8 @@ function targetDir(node: TreeNode): string {
   return node.type === 'directory' ? node.path : parentDir(node.path)
 }
 
-interface RowProps {
-  node: TreeNode
-  activePath: string | null
-  dropPath: string | null
-  onSelect: (path: string) => void
-  onContext: (node: TreeNode, x: number, y: number) => void
-  onDragStartNode: (node: TreeNode) => void
-  onDragOverNode: (node: TreeNode) => void
-  onDropNode: (node: TreeNode) => void
-}
-
-function FileRow(props: RowProps) {
-  const { node, activePath, dropPath, onSelect, onContext } = props
-  const editable = isEditable(node)
-  const active = node.path === activePath
-  return (
-    <button
-      className={`tree-file${active ? ' tree-file--active' : ''}${
-        editable ? '' : ' tree-file--disabled'
-      }${dropPath === node.path ? ' tree-drop' : ''}`}
-      disabled={!editable}
-      draggable={editable}
-      title={editable ? node.name : 'Only Markdown (.md) files are editable in v1'}
-      onClick={() => onSelect(node.path)}
-      onContextMenu={(e) => {
-        e.preventDefault()
-        onContext(node, e.clientX, e.clientY)
-      }}
-      onDragStart={() => props.onDragStartNode(node)}
-      onDragOver={(e) => {
-        e.preventDefault()
-        props.onDragOverNode(node)
-      }}
-      onDrop={(e) => {
-        e.preventDefault()
-        props.onDropNode(node)
-      }}
-    >
-      {node.name}
-    </button>
-  )
-}
-
-function DirRow(props: RowProps) {
-  const { node, dropPath, onContext } = props
-  const [open, setOpen] = useState(true)
-  return (
-    <div className="tree-dir">
-      <button
-        className={`tree-dir__label${dropPath === node.path ? ' tree-drop' : ''}`}
-        onClick={() => setOpen((o) => !o)}
-        onContextMenu={(e) => {
-          e.preventDefault()
-          onContext(node, e.clientX, e.clientY)
-        }}
-        onDragOver={(e) => {
-          e.preventDefault()
-          props.onDragOverNode(node)
-        }}
-        onDrop={(e) => {
-          e.preventDefault()
-          props.onDropNode(node)
-        }}
-      >
-        <span className="tree-dir__caret">{open ? '▾' : '▸'}</span>
-        {node.name}
-      </button>
-      {open && node.children && node.children.length > 0 && (
-        <div className="tree-dir__children">
-          {node.children.map((child) => (
-            <TreeItem key={child.path} {...props} node={child} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function TreeItem(props: RowProps) {
-  return props.node.type === 'directory' ? <DirRow {...props} /> : <FileRow {...props} />
-}
-
-interface Menu {
-  node: TreeNode
-  x: number
-  y: number
-}
+type FlatRow = { node: TreeNode; depth: number }
+type Menu = { node: TreeNode; x: number; y: number }
 
 export function FileTree({
   root,
@@ -126,9 +41,32 @@ export function FileTree({
   onDelete,
   onDrop
 }: FileTreeProps) {
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [focused, setFocused] = useState<string | null>(null)
   const [menu, setMenu] = useState<Menu | null>(null)
   const [dragPath, setDragPath] = useState<string | null>(null)
   const [dropPath, setDropPath] = useState<string | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Flatten the tree into the visible rows in display order (a collapsed folder
+  // hides its descendants). Drives both rendering and keyboard nav.
+  const rows = useMemo<FlatRow[]>(() => {
+    const out: FlatRow[] = []
+    const walk = (nodes: TreeNode[], depth: number) => {
+      for (const node of nodes) {
+        out.push({ node, depth })
+        if (
+          node.type === 'directory' &&
+          !collapsed.has(node.path) &&
+          node.children?.length
+        ) {
+          walk(node.children, depth + 1)
+        }
+      }
+    }
+    walk(root.children ?? [], 0)
+    return out
+  }, [root, collapsed])
 
   // Dismiss the context menu on any outside click, scroll, or Escape.
   useEffect(() => {
@@ -145,36 +83,151 @@ export function FileTree({
     }
   }, [menu])
 
-  const children = root.children ?? []
-  const openContext = (node: TreeNode, x: number, y: number) => setMenu({ node, x, y })
+  // Keep the keyboard-focused row scrolled into view.
+  useEffect(() => {
+    if (!focused) return
+    containerRef.current
+      ?.querySelector(`[data-path="${CSS.escape(focused)}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [focused])
+
+  const toggle = (path: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) next.delete(path)
+      else next.add(path)
+      return next
+    })
+
+  const activate = (node: TreeNode) => {
+    if (node.type === 'directory') toggle(node.path)
+    else if (isEditable(node)) onSelect(node.path)
+  }
+
+  // Arrow-key navigation over the flattened rows (M12).
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (menu) return
+    const idx = rows.findIndex((r) => r.node.path === focused)
+    const cur = idx >= 0 ? rows[idx] : null
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      const next = rows[idx < 0 ? 0 : Math.min(idx + 1, rows.length - 1)]
+      if (next) setFocused(next.node.path)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = rows[idx <= 0 ? 0 : idx - 1]
+      if (next) setFocused(next.node.path)
+    } else if (e.key === 'ArrowRight' && cur?.node.type === 'directory') {
+      e.preventDefault()
+      if (collapsed.has(cur.node.path)) toggle(cur.node.path)
+      else if (rows[idx + 1]?.depth > cur.depth) setFocused(rows[idx + 1].node.path)
+    } else if (e.key === 'ArrowLeft' && cur) {
+      e.preventDefault()
+      if (cur.node.type === 'directory' && !collapsed.has(cur.node.path)) {
+        toggle(cur.node.path)
+      } else {
+        for (let i = idx - 1; i >= 0; i--) {
+          if (rows[i].depth < cur.depth) {
+            setFocused(rows[i].node.path)
+            break
+          }
+        }
+      }
+    } else if (e.key === 'Enter' && cur) {
+      e.preventDefault()
+      activate(cur.node)
+    }
+  }
+
+  const openContext = (node: TreeNode, e: React.MouseEvent) => {
+    e.preventDefault()
+    setMenu({ node, x: e.clientX, y: e.clientY })
+  }
   const run = (fn: () => void) => {
     fn()
     setMenu(null)
   }
-
-  const rowProps = {
-    activePath,
-    dropPath,
-    onSelect,
-    onContext: openContext,
-    onDragStartNode: (node: TreeNode) => setDragPath(node.path),
-    onDragOverNode: (node: TreeNode) => {
-      const hover = node.type === 'directory' ? node.path : parentDir(node.path)
-      if (hover !== dropPath) setDropPath(node.path)
-    },
-    onDropNode: (node: TreeNode) => {
-      if (dragPath && dragPath !== node.path) onDrop(dragPath, node)
-      setDragPath(null)
-      setDropPath(null)
-    }
+  const onDropNode = (node: TreeNode) => {
+    if (dragPath && dragPath !== node.path) onDrop(dragPath, node)
+    setDragPath(null)
+    setDropPath(null)
   }
 
   return (
-    <div className="tree" onDragEnd={() => setDropPath(null)}>
-      {children.length === 0 ? (
+    <div
+      className="tree"
+      ref={containerRef}
+      tabIndex={0}
+      onKeyDown={onKeyDown}
+      onDragEnd={() => setDropPath(null)}
+    >
+      {rows.length === 0 ? (
         <p className="tree-empty">This project has no files yet.</p>
       ) : (
-        children.map((child) => <TreeItem key={child.path} {...rowProps} node={child} />)
+        rows.map(({ node, depth }) => {
+          const focusCls = node.path === focused ? ' tree-focused' : ''
+          const dropCls = node.path === dropPath ? ' tree-drop' : ''
+          if (node.type === 'directory') {
+            return (
+              <button
+                key={node.path}
+                data-path={node.path}
+                className={`tree-dir__label${focusCls}${dropCls}`}
+                style={{ paddingLeft: `${depth * 0.85 + 0.4}rem` }}
+                onClick={() => {
+                  toggle(node.path)
+                  setFocused(node.path)
+                }}
+                onContextMenu={(e) => openContext(node, e)}
+                onDragOver={(e) => {
+                  e.preventDefault()
+                  setDropPath(node.path)
+                }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  onDropNode(node)
+                }}
+              >
+                <span className="tree-dir__caret">
+                  {collapsed.has(node.path) ? '▸' : '▾'}
+                </span>
+                {node.name}
+              </button>
+            )
+          }
+          const editable = isEditable(node)
+          return (
+            <button
+              key={node.path}
+              data-path={node.path}
+              className={`tree-file${node.path === activePath ? ' tree-file--active' : ''}${
+                editable ? '' : ' tree-file--disabled'
+              }${focusCls}${dropCls}`}
+              style={{ paddingLeft: `${depth * 0.85 + 1.3}rem` }}
+              disabled={!editable}
+              draggable={editable}
+              title={
+                editable ? node.name : 'Only Markdown (.md) files are editable in v1'
+              }
+              onClick={() => {
+                onSelect(node.path)
+                setFocused(node.path)
+              }}
+              onContextMenu={(e) => openContext(node, e)}
+              onDragStart={() => setDragPath(node.path)}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setDropPath(node.path)
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                onDropNode(node)
+              }}
+            >
+              {node.name}
+            </button>
+          )
+        })
       )}
 
       {menu && (
