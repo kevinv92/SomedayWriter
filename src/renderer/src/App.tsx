@@ -71,6 +71,7 @@ export default function App() {
   )
   const [vim, setVim] = useState(false)
   const [diagnostics, setDiagnostics] = useState(false)
+  const [autosave, setAutosave] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
     words: 0,
     cursor: { line: 1, column: 1 }
@@ -146,7 +147,7 @@ export default function App() {
     [fireReveal, switchTo]
   )
 
-  const markDirty = (path: string, isDirty: boolean) => {
+  const markDirty = useCallback((path: string, isDirty: boolean) => {
     setDirtyPaths((prev) => {
       if (prev.has(path) === isDirty) return prev
       const next = new Set(prev)
@@ -154,7 +155,7 @@ export default function App() {
       else next.delete(path)
       return next
     })
-  }
+  }, [])
 
   const handleDocChange = useCallback(
     (text: string) => {
@@ -164,21 +165,32 @@ export default function App() {
       buffer.current = text
       markDirty(activePath, text !== buffer.saved)
     },
-    [activePath]
+    [activePath, markDirty]
   )
 
-  const saveTab = async (path: string): Promise<boolean> => {
-    const buffer = docsRef.current.get(path)
-    if (!buffer) return true
-    const result = await window.api.writeFile(path, buffer.current)
-    if (!result.ok) {
-      setNotice(`Couldn't save: ${result.error}`)
-      return false
-    }
-    buffer.saved = buffer.current
-    markDirty(path, false)
-    return true
-  }
+  const saveTab = useCallback(
+    async (path: string): Promise<boolean> => {
+      const buffer = docsRef.current.get(path)
+      if (!buffer) return true
+      const result = await window.api.writeFile(path, buffer.current)
+      if (!result.ok) {
+        setNotice(`Couldn't save: ${result.error}`)
+        return false
+      }
+      buffer.saved = buffer.current
+      markDirty(path, false)
+      return true
+    },
+    [markDirty]
+  )
+
+  // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
+  // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
+  useEffect(() => {
+    if (!autosave || !activePath || !dirtyPaths.has(activePath)) return
+    const timer = setTimeout(() => void saveTab(activePath), 1000)
+    return () => clearTimeout(timer)
+  }, [autosave, activePath, dirtyPaths, saveTab])
 
   const doCloseTab = (path: string) => {
     const idx = openPaths.indexOf(path)
@@ -268,6 +280,7 @@ export default function App() {
     setDirtyPaths(new Set())
     setNotice(null)
     setDiagnostics(result.project.config.editor?.diagnostics ?? false)
+    setAutosave(result.project.config.editor?.autosave ?? false)
   }, [])
 
   const openProject = useCallback(async () => {
@@ -532,6 +545,13 @@ export default function App() {
             onClick={() => setDiagnostics((d) => !d)}
           >
             Diagnostics: {diagnostics ? 'on' : 'off'}
+          </button>
+          <button
+            className={`toggle${autosave ? ' toggle--on' : ''}`}
+            title="Auto-save edits a moment after you stop typing"
+            onClick={() => setAutosave((a) => !a)}
+          >
+            Autosave: {autosave ? 'on' : 'off'}
           </button>
         </div>
       </header>

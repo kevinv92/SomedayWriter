@@ -24,6 +24,8 @@ export type ProjectConfig = {
     fontSize?: number
     /** Line height (unitless). Default 1.7. */
     lineHeight?: number
+    /** Auto-save edits (debounced) instead of only on Cmd/Ctrl+S. Default false. */
+    autosave?: boolean
   }
   explorer?: { ignore?: string[] }
   threads?: Record<string, { name?: string; color?: string }>
