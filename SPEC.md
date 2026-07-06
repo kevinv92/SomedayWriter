@@ -292,6 +292,37 @@ So a normal file declares **no** `title`; it just has `# Arrival`. Frontmatter
 `title` stays available for the override case. `StoryIndex` computes the title
 (Phase 5) so every consumer agrees on one value.
 
+## Comments & editorial marks (CriticMarkup)
+
+**Anchored** comments — attached to a specific span, not just dropped in at a
+point. Uses **CriticMarkup**, the standard plain-text convention, so comments
+live in the `.md` file (no sidecar store) and CodeMirror tracks the anchor for
+free as the text around it changes.
+
+- **Syntax** — a comment at a point is `{>> note to self <<}`; attached to a span
+  it pairs with a highlight: `{==the harbor smelled of tar==}{>> too much? <<}`.
+- **Rendering reuses the squiggle toolbox.** A **decoration** highlights the
+  `{==span==}` and dims/hides the `{>> … <<}` syntax (optionally a small 💬
+  widget); a **hover tooltip** (CM6's `hoverTooltip`, the _same_ facility the lint
+  squiggles use) shows the note; click to edit, or edit the raw text in place.
+  Optional extras, all CM-native: a gutter comment marker and a per-file comments
+  list (feeds the _Inspector_ pane).
+- **Anchor for free** — because the mark is inline text, editing before it moves
+  the highlight automatically: **no sidecar store, no offset remapping, no anchor
+  drift.** That's why this is far lighter than a Google-Docs margin/threaded
+  system (which stays a possible later _display_ layer on top of these marks, not
+  the foundation).
+- **Two granularities, one family.** `%%…%%` stays the **unanchored** aside (a
+  note at a point in the flow); `{>>…<<}` is the **anchored** comment (about a
+  span). Both are personal and **stripped on export**.
+- **Export** — remove `{>> … <<}` comments entirely and unwrap `{==span==}` to its
+  text. (CriticMarkup also defines suggested-edit marks — `{++ins++}`,
+  `{--del--}`, `{~~a~>b~~}` — a natural future _tracked-changes_ layer that export
+  would accept/reject; out of scope for comments themselves.)
+- **Seam fit** — rendering is a codemirror-adapter decoration (like the `%%`
+  notes + frontmatter plugins already are); a comments _panel_ would surface
+  parsed comments through the analysis facade. No new architecture.
+
 ## Search, quick-open & command palette
 
 Four keyboard-first surfaces, modeled on VS Code. All open on a shortcut, filter
@@ -862,6 +893,23 @@ semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
 "Giant's Rest" (via aliases), just like a character; every entity type shares one
 code path.
 
+### Phase 8 — Editorial marks (comments & revisions)
+
+Post-v1 editorial layer, plain-text via CriticMarkup — see _Comments & editorial
+marks_. Reuses the decoration + hover-tooltip machinery already in the editor.
+
+- **M19** — **Anchored comments.** `{>>…<<}` (at a point) and
+  `{==span==}{>>…<<}` (attached to a span), rendered as a highlight + hover
+  tooltip, edit-in-source; stripped on export. Reuses the `%%`-notes decoration
+  pattern.
+- **M20** _(optional)_ — **Comments panel** — a per-file list of comments
+  (click-to-jump), surfaced through the inspector / analysis facade.
+- **M21** _(stretch)_ — **Suggested edits / tracked changes** — CriticMarkup
+  insert / delete / substitute marks, accepted or rejected on export.
+
+**Exit:** highlight a sentence, attach a private comment that survives editing
+around it, and confirm it never reaches the exported prose.
+
 > **AI features are out of scope for these phases** — see _AI features (split out
 > — deferred)_. They ride the same facade and can be added later without
 > reworking the phases above.
@@ -946,8 +994,10 @@ Plain-language definitions of terms used above.
   order into a single deliverable (`.docx` / PDF / standard manuscript format).
   A core writer need, but format, ordering source, and styling are unscoped —
   design later. **Contract already fixed:** export must (1) **strip `@{…}` mention
-  wrappers**, leaving the surface text (`@{the courier}` → "the courier"), and
-  (2) **remove `%% … %%` note comments** entirely, so the output is clean prose.
+  wrappers**, leaving the surface text (`@{the courier}` → "the courier"),
+  (2) **remove `%% … %%` note comments** entirely, and (3) **strip CriticMarkup**
+  — remove `{>> … <<}` comments and unwrap `{==span==}` highlights to their text —
+  so the output is clean prose.
 
 ## Deferred decisions (revisit later)
 
@@ -1209,3 +1259,14 @@ initial design conversation.)
     build on one agreed model without a rewrite, without over-building before it's
     needed. Marker file stays an explicit declaration (identity remains
     frontmatter-driven, not folder-name-driven — cf. the affirmed principle).
+35. **Anchored comments via CriticMarkup (Phase 8) — resolves the deferred half of
+    #22.** Comments attach to a span with CriticMarkup
+    (`{==span==}{>>note<<}`), so they live inline in the `.md` (no sidecar store)
+    and CodeMirror anchors them **for free** as the text shifts. Rendered with a
+    decoration + `hoverTooltip` — the same toolbox as the lint squiggles. `%%…%%`
+    stays the _unanchored_ note; `{>>…<<}` is the _anchored_ comment; both strip on
+    export (the contract now also unwraps `{==…==}` highlights). Google-Docs
+    margin/threads stays a possible later _display_ layer, not the foundation.
+    CriticMarkup also opens a future tracked-changes lane (M21). _Why:_ inline
+    marks dodge the anchor-drift + separate-store cost that made #22 defer this,
+    and reuse decoration machinery the editor already has.
