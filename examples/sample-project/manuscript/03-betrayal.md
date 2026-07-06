@@ -1,6 +1,6 @@
 ---
 title: Betrayal
-order: 30
+order: 35
 threads: [rebellion, romance]
 ---
 

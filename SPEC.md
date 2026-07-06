@@ -560,11 +560,13 @@ Constraints when it lands:
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-06):** Phases 0–3 ✅ complete. **Next: Phase 4** (language
-> intelligence — `AnalysisService` + spellcheck provider). Phase 3 shipped New
-> Project, explorer file ops, in-document + project-wide search/replace, drag
-> reorder/move with sparse frontmatter `order`, and the edit-safety guard
-> (unsaved changes prompt on file switch).
+> **Status (2026-07-06):** Phases 0–4 ✅ complete. **Next: Phase 5** (story
+> intelligence — `StoryIndex` + `CharacterProvider`/`ThreadProvider`). Phase 4
+> shipped the `AnalysisService` facade + provider registry wired through the
+> `EditorAdapter`: a spell provider (diagnostics, off by default) and a mention
+> provider (completion). Phase 3 shipped New Project, explorer file ops,
+> in-document + project-wide search/replace, drag reorder/move with sparse
+> frontmatter `order`, and the edit-safety guard.
 
 ### Phase 0 — Scaffold ✅
 
@@ -636,13 +638,18 @@ Make it a real workspace, not just a viewer.
 **Exit:** can create a project from scratch, manage and reorder its files,
 search/replace across it, and never lose unsaved work by switching files.
 
-### Phase 4 — Language intelligence
+### Phase 4 — Language intelligence ✅
 
 Prove the pluggable analysis path end to end.
 
-- **M7** — `AnalysisService` facade + one provider (spellcheck) wired to CM6
-  lint & autocomplete; diagnostics push, completions pull. Diagnostics **off by
-  default** with a UI toggle + `editor.diagnostics` setting.
+- **M7** ✅ — `AnalysisService` facade + provider registry, wired to CM6 lint &
+  autocomplete **through the `EditorAdapter`** (the app/facade never import CM).
+  Diagnostics **push**, completions **pull**; debounce + the on/off gate live in
+  the facade. Diagnostics **off by default** (UI toggle + `editor.diagnostics`).
+  Two providers ship: a **spell provider** (diagnostics — common misspellings +
+  repeated words; dictionary-free so false positives are near-zero) and a
+  **mention provider** (completion — the `@`-mention demo, moved behind the
+  facade; Phase 5 swaps in a StoryIndex-backed `CharacterProvider`).
 
 **Exit:** suggestions from a provider work; squiggles appear only when the writer
 turns diagnostics on. Facade seam ready for more providers (incl. future AI and
@@ -984,3 +991,16 @@ initial design conversation.)
     they overlap; plain JSON, zero-dep (no `electron-store`). Introduced in Phase 6
     (M12, recent projects). _Why:_ recent projects and global prefs are inherently
     not project-scoped and must persist across projects and launches.
+29. **Phase 4 built; analysis facade + a dictionary-free spell provider.** The
+    `AnalysisService` (renderer) holds the provider registry, debounces, gates
+    diagnostics on/off, and merges completions; the editor reaches it only
+    through the existing `setDiagnostics`/`setCompletionSource` adapter methods,
+    so the CM-only rule holds. The Phase 1 demo wiring is gone: `@`-mentions moved
+    into a `mention` **provider**, and the crutch-word demo was replaced by a
+    `spell` **provider** (common-misspellings map + repeated-word detection).
+    _Why the lightweight spell check:_ a real Hunspell dictionary is ~1MB and
+    Phase 4 is about proving the pluggable path, not shipping a dictionary — and
+    a full `nspell`-in-main provider can register alongside later with **zero**
+    facade changes (exactly the payoff of the design). Provider positions use
+    **offsets**, not LSP line/char, matching the editor seam (refines the sketch,
+    cf. #20).

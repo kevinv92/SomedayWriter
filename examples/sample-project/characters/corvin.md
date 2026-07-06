@@ -1,4 +1,5 @@
 ---
+order: 20
 type: character
 name: Corvin
 aliases: [Captain Corvin, the captain]

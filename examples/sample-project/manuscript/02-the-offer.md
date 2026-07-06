@@ -1,6 +1,6 @@
 ---
 title: The Offer
-order: 20
+order: 25
 threads: [main, rebellion]
 ---
 

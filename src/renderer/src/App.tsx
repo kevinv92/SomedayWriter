@@ -3,6 +3,9 @@ import { Editor, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
 import { ProjectSearch } from './components/ProjectSearch'
+import { AnalysisService } from './analysis/analysis-service'
+import { createMentionProvider } from './analysis/providers/mention-provider'
+import { createSpellProvider } from './analysis/providers/spell-provider'
 import type { EditorDoc } from './editor/types'
 import type { ProjectMeta, TreeNode } from '@shared/types'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
@@ -50,6 +53,16 @@ export default function App() {
     () => (activeDoc ? { uri: activeDoc.path, text: activeDoc.text } : null),
     [activeDoc]
   )
+
+  // The analysis facade + its providers (Phase 4). Created once; the editor
+  // talks only to this, never to a provider (SPEC seam).
+  const analysis = useMemo(() => {
+    const service = new AnalysisService()
+    service.register(createMentionProvider())
+    service.register(createSpellProvider())
+    return service
+  }, [])
+  useEffect(() => () => analysis.dispose(), [analysis])
 
   const refreshTree = async () => {
     setTree(await window.api.readTree())
@@ -394,6 +407,7 @@ export default function App() {
               doc={doc}
               vimEnabled={vim}
               diagnosticsEnabled={diagnostics}
+              analysis={analysis}
               onStatus={setStatus}
               onDocChange={handleDocChange}
               revealTarget={revealTarget}
