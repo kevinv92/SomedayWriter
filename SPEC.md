@@ -827,16 +827,17 @@ any client.
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-06):** Phases 0–4 ✅ **and Phase 6 ✅** (the v1 Major
-> Milestone) complete — Phase 6 was built ahead of Phase 5, which they don't
-> depend on. **Next: Phase 5** (story intelligence — `StoryIndex` +
-> `CharacterProvider`/`ThreadProvider`). Phase 6 shipped: app-settings store +
-> recent projects + resizable sidebar (M12; tree keyboard-nav still to do), tabs
-> with per-tab unsaved buffers (M13), opt-in autosave (M14), Quick Open +
-> Command Palette on a command registry (M15), and a unified find UI (M16) — all
-> **visually verified** (launch with `ELECTRON_RUN_AS_NODE` unset + CDP; see the
-> GUI-verify memory). Phase 4 = the `AnalysisService` facade + spell/mention
-> providers; Phase 3 = file ops, search/replace, drag reorder, edit-safety.
+> **Status (2026-07-06):** Phases 0–4 ✅, Phase 6 ✅ (v1 Major Milestone) + the
+> keyboard navigation, and **Phase 5 in progress** — M8 part 1 done: `StoryIndex`
+> (main; real YAML frontmatter parse) + real `@`-mention completion from profile
+> files (`CharacterProvider` replaced the demo). **Next in Phase 5:** M8c
+> (find-references **panel** + go-to-definition — the `referencesTo` backend
+> already works), then M8b inspector, M9 `ThreadProvider`, M10 braid visualiser.
+> Everything built is **CDP-verified** (launch with `ELECTRON_RUN_AS_NODE` unset;
+> see the GUI-verify memory). Phase 6 = tabs/autosave/quick-open+palette/unified
+> find/recent projects/resizable+keyboard-nav sidebar; Phase 4 = `AnalysisService`
+> facade + spell provider; Phase 3 = file ops, search/replace, drag reorder,
+> edit-safety. Phases 7–12 are specced, not built.
 
 ### Phase 0 — Scaffold ✅
 
@@ -929,10 +930,13 @@ turns diagnostics on. Facade seam ready for more providers (incl. future AI and
 
 The signature features, no AI.
 
-- **M8** — `StoryIndex` scanning the project + `CharacterProvider`
-  (@-mention completion, find-references, go-to-definition). Includes the full
-  YAML frontmatter parse (deferred from M6) and the derived **title** (see _File
-  titles_).
+- **M8** _(part 1 ✅)_ — `StoryIndex` scanning the project + `CharacterProvider`.
+  **Built:** the index (main; `story-index.ts`), the full YAML frontmatter parse
+  (`parseFrontmatter`/`deriveTitle` in `frontmatter.ts`), type-generic entity
+  extraction, `referencesTo`, IPC (`story:entities`/`story:references`), and real
+  `@`-mention completion from profile files (`CharacterProvider` replaced the demo).
+  **Remaining (M8c):** the find-references **panel** (backend done) and
+  **go-to-definition** UI (a gesture/command on a mention → open the profile).
 - **M8b** — **Inspector (file details) pane** — a read-only mirror of what
   `StoryIndex` parsed for the current file (title source, order, threads,
   mentions, parse warnings). See _Inspector (file details) pane_.
