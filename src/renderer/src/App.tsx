@@ -22,9 +22,12 @@ import type {
 } from '@shared/types'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 
-type ActiveDoc = { path: string; text: string }
-
 type Reveal = { line: number; column: number }
+
+/** One open document: its last-saved baseline and its live buffer. Kept in a ref
+ * (not state) so per-keystroke edits don't re-render App; switching tabs restores
+ * the live buffer, so unsaved edits are never lost (M13). */
+type OpenBuffer = { saved: string; current: string }
 
 // Resolve an editor.font value to a CSS font-family: a preset keyword, or a
 // custom family string passed through as-is (an installed font).
@@ -49,15 +52,20 @@ export default function App() {
   const [recents, setRecents] = useState<RecentProject[]>([])
   const [sidebarWidth, setSidebarWidth] = useState(240)
   const [tree, setTree] = useState<TreeNode | null>(null)
-  const [activeDoc, setActiveDoc] = useState<ActiveDoc | null>(null)
-  const [dirty, setDirty] = useState(false)
+
+  // Open tabs: the ordered paths, which is active, and which are dirty. The
+  // text buffers live in `docsRef` (see OpenBuffer).
+  const [openPaths, setOpenPaths] = useState<string[]>([])
+  const [activePath, setActivePath] = useState<string | null>(null)
+  // The text to load into the editor for the active tab — set only on switch, so
+  // the editor doesn't reload on every keystroke (the live buffer is in docsRef).
+  const [activeLoadText, setActiveLoadText] = useState('')
+  const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set())
+  const [closingTab, setClosingTab] = useState<string | null>(null)
+
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [pendingOpen, setPendingOpen] = useState<{
-    path: string
-    reveal: Reveal | null
-  } | null>(null)
   const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
     null
   )
@@ -68,16 +76,18 @@ export default function App() {
     cursor: { line: 1, column: 1 }
   })
 
-  // Latest editor text and the last-saved baseline, kept in refs so per-keystroke
-  // edits don't re-render App — only the derived `dirty` flag does.
-  const savedTextRef = useRef('')
-  const currentTextRef = useRef('')
+  const docsRef = useRef(new Map<string, OpenBuffer>())
   const revealNonce = useRef(0)
 
+  // The doc handed to the editor — keyed on the active tab only, so typing (which
+  // mutates the buffer in the ref) never re-loads the editor. Switching tabs
+  // recomputes and loads that tab's live buffer.
   const doc = useMemo<EditorDoc | null>(
-    () => (activeDoc ? { uri: activeDoc.path, text: activeDoc.text } : null),
-    [activeDoc]
+    () => (activePath ? { uri: activePath, text: activeLoadText } : null),
+    [activePath, activeLoadText]
   )
+
+  const dirty = activePath ? dirtyPaths.has(activePath) : false
 
   // The analysis facade + its providers (Phase 4). Created once; the editor
   // talks only to this, never to a provider (SPEC seam).
@@ -93,7 +103,152 @@ export default function App() {
     setTree(await window.api.readTree())
   }
 
-  // Apply an open-project result (shared by the dialog and open-recent flows).
+  const fireReveal = useCallback((reveal: Reveal) => {
+    revealNonce.current += 1
+    setRevealTarget({ ...reveal, nonce: revealNonce.current })
+  }, [])
+
+  // --- tabs: open / switch / close (M13) ---
+
+  /** Make a tab active and load its live buffer into the editor. */
+  const switchTo = useCallback((path: string) => {
+    setActivePath(path)
+    setActiveLoadText(docsRef.current.get(path)?.current ?? '')
+  }, [])
+
+  const clearActive = useCallback(() => {
+    setActivePath(null)
+    setActiveLoadText('')
+  }, [])
+
+  /** Open a file in a tab (or switch to it if already open); optionally reveal a
+   * line. Switching never loses edits — each tab keeps its own live buffer. */
+  const openFile = useCallback(
+    (path: string, reveal?: Reveal) => {
+      if (docsRef.current.has(path)) {
+        switchTo(path)
+        if (reveal) fireReveal(reveal)
+        return
+      }
+      void (async () => {
+        const result = await window.api.readFile(path)
+        if (!result.ok) {
+          setNotice(`Couldn't open file: ${result.error}`)
+          return
+        }
+        docsRef.current.set(path, { saved: result.text, current: result.text })
+        setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
+        switchTo(path)
+        setNotice(null)
+        if (reveal) fireReveal(reveal)
+      })()
+    },
+    [fireReveal, switchTo]
+  )
+
+  const markDirty = (path: string, isDirty: boolean) => {
+    setDirtyPaths((prev) => {
+      if (prev.has(path) === isDirty) return prev
+      const next = new Set(prev)
+      if (isDirty) next.add(path)
+      else next.delete(path)
+      return next
+    })
+  }
+
+  const handleDocChange = useCallback(
+    (text: string) => {
+      if (!activePath) return
+      const buffer = docsRef.current.get(activePath)
+      if (!buffer) return
+      buffer.current = text
+      markDirty(activePath, text !== buffer.saved)
+    },
+    [activePath]
+  )
+
+  const saveTab = async (path: string): Promise<boolean> => {
+    const buffer = docsRef.current.get(path)
+    if (!buffer) return true
+    const result = await window.api.writeFile(path, buffer.current)
+    if (!result.ok) {
+      setNotice(`Couldn't save: ${result.error}`)
+      return false
+    }
+    buffer.saved = buffer.current
+    markDirty(path, false)
+    return true
+  }
+
+  const doCloseTab = (path: string) => {
+    const idx = openPaths.indexOf(path)
+    const next = openPaths.filter((p) => p !== path)
+    docsRef.current.delete(path)
+    setOpenPaths(next)
+    markDirty(path, false)
+    if (activePath === path) {
+      if (next.length) switchTo(next[Math.min(idx, next.length - 1)])
+      else clearActive()
+    }
+  }
+
+  const closeTab = (path: string) => {
+    if (dirtyPaths.has(path)) {
+      setClosingTab(path)
+      return
+    }
+    doCloseTab(path)
+  }
+
+  const resolveClosing = async (action: 'save' | 'discard') => {
+    const path = closingTab
+    if (!path) return
+    if (action === 'save' && !(await saveTab(path))) {
+      setClosingTab(null)
+      return
+    }
+    setClosingTab(null)
+    doCloseTab(path)
+  }
+
+  // Keep open tabs pointing at a renamed/moved file or folder (content unchanged).
+  const remapOpenDocs = (from: string, to: string) => {
+    const remap = (p: string) =>
+      p === from ? to : isInsideDir(p, from) ? to + p.slice(from.length) : p
+    const map = docsRef.current
+    let changed = false
+    for (const [p, buffer] of [...map.entries()]) {
+      const np = remap(p)
+      if (np !== p) {
+        map.delete(p)
+        map.set(np, buffer)
+        changed = true
+      }
+    }
+    if (!changed) return
+    setOpenPaths((prev) => prev.map(remap))
+    setActivePath((prev) => (prev ? remap(prev) : prev))
+    setDirtyPaths((prev) => new Set([...prev].map(remap)))
+  }
+
+  // Close tabs for a deleted file/folder.
+  const closeDocsUnder = (path: string) => {
+    const affected = [...docsRef.current.keys()].filter(
+      (p) => p === path || isInsideDir(p, path)
+    )
+    if (!affected.length) return
+    affected.forEach((p) => docsRef.current.delete(p))
+    const next = openPaths.filter((p) => !affected.includes(p))
+    setOpenPaths(next)
+    setDirtyPaths((prev) => new Set([...prev].filter((p) => !affected.includes(p))))
+    if (activePath && affected.includes(activePath)) {
+      if (next.length) switchTo(next[next.length - 1])
+      else clearActive()
+    }
+  }
+
+  // --- project open ---
+
   const applyOpenResult = useCallback(async (result: OpenProjectResult) => {
     if (!result.ok) {
       if (result.reason === 'cancelled') return
@@ -105,10 +260,12 @@ export default function App() {
       return
     }
     const nextTree = await window.api.readTree()
+    docsRef.current.clear()
     setProject(result.project)
     setTree(nextTree)
-    setActiveDoc(null)
-    setDirty(false)
+    setOpenPaths([])
+    setActivePath(null)
+    setDirtyPaths(new Set())
     setNotice(null)
     setDiagnostics(result.project.config.editor?.diagnostics ?? false)
   }, [])
@@ -152,86 +309,6 @@ export default function App() {
     })()
   }, [project])
 
-  // Load a file into the editor (optionally revealing a line). No dirty guard —
-  // callers go through `requestOpen` for that.
-  const loadFile = useCallback(async (path: string, reveal?: Reveal) => {
-    const result = await window.api.readFile(path)
-    if (!result.ok) {
-      setNotice(`Couldn't open file: ${result.error}`)
-      return
-    }
-    savedTextRef.current = result.text
-    currentTextRef.current = result.text
-    setActiveDoc({ path, text: result.text })
-    setDirty(false)
-    setNotice(null)
-    if (reveal) {
-      revealNonce.current += 1
-      setRevealTarget({ ...reveal, nonce: revealNonce.current })
-    }
-  }, [])
-
-  // Open a file, but guard unsaved edits in the current one (edit-safety fix).
-  const requestOpen = useCallback(
-    (path: string, reveal?: Reveal) => {
-      // Already open: just reveal — never re-read from disk (would drop edits).
-      if (activeDoc?.path === path) {
-        if (reveal) {
-          revealNonce.current += 1
-          setRevealTarget({ ...reveal, nonce: revealNonce.current })
-        }
-        return
-      }
-      if (activeDoc && dirty) {
-        setPendingOpen({ path, reveal: reveal ?? null })
-        return
-      }
-      void loadFile(path, reveal)
-    },
-    [activeDoc, dirty, loadFile]
-  )
-
-  const handleDocChange = useCallback((text: string) => {
-    currentTextRef.current = text
-    setDirty(text !== savedTextRef.current)
-  }, [])
-
-  const save = useCallback(async (): Promise<boolean> => {
-    if (!activeDoc) return true
-    const text = currentTextRef.current
-    const result = await window.api.writeFile(activeDoc.path, text)
-    if (!result.ok) {
-      setNotice(`Couldn't save: ${result.error}`)
-      return false
-    }
-    savedTextRef.current = text
-    setDirty(false)
-    return true
-  }, [activeDoc])
-
-  const resolvePending = async (action: 'save' | 'discard') => {
-    const pending = pendingOpen
-    if (!pending) return
-    if (action === 'save' && !(await save())) {
-      setPendingOpen(null) // save failed — keep edits, don't switch
-      return
-    }
-    setPendingOpen(null)
-    void loadFile(pending.path, pending.reveal ?? undefined)
-  }
-
-  // Point the open doc at a moved/renamed path (content unchanged on disk).
-  const remapActiveDoc = (from: string, to: string) => {
-    if (activeDoc?.path === from) {
-      setActiveDoc({ path: to, text: currentTextRef.current })
-    } else if (activeDoc && isInsideDir(activeDoc.path, from)) {
-      setActiveDoc({
-        path: to + activeDoc.path.slice(from.length),
-        text: currentTextRef.current
-      })
-    }
-  }
-
   // --- explorer file operations (M4) ---
 
   async function createFileIn(dir: string, name: string) {
@@ -243,7 +320,7 @@ export default function App() {
       return
     }
     await refreshTree()
-    if (fileName.endsWith('.md')) requestOpen(path)
+    if (fileName.endsWith('.md')) openFile(path)
   }
 
   async function createFolderIn(dir: string, name: string) {
@@ -263,7 +340,7 @@ export default function App() {
       setNotice(`Couldn't rename: ${result.error}`)
       return
     }
-    remapActiveDoc(node.path, to)
+    remapOpenDocs(node.path, to)
     await refreshTree()
   }
 
@@ -273,19 +350,12 @@ export default function App() {
       setNotice(`Couldn't delete: ${result.error}`)
       return
     }
-    if (
-      activeDoc &&
-      (activeDoc.path === node.path || isInsideDir(activeDoc.path, node.path))
-    ) {
-      setActiveDoc(null)
-      setDirty(false)
-    }
+    closeDocsUnder(node.path)
     await refreshTree()
   }
 
   // --- manuscript order + move (M6) ---
 
-  /** The children array that contains `path` (its siblings), or []. */
   const siblingsOf = (path: string): TreeNode[] => {
     const search = (node: TreeNode): TreeNode[] | null => {
       if (!node.children) return null
@@ -313,12 +383,10 @@ export default function App() {
       setNotice(`Couldn't move: ${result.error}`)
       return
     }
-    remapActiveDoc(fromPath, to)
+    remapOpenDocs(fromPath, to)
     await refreshTree()
   }
 
-  /** Drop `draggedPath` on `target`: onto a folder → move in; onto an .md file →
-   * place right after it (reorder), moving into that folder first if needed. */
   async function handleDrop(draggedPath: string, target: TreeNode) {
     if (target.type === 'directory') {
       await moveInto(draggedPath, target.path)
@@ -337,7 +405,6 @@ export default function App() {
     const next = sibs[ti + 1]
     let a = sibs[ti].order
     let b = next?.order
-    // Ensure the neighbours have orders; renormalize the run if not.
     if (a == null || (next && b == null)) {
       await renormalize(sibs)
       a = (ti + 1) * 10
@@ -356,27 +423,37 @@ export default function App() {
         setNotice(`Couldn't move: ${moved.error}`)
         return
       }
-      remapActiveDoc(draggedPath, to)
+      remapOpenDocs(draggedPath, to)
     }
     await refreshTree()
   }
 
-  // Cmd/Ctrl+S saves; Cmd/Ctrl+Shift+F toggles project search. (Plain Cmd/Ctrl+F
-  // is handled inside the editor by CodeMirror.) `save` is read via a ref so the
-  // listener binds once yet always calls the current closure.
-  const saveRef = useRef(save)
+  // --- keyboard shortcuts ---
+
+  const saveRef = useRef<() => void>(() => {})
+  const closeActiveRef = useRef<() => void>(() => {})
   useEffect(() => {
-    saveRef.current = save
-  }, [save])
+    saveRef.current = () => {
+      if (activePath) void saveTab(activePath)
+    }
+    closeActiveRef.current = () => {
+      if (activePath) closeTab(activePath)
+    }
+  })
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey
-      if (mod && !e.shiftKey && e.key.toLowerCase() === 's') {
+      if (!mod) return
+      const k = e.key.toLowerCase()
+      if (k === 's' && !e.shiftKey) {
         e.preventDefault()
-        void saveRef.current()
-      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'f') {
+        saveRef.current()
+      } else if (k === 'f' && e.shiftKey) {
         e.preventDefault()
         setSearchOpen((v) => !v)
+      } else if (k === 'w') {
+        e.preventDefault()
+        closeActiveRef.current()
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -412,8 +489,7 @@ export default function App() {
     )
   }
 
-  // Editor typography from config, applied as CSS vars on the editor pane (no
-  // CodeMirror rebuild). Each falls back to the prose default.
+  // Editor typography from config, applied as CSS vars on the editor pane.
   const ed = project.config.editor
   const measureVar =
     ed?.measure === 'full'
@@ -421,10 +497,9 @@ export default function App() {
       : typeof ed?.measure === 'number'
         ? `${ed.measure}rem`
         : '46rem'
-  const fontVar = fontStack(ed?.font)
   const editorStyle = {
     '--editor-measure': measureVar,
-    '--editor-font': fontVar,
+    '--editor-font': fontStack(ed?.font),
     '--editor-font-size': ed?.fontSize ? `${ed.fontSize}px` : '16px',
     '--editor-line-height': ed?.lineHeight ? String(ed.lineHeight) : '1.7'
   } as CSSProperties
@@ -485,8 +560,8 @@ export default function App() {
           {tree ? (
             <FileTree
               root={tree}
-              activePath={activeDoc?.path ?? null}
-              onSelect={(path) => requestOpen(path)}
+              activePath={activePath}
+              onSelect={(path) => openFile(path)}
               onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
               onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
               onRename={(node) => setModal({ kind: 'rename', node })}
@@ -506,6 +581,31 @@ export default function App() {
         />
 
         <main className="main" style={editorStyle}>
+          {openPaths.length > 0 && (
+            <div className="tabstrip">
+              {openPaths.map((p) => (
+                <div
+                  key={p}
+                  className={`tabstrip__tab${p === activePath ? ' tabstrip__tab--active' : ''}`}
+                  title={p}
+                  onClick={() => switchTo(p)}
+                >
+                  <span className="tabstrip__name">{basename(p)}</span>
+                  {dirtyPaths.has(p) && <span className="tabstrip__dot" />}
+                  <button
+                    className="tabstrip__close"
+                    title="Close (⌘/Ctrl+W)"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      closeTab(p)
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {doc ? (
             <Editor
               doc={doc}
@@ -524,14 +624,14 @@ export default function App() {
         {searchOpen && (
           <ProjectSearch
             onClose={() => setSearchOpen(false)}
-            onOpenMatch={(path, line, column) => requestOpen(path, { line, column })}
+            onOpenMatch={(path, line, column) => openFile(path, { line, column })}
           />
         )}
       </div>
 
       <footer className="statusbar">
         <span>
-          {activeDoc ? basename(activeDoc.path) : 'No file open'}
+          {activePath ? basename(activePath) : 'No file open'}
           {dirty && <span className="statusbar__dot" title="Unsaved changes" />}
         </span>
         <span>{status.words} words</span>
@@ -602,12 +702,12 @@ export default function App() {
         />
       )}
 
-      {pendingOpen && (
+      {closingTab && (
         <UnsavedChangesModal
-          filename={activeDoc ? basename(activeDoc.path) : 'this file'}
-          onSave={() => void resolvePending('save')}
-          onDiscard={() => void resolvePending('discard')}
-          onCancel={() => setPendingOpen(null)}
+          filename={basename(closingTab)}
+          onSave={() => void resolveClosing('save')}
+          onDiscard={() => void resolveClosing('discard')}
+          onCancel={() => setClosingTab(null)}
         />
       )}
     </div>

@@ -132,6 +132,63 @@ body {
   font-size: 0.9rem;
 }
 
+/* --- editor tabs (M13) --- */
+.tabstrip {
+  display: flex;
+  flex-shrink: 0;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.tabstrip__tab {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.5rem 0.3rem 0.7rem;
+  border-right: 1px solid var(--border);
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+  max-width: 16rem;
+}
+
+.tabstrip__tab--active {
+  color: var(--fg);
+  background: var(--bg);
+}
+
+.tabstrip__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tabstrip__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+}
+
+.tabstrip__close {
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.tabstrip__close:hover {
+  background: var(--border);
+  color: var(--fg);
+}
+
 /* --- file tree --- */
 .tree {
   display: flex;
