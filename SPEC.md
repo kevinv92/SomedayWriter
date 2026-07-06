@@ -335,8 +335,10 @@ as you type, and dismiss with `Esc`.
   regex toggles as the extension provides.
 - **Project-wide find & replace — `Cmd/Ctrl+Shift+F`** _(M5)._ Search text across
   all `.md` files (respecting `explorer.ignore`); results grouped by file,
-  click-to-open at the match; replace across selected matches. Runs in **main**
-  (it reads every file) behind a typed `window.api` method.
+  click-to-open at the match; replace across matches. Runs in **main** (it reads
+  every file) behind a typed `window.api` method. _v1 ships **replace-all** for
+  the query (plain substring, case toggle); **per-match selection** and **regex**
+  across the project are refinements (in-document find already has regex)._
 - **Quick Open — fuzzy file finder — `Cmd/Ctrl+P`** _(Phase 6)._ Type part of a
   filename; a fuzzy-ranked list of project files; `Enter` opens. The fast way to
   jump between scenes without walking the tree.
@@ -361,6 +363,42 @@ must not touch palette or menu code (same pluggability stance as
 `AnalysisService`), and keybindings get a single source of truth. **Fuzzy
 matching** is a small subsequence scorer over filenames / command titles — no
 heavy dependency.
+
+## Keyboard navigation & focus
+
+Keyboard-first, and **prefer OS/platform-standard shortcuts** so muscle memory
+transfers. They differ per OS (⌘ on macOS, Ctrl on Windows/Linux — and some, like
+tab switching, differ beyond the modifier), so shortcuts are delivered by **two
+layers**, not hardcoded:
+
+- **Native application menu (Electron `role`s)** — the truly-standard OS actions
+  come from a real menu built with Electron **roles**, which supply the correct
+  **per-OS accelerator automatically** _and_ make them discoverable in the menu
+  bar: Save, **Close Tab** (`Cmd/Ctrl+W`), Quit, Minimize/Zoom, and the whole
+  standard **Edit** menu (undo/redo/cut/copy/paste/select-all). We currently ship
+  **no custom menu** — building one is part of this (and is why standard
+  tab-switching is absent today).
+- **Command registry + keybinding map** — app-specific commands (Quick Open,
+  Command Palette, Find in Project, Focus Explorer, Switch Tab) bind to
+  platform-appropriate defaults in one place (M15's registry).
+
+Shortcuts, standards-first:
+
+- **Save** `Cmd/Ctrl+S`, **Close tab** `Cmd/Ctrl+W`, **Find** `Cmd/Ctrl+F` —
+  OS / near-universal, already used.
+- **Switch tabs** — the OS standard: **`Ctrl+Tab` / `Ctrl+Shift+Tab`** (next /
+  previous, cross-platform), plus macOS's **`Cmd+Shift+]` / `Cmd+Shift+[`** and
+  **`Cmd+1…9`** (jump to tab _N_), surfaced via the View menu. _(Not built.)_
+- **Quick Open** `Cmd/Ctrl+P`, **Command Palette** `Cmd/Ctrl+Shift+P`, **Find in
+  Project** `Cmd/Ctrl+Shift+F` — editor convention (VS Code), used.
+- **Focus explorer / editor** — _not_ an OS standard, so we pick a convention
+  (`Cmd/Ctrl+Shift+E` explorer; `Esc` / `Cmd/Ctrl+1` editor). App-specific; then
+  the tree's arrow-nav (built, M12) takes over inside the explorer.
+
+**Status (honest):** the tree has internal arrow-nav and `Cmd/Ctrl+W` closes a
+tab, but the **native menu, tab-switching keys, and region-focus shortcuts aren't
+built** — moving explorer ⇄ editor ⇄ tabs is still a mouse operation. Remaining
+**Phase 6** refinement.
 
 ## App settings (global) vs project config
 
@@ -1413,4 +1451,16 @@ initial design conversation.)
     earlier session wrongly believed the sandbox couldn't run Electron; unsetting
     `ELECTRON_RUN_AS_NODE` launches it, and CDP (remote-debugging port) drives +
     screenshots it. Every M12–M16 milestone was visually verified this way.
-    Remaining Phase 6 bit: tree keyboard-nav.
+    (M12 later completed: app-settings now reopens the last project + persists
+    sidebar width, and tree keyboard-nav shipped.)
+40. **Keyboard shortcuts: OS-standard first, via a native menu + a keybinding
+    layer.** Prefer platform-standard accelerators (they differ per OS) so muscle
+    memory transfers. Standard OS actions (Save, Close Tab, Quit, Edit menu, tab
+    switching) come from an **Electron native menu using `role`s** — correct
+    per-OS accelerators for free, and discoverable in the menu bar; app-specific
+    commands (Quick Open, palette, focus explorer/editor) bind via the M15 command
+    registry. _Not built yet_ (no custom menu today) — a remaining Phase 6
+    refinement, which is why standard tab-switching / region-focus keys are
+    currently absent. Also spec'd the honest gaps in "completed" phases: project
+    replace is replace-all (per-match + regex are refinements), window-bounds
+    persistence and a native menu remain.
