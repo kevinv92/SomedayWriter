@@ -998,6 +998,30 @@ here in the committed phases, not in the deferred-AI lane. Depends on Phase 5.
 grounded question ("summarise the rebellion thread") answered from the real index
 — on your subscription, no API charges.
 
+### Phase 11 — Visual design system & writer theme
+
+Replace the ad-hoc CSS grown through Phases 2–6 with a **cohesive design system**
+and a visual language **tuned for writers to feel comfortable** during long
+sessions. The goal is beauty + consistency, not new features.
+
+- **M25** — **Design tokens + component library.** A single source of truth for
+  color, a type scale, spacing, radius, and shadows; the app's surfaces (tree,
+  tabs, editor chrome, modals, quick-input, search, status bar) restyled to
+  consume them so everything reads as one system.
+- **M26** — **Writer-comfort theme(s).** Low-eye-strain light + dark themes tuned
+  for reading/writing (warm paper option, gentle contrast, calm accents), and a
+  distraction-light **focus** mode. Themes are a token swap, not per-component
+  overrides.
+- **Sourced via Claude Design.** The component library / tokens are maintained in
+  a **claude.ai/design** design-system project and synced into the repo with the
+  `DesignSync` tool + `/design-sync` skill. Requires an **interactive
+  `/design-login`** (a normal CLI session) — can't be authorized in a headless
+  run. Alternatives if not using Claude Design: "Send to Claude Code Web" seeds
+  the project, or hand off tokens/components directly.
+
+**Exit:** the whole app reads as one intentional, calm visual language; switching
+theme is one token change; nothing looks like ad-hoc CSS.
+
 > **AI features are out of scope for these phases** — see _AI features (split out
 > — deferred)_. They ride the same facade and can be added later without
 > reworking the phases above.
