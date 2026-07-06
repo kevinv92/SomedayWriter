@@ -229,6 +229,49 @@ This is the same ordering the (now optional) thread-visualiser editing would hav
 written — so tree-drag reordering covers the core "move things around" need on
 its own.
 
+## Manuscript hierarchy (units: scene → chapter → act)
+
+The manuscript is a **tree of units** — a scene, a chapter, an act/part, the book
+itself. It's a **general nesting**, not a fixed three levels; a book uses as many
+or as few as it needs.
+
+- **Structure = the folder tree.** A unit is a **file** (a leaf — usually a
+  scene, or an unsubdivided chapter) or a **folder** (a container — a chapter of
+  scenes, an act of chapters). Nest as deep as the book needs; nothing caps or
+  requires a level. A chapter can be either a single file _or_ a folder of
+  scenes.
+- **Sequencing** — `order` sequences a unit among its siblings (per-directory,
+  sparse); the whole-book reading order is the tree walked **depth-first**, each
+  level in `order`. _(Already built — Phase 3.)_
+- **Title** — each unit's display title is derived (heading → frontmatter →
+  filename); see _File titles_.
+- **Intra-file scenes** — a single chapter file may instead hold several scenes
+  separated by a scene break (`* * *` / `#`) — composition _within_ a file, an
+  alternative to file-per-scene. Both are valid.
+- **Level is implicit now, explicit later.** What makes a folder an "act" vs. a
+  "chapter" is its **depth** in the tree — enough for navigation and reading
+  order today. An optional **`level: scene | chapter | act | part`** frontmatter
+  **override** is _reserved_ for when a book's nesting doesn't match depth, or for
+  labelling; it becomes load-bearing at **export/compile** (mapping units to
+  heading levels / part breaks / ePub nav — see _Export/compile_). **Not needed
+  before then.**
+- **Folder-level declaration (reserved).** Folders have no frontmatter, so
+  folder-level metadata — the folder's own `order` and title, its `level`, and a
+  **default `level` (or `type`) for its children** ("everything in here is a
+  chapter") — would live in a **marker file inside the folder**. Two candidate
+  conventions, pick at implementation: an **`index.md`** that _is_ the
+  folder-unit's own page (its frontmatter + optional lead-in prose, with the
+  sibling files as its children), or a hidden **`_folder.md`** meta file. Either
+  way it's still an **explicit declaration you write** — not the folder's _name_
+  implying anything (identity stays frontmatter-driven, decision-consistent). It
+  also becomes the home for **folder ordering** (folders sort alphabetically
+  today). Reserved; **not implemented now.**
+
+**Status:** the hierarchy already works via folders + `order` — **no new code**.
+This section captures the model so export, the binder, and the thread visualiser
+build on it without a rewrite; the explicit `level` field lands with export
+design.
+
 ## File titles (derived, not duplicated)
 
 A scene/chapter's display **title** — shown in the binder/tree, the thread
@@ -1155,3 +1198,14 @@ initial design conversation.)
     semantic and stays in the AI `ContinuityProvider` lane (deferred). _Why:_ the
     linking machinery was always entity-agnostic — hard-coding one provider per
     type would be needless duplication.
+34. **Manuscript hierarchy = a folder-tree of units (scene → chapter → act);
+    captured now, mostly deferred.** A unit is a file (leaf) or folder
+    (container); nesting is general, not a fixed three levels; sequencing is
+    depth-first + per-directory `order` (already built). **Level is implicit from
+    tree depth**, with an optional per-file `level` override and a **folder marker
+    file** (`index.md` or `_folder.md`) for folder-level metadata + child defaults
+    — both **reserved, not implemented**; they only become load-bearing at
+    export/compile. _Why capture now:_ so export, the binder, and the visualiser
+    build on one agreed model without a rewrite, without over-building before it's
+    needed. Marker file stays an explicit declaration (identity remains
+    frontmatter-driven, not folder-name-driven — cf. the affirmed principle).
