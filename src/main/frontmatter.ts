@@ -7,8 +7,51 @@
  * SPEC → Deferred: config format / Story model). Line endings assumed LF.
  */
 
+import { parse as parseYaml } from 'yaml'
+
 const DELIM = '---'
 const ORDER_RE = /^order:\s*(-?\d+(?:\.\d+)?)\s*$/
+const FM_BLOCK = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
+
+/**
+ * Parse the leading `---` frontmatter block into structured data (real YAML) +
+ * the remaining body. Malformed YAML yields empty data rather than throwing (the
+ * inspector surfaces the problem). Unlike `readOrder`/`writeOrder` (which touch a
+ * single line non-destructively), this reads the whole block for the StoryIndex.
+ */
+export function parseFrontmatter(text: string): {
+  data: Record<string, unknown>
+  body: string
+} {
+  const match = FM_BLOCK.exec(text)
+  if (!match) return { data: {}, body: text }
+  let data: Record<string, unknown> = {}
+  try {
+    const parsed: unknown = parseYaml(match[1])
+    if (parsed && typeof parsed === 'object') data = parsed as Record<string, unknown>
+  } catch {
+    // malformed frontmatter — treat as no data
+  }
+  return { data, body: text.slice(match[0].length) }
+}
+
+function firstHeading(body: string): string | null {
+  const match = /^#\s+(.+?)\s*$/m.exec(body)
+  return match ? match[1].trim() : null
+}
+
+function prettifyFilename(path: string): string {
+  const base = path.split(/[\\/]/).pop() ?? path
+  return base.replace(/\.md$/i, '').replace(/^\d+[-_\s]*/, '')
+}
+
+/** A file's display title: `frontmatter.title` → first `#` heading → filename
+ * (SPEC → File titles). */
+export function deriveTitle(text: string, path: string): string {
+  const { data, body } = parseFrontmatter(text)
+  if (typeof data.title === 'string' && data.title.trim()) return data.title.trim()
+  return firstHeading(body) ?? prettifyFilename(path)
+}
 
 type Frontmatter = { lines: string[]; open: number; close: number }
 

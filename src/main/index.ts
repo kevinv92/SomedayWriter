@@ -4,6 +4,8 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
   AppSettings,
+  Entity,
+  EntityRef,
   FileReadResult,
   OpenProjectResult,
   ProjectMeta,
@@ -13,6 +15,7 @@ import type {
   TreeNode,
   WriteResult
 } from '../shared/types'
+import { buildEntities, referencesTo } from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
 import {
   DEFAULT_IGNORE,
@@ -162,6 +165,20 @@ function registerIpc(): void {
   )
 
   ipcMain.handle('settings:get', (): Promise<AppSettings> => readSettings())
+
+  // --- story intelligence (Phase 5) ---
+
+  ipcMain.handle('story:entities', (): Promise<Entity[]> => {
+    if (!currentProject) return Promise.resolve([])
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    return buildEntities(currentProject.root, ignore)
+  })
+
+  ipcMain.handle('story:references', (_e, entity: Entity): Promise<EntityRef[]> => {
+    if (!currentProject) return Promise.resolve([])
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    return referencesTo(entity, currentProject.root, ignore)
+  })
 
   ipcMain.handle(
     'settings:update',

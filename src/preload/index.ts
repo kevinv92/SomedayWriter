@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  Entity,
+  EntityRef,
   FileReadResult,
   OpenProjectResult,
   ReplaceResult,
@@ -72,7 +74,14 @@ const api = {
     replacement: string,
     opts: SearchOptions
   ): Promise<ReplaceResult> =>
-    ipcRenderer.invoke('project:replace', query, replacement, opts)
+    ipcRenderer.invoke('project:replace', query, replacement, opts),
+
+  /** Story entities (characters, …) from the project's profile files (Phase 5). */
+  storyEntities: (): Promise<Entity[]> => ipcRenderer.invoke('story:entities'),
+
+  /** Every reference to an entity across the manuscript (find-references). */
+  storyReferences: (entity: Entity): Promise<EntityRef[]> =>
+    ipcRenderer.invoke('story:references', entity)
 }
 
 export type Api = typeof api

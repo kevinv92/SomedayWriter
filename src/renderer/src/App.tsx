@@ -12,7 +12,7 @@ import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Mod
 import { ProjectSearch } from './components/ProjectSearch'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { AnalysisService } from './analysis/analysis-service'
-import { createMentionProvider } from './analysis/providers/mention-provider'
+import { createCharacterProvider } from './analysis/providers/character-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
 import type { EditorDoc } from './editor/types'
 import type {
@@ -96,13 +96,19 @@ export default function App() {
 
   // The analysis facade + its providers (Phase 4). Created once; the editor
   // talks only to this, never to a provider (SPEC seam).
+  const character = useMemo(() => createCharacterProvider(), [])
   const analysis = useMemo(() => {
     const service = new AnalysisService()
-    service.register(createMentionProvider())
+    service.register(character.provider)
     service.register(createSpellProvider())
     return service
-  }, [])
+  }, [character])
   useEffect(() => () => analysis.dispose(), [analysis])
+
+  // Load story entities (characters, …) from StoryIndex; refresh after edits.
+  const refreshEntities = useCallback(() => {
+    void window.api.storyEntities().then(character.setEntities)
+  }, [character])
 
   // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P).
   const projectFiles = useMemo<QuickFile[]>(() => {
@@ -118,6 +124,7 @@ export default function App() {
 
   const refreshTree = async () => {
     setTree(await window.api.readTree())
+    refreshEntities()
   }
 
   const fireReveal = useCallback((reveal: Reveal) => {
@@ -277,27 +284,31 @@ export default function App() {
 
   // --- project open ---
 
-  const applyOpenResult = useCallback(async (result: OpenProjectResult) => {
-    if (!result.ok) {
-      if (result.reason === 'cancelled') return
-      if (result.reason === 'no-config') {
-        setNotice(`No project.json in ${result.root} — not a writer-gui project yet.`)
-      } else {
-        setNotice(`Couldn't open project: ${result.message}`)
+  const applyOpenResult = useCallback(
+    async (result: OpenProjectResult) => {
+      if (!result.ok) {
+        if (result.reason === 'cancelled') return
+        if (result.reason === 'no-config') {
+          setNotice(`No project.json in ${result.root} — not a writer-gui project yet.`)
+        } else {
+          setNotice(`Couldn't open project: ${result.message}`)
+        }
+        return
       }
-      return
-    }
-    const nextTree = await window.api.readTree()
-    docsRef.current.clear()
-    setProject(result.project)
-    setTree(nextTree)
-    setOpenPaths([])
-    setActivePath(null)
-    setDirtyPaths(new Set())
-    setNotice(null)
-    setDiagnostics(result.project.config.editor?.diagnostics ?? false)
-    setAutosave(result.project.config.editor?.autosave ?? false)
-  }, [])
+      const nextTree = await window.api.readTree()
+      docsRef.current.clear()
+      setProject(result.project)
+      setTree(nextTree)
+      setOpenPaths([])
+      setActivePath(null)
+      setDirtyPaths(new Set())
+      setNotice(null)
+      setDiagnostics(result.project.config.editor?.diagnostics ?? false)
+      setAutosave(result.project.config.editor?.autosave ?? false)
+      refreshEntities()
+    },
+    [refreshEntities]
+  )
 
   const openProject = useCallback(async () => {
     await applyOpenResult(await window.api.openProject())

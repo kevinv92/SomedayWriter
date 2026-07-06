@@ -59,6 +59,7 @@
     "@lezer/highlight": "^1.2.3",
     "@replit/codemirror-vim": "^6.3.0",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "yaml": "^2.9.0"
   }
 }

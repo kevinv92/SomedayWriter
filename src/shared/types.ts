@@ -77,6 +77,25 @@ export type AppSettings = {
   sidebarWidth?: number
 }
 
+/** A story entity from `StoryIndex` (Phase 5) — a profile file (`type` in its
+ * frontmatter) resolved to a canonical name + aliases. `id` is its path. */
+export type Entity = {
+  id: string
+  type: string
+  name: string
+  aliases: string[]
+  path: string
+}
+
+/** A reference to an entity: where a surface form appears in the manuscript. */
+export type EntityRef = {
+  path: string
+  line: number
+  column: number
+  surface: string
+  preview: string
+}
+
 /** Options for project-wide search (M5). */
 export type SearchOptions = { caseSensitive?: boolean }
 
