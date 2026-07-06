@@ -245,6 +245,34 @@ must not touch palette or menu code (same pluggability stance as
 matching** is a small subsequence scorer over filenames / command titles — no
 heavy dependency.
 
+## App settings (global) vs project config
+
+Two tiers of configuration, stored **separately**:
+
+- **Project config — `project.json`** (per project, in the folder). Describes the
+  _project_: name, `explorer.ignore`, thread registry, and per-project editor
+  defaults (`wordWrap`, `diagnostics`, `defaultExtension`). Travels with the
+  folder; lives in the writer's repo.
+- **App settings — `settings.json`** in the OS user-data dir
+  (`app.getPath('userData')`, e.g. `~/Library/Application Support/writer-gui/`).
+  Describes the _app / user_, independent of any project: **recent projects**
+  (paths + last-opened), the project to reopen on launch, window bounds, and
+  global editor preferences (e.g. Vim default, theme). **Never** inside a project
+  folder.
+
+Rules:
+
+- **Main owns both**; the renderer reaches them only through typed `window.api`
+  (`getSettings()` / `updateSettings(patch)`), never touching `fs` — same stance
+  as the project methods.
+- **Precedence** — where a setting exists in both tiers, the **project value wins**
+  for that project (e.g. a project can force `diagnostics` on); app settings are
+  the default when the project doesn't specify.
+- **Plain JSON, zero-dep** (decision #3) — no `electron-store`; `settings.json` is
+  read/written with native `JSON`, unknown keys preserved.
+- **Introduced in Phase 6** with recent projects (M12); nothing before then needs
+  global storage.
+
 ## Process / IPC design
 
 - **Main process** owns all filesystem access and the current project state.
@@ -642,6 +670,8 @@ The line where writer-gui is a **"good enough" v1** — a tool a writer would us
 daily. Brings the editing experience up to expectation.
 
 - **M12** — Resizable panes, recent projects, keyboard nav in the tree.
+  Introduces the **app-settings store** (`settings.json` in user-data) that backs
+  recent projects + global prefs — see _App settings (global) vs project config_.
 - **M13** — **Tabs / multiple open documents.** The single-editor model becomes a
   collection (decision #4). Each open doc is its own buffer that **retains
   unsaved changes** with a per-tab dirty dot — switching tabs never writes to
@@ -942,3 +972,12 @@ initial design conversation.)
     _Why:_ palette + quick-open are the keyboard-first payoff that matches the
     product stance; the registry keeps commands/keybindings in one place; and
     Phase 6 is the natural line past which the app is usable daily.
+28. **Two-tier config: app settings vs project config.** Per-project settings stay
+    in `project.json` (in the folder, in the repo); **app/user** settings — recent
+    projects, reopen-on-launch, window bounds, global editor prefs — live in a
+    separate `settings.json` in the OS user-data dir (`app.getPath('userData')`),
+    never inside a project. Main owns both; the renderer uses typed
+    `getSettings`/`updateSettings`; project values override app defaults where
+    they overlap; plain JSON, zero-dep (no `electron-store`). Introduced in Phase 6
+    (M12, recent projects). _Why:_ recent projects and global prefs are inherently
+    not project-scoped and must persist across projects and launches.
