@@ -704,12 +704,24 @@ whose brain happens to be an LLM.
   semantic understanding of prose → an LLM.
 - **Thread inference** — _suggesting_ threads/links the writer hasn't tagged
   (deterministic threads stay in the core; inference is AI).
+- **AI writing assistant (chat panel)** — a conversational **side pane** (like an
+  IDE chat), another pane in the multi-pane shell. Its differentiator: it's
+  **grounded in the deterministic model** — it pulls context from `StoryIndex`
+  (the current scene, the selection, relevant character profiles, a thread's
+  beats) and can call the prose "language server" as **tools** (find-references,
+  a character's mentions, manuscript order), so answers are anchored in the real
+  project rather than guessed. Streams responses; can propose edits the writer
+  applies. Unlike the other two, it's a **separate surface**, not an
+  `AnalysisProvider` (chat, not diagnostics) — but it shares the same AI rules
+  below. Claude is the natural default model; provider-flexible.
 
 Constraints when it lands:
 
 - Runs in the **main process** (holds the API key; renderer never sees secrets).
 - Opt-in and clearly labeled; deterministic features never depend on it.
-- Same `AnalysisProvider` interface — registered like any other provider.
+- Diagnostics/inference use the same `AnalysisProvider` interface; the chat
+  assistant is a separate pane but obeys the same key/opt-in/independence rules.
+- Post-v1, its own later **AI phase** — after the deterministic phases (5–9).
 
 ## Phases
 
@@ -909,6 +921,29 @@ marks_. Reuses the decoration + hover-tooltip machinery already in the editor.
 
 **Exit:** highlight a sentence, attach a private comment that survives editing
 around it, and confirm it never reaches the exported prose.
+
+### Phase 9 — External analysis providers (opt-in)
+
+Bring third-party grammar/style engines in as providers behind the existing
+`AnalysisService` facade — **no editor or facade change** (this is exactly what
+the pluggable design was for).
+
+- **M22** — A **main-process provider** that calls an external checker's API,
+  maps results → `Diagnostic[]`, and emits through the facade. First targets:
+  **LanguageTool** (open-source, **self-hostable** so prose can stay on-device;
+  or cloud) and **ProWritingAid** (developer API). _Grammarly has no third-party
+  editor API, so it's out._
+- **M23** _(optional)_ — **`LspProvider`**: attach a real language server over
+  JSON-RPC (e.g. `ltex-ls` for LanguageTool) — the deferred-LSP path realized.
+
+Rules: **opt-in, off by default** (the diagnostics toggle); the **API key lives
+in main** (the renderer never sees it); sending prose to a cloud service is
+**disclosed** (self-hosted LanguageTool avoids it entirely). Ships **named**
+integrations — a full user-installable plugin SDK (arbitrary sandboxed
+third-party providers) is a bigger, separate _Deferred_ item.
+
+**Exit:** enable LanguageTool; its grammar/style hits appear as squiggles through
+the same facade as the built-in spell provider, opt-in.
 
 > **AI features are out of scope for these phases** — see _AI features (split out
 > — deferred)_. They ride the same facade and can be added later without
@@ -1270,3 +1305,19 @@ initial design conversation.)
     CriticMarkup also opens a future tracked-changes lane (M21). _Why:_ inline
     marks dodge the anchor-drift + separate-store cost that made #22 defer this,
     and reuse decoration machinery the editor already has.
+36. **External grammar/style tools plug in as providers (Phase 9, opt-in).** They
+    ride the existing `AnalysisService` facade — a main-process provider calling
+    the tool's API (or an `LspProvider`), mapping results → diagnostics, off by
+    default, key in main, cloud use disclosed. First targets **LanguageTool**
+    (open, self-hostable) and **ProWritingAid** (API); **Grammarly is out** — no
+    third-party editor API. Ships _named_ integrations; a sandboxed user-plugin
+    SDK is a bigger Deferred item. _Why:_ this is precisely what the pluggable
+    analysis design was for — no editor/facade change.
+37. **AI writing assistant (chat panel) — a separate AI surface, grounded in the
+    model.** A conversational side pane, post-v1, its own later AI phase. Unlike
+    `ContinuityProvider`/inference it is **not** an `AnalysisProvider` (chat, not
+    diagnostics), but obeys the same rules (main-process key, opt-in, deterministic
+    core independent). Its edge: context + **tools** from `StoryIndex`
+    (find-references, mentions, order) so it reasons over the real structured
+    project. Claude is the default model, provider-flexible. _Why:_ the deterministic
+    prose "language server" is exactly the grounding a generic chatbot lacks.
