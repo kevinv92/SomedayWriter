@@ -139,9 +139,12 @@ Rules that keep the seam cheap:
 6. **File operations** — from the explorer (context menu / toolbar):
    **new file**, **new folder**, **rename**, **delete**.
 7. **Word count** — live count for the active file in the status bar.
-8. **Search & replace (project-wide)** — find text across all files in the
-   project and replace across matches. _Near-essential; a writer needs this on
-   day one (find a phrase, rename a place everywhere)._
+8. **Search** — in-document find/replace (`Cmd/Ctrl+F`), project-wide find &
+   replace (`Cmd/Ctrl+Shift+F`), a fuzzy-file **Quick Open** (`Cmd/Ctrl+P`), and
+   a **Command Palette** (`Cmd/Ctrl+Shift+P`). See
+   [Search, quick-open & command palette](#search-quick-open--command-palette).
+   _Near-essential; a writer needs find/replace on day one (find a phrase, rename
+   a place everywhere)._
 9. **Reorder & manuscript order** — an explicit ordering of scenes/chapters,
    editable by **drag in the tree**. Order is the spine the visualiser x-axis and
    any future export both read. _Near-essential._
@@ -203,6 +206,35 @@ thread visualiser's x-axis, and any future export/compile.
 This is the same ordering the (now optional) thread-visualiser editing would have
 written — so tree-drag reordering covers the core "move things around" need on
 its own.
+
+## Search, quick-open & command palette
+
+Four keyboard-first surfaces, modeled on VS Code. All open on a shortcut, filter
+as you type, and dismiss with `Esc`.
+
+- **In-document find/replace — `Cmd/Ctrl+F`** _(M5)._ Find and replace within the
+  open file. CodeMirror's `search` extension + `searchKeymap`, wired **through
+  the `EditorAdapter`** (the app never imports CM directly). Case / whole-word /
+  regex toggles as the extension provides.
+- **Project-wide find & replace — `Cmd/Ctrl+Shift+F`** _(M5)._ Search text across
+  all `.md` files (respecting `explorer.ignore`); results grouped by file,
+  click-to-open at the match; replace across selected matches. Runs in **main**
+  (it reads every file) behind a typed `window.api` method.
+- **Quick Open — fuzzy file finder — `Cmd/Ctrl+P`** _(Phase 6)._ Type part of a
+  filename; a fuzzy-ranked list of project files; `Enter` opens. The fast way to
+  jump between scenes without walking the tree.
+- **Command Palette — `Cmd/Ctrl+Shift+P`** _(Phase 6)._ Fuzzy-search every
+  registered command (New File, Open Project, Toggle Vim, Toggle Diagnostics,
+  Reorder…, Save, …) and run it. As in VS Code, **one quick-input widget backs
+  both**: Quick Open is filename mode; a leading `>` switches it to command mode.
+
+**Command registry (the seam behind the palette).** Commands are declared once in
+a central registry — `{ id, title, keybinding?, run() }` — and **every** trigger
+draws from it: the palette, any menus, and keyboard shortcuts. Adding a command
+must not touch palette or menu code (same pluggability stance as
+`AnalysisService`), and keybindings get a single source of truth. **Fuzzy
+matching** is a small subsequence scorer over filenames / command titles — no
+heavy dependency.
 
 ## Process / IPC design
 
@@ -549,12 +581,20 @@ Make it a real workspace, not just a viewer.
   form) is deferred — see Deferred decisions._
 - **M4** ✅ — Explorer file ops: new file / new folder / rename / delete, via a
   tree context menu + sidebar buttons, over guarded IPC.
-- **M5** — **Project-wide search & replace** _(near-essential requirement)_.
+- **M5** — **Search**: in-document find (`Cmd/Ctrl+F`) **and** project-wide find
+  & replace (`Cmd/Ctrl+Shift+F`) across all files. Quick Open + Command Palette
+  are the other two surfaces and land in Phase 6 — see _Search, quick-open &
+  command palette_ _(near-essential requirement)_.
 - **M6** — **Reorder & manuscript order**: drag scenes in the tree; write sparse
   `order` back to frontmatter _(near-essential requirement)_.
+- **Edit safety (correctness, not a feature)** — **never silently discard
+  in-memory edits.** Switching away from — or closing — a file with unsaved
+  changes must prompt (save / discard / cancel). This is a near-term fix for a
+  data-loss gap in the current build; the fuller model (per-tab unsaved buffers
+  - optional autosave) lands in Phase 6.
 
-**Exit:** can create a project from scratch, manage and reorder its files, and
-search/replace across it.
+**Exit:** can create a project from scratch, manage and reorder its files,
+search/replace across it, and never lose unsaved work by switching files.
 
 ### Phase 4 — Language intelligence
 
@@ -587,11 +627,31 @@ The signature features, no AI.
 **Exit:** click a character → see every mention; follow a thread across chapters
 in the braid. (Editing the braid is a stretch goal, not part of the exit.)
 
-### Phase 6 — Polish
+### Phase 6 — Polish & v1 · 🏁 Major Milestone
+
+The line where writer-gui is a **"good enough" v1** — a tool a writer would use
+daily. Brings the editing experience up to expectation.
 
 - **M12** — Resizable panes, recent projects, keyboard nav in the tree.
+- **M13** — **Tabs / multiple open documents.** The single-editor model becomes a
+  collection (decision #4). Each open doc is its own buffer that **retains
+  unsaved changes** with a per-tab dirty dot — switching tabs never writes to
+  disk and never loses in-memory edits (the full form of the Phase 3 edit-safety
+  fix).
+- **M14** — **Autosave (opt-in).** A debounced, patch-based writer (text diffs,
+  not whole-file rewrites) so it composes with external edits + undo. **Off by
+  default** — explicit `Cmd/Ctrl+S` stays the predictable default (decision #5);
+  the tab buffers already remove the data-loss risk, so autosave is a setting,
+  not a requirement.
+- **M15** — **Quick Open (`Cmd/Ctrl+P`) + Command Palette (`Cmd/Ctrl+Shift+P`)**
+  on a central command registry — see _Search, quick-open & command palette_.
+- Writing-experience polish (candidates): typewriter / focus mode, a word-count
+  goal.
 
-**Exit:** feels like a tool you'd use daily.
+**Exit (v1):** open or create a project, draft and structure a manuscript across
+tabs without losing work, find anything (in-file, across the project, by
+filename, by command), and reorder scenes — all keyboard-first. **After this
+point we have a good-enough app.**
 
 > **AI features are out of scope for these phases** — see _AI features (split out
 > — deferred)_. They ride the same facade and can be added later without
@@ -660,10 +720,11 @@ Plain-language definitions of terms used above.
 
 ## Deferred (post-v1)
 
-- **Multiple active editors** — split view / tabs. The single-editor state model
-  is a collection of one so this is additive, not a rewrite.
-- **Auto-save** — likely a debounced, patch-based writer (apply text diffs rather
-  than rewriting the whole file), so it composes with external edits and undo.
+> Tabs/multiple editors and autosave **moved into Phase 6** (M13/M14) now that
+> Phase 6 is the v1 line — they're part of "good enough," not post-v1.
+
+- **Split view** — two editors side by side. Tabs (M13) come first; a split pane
+  is the additional step beyond them.
 - **Config format** — revisit TOML if hand-editing `project.json` gets clunky.
 - **External LSP** — an `LspProvider` that attaches a real language server over
   JSON-RPC; registers behind the same facade (see Analysis section).
@@ -853,3 +914,22 @@ initial design conversation.)
     single-file-write property that motivated sparse ordering (#18). Global
     cross-folder ordering and orderable folders are deferred (see _Deferred
     decisions_).
+26. **Edit safety + save model settled.** Explicit `Cmd/Ctrl+S` stays the default
+    (decision #5). _Near-term (Phase 3):_ switching or closing a file with unsaved
+    changes **prompts** — never silently discards edits (fixes a data-loss gap in
+    the current build). _Full model (Phase 6, M13/M14):_ **tabs** where each open
+    doc is its own buffer that **retains** unsaved changes (per-tab dirty dot), so
+    switching never writes and never loses work; **autosave** becomes an **opt-in**
+    setting, patch-based, not the default. _Why:_ writers want control, predictable
+    saves, and git-friendliness; per-tab buffers remove the data-loss risk without
+    forcing autosave-to-disk.
+27. **Phase 6 = the v1 "good enough" Major Milestone; search fleshed out
+    VS-Code-style.** Search is four keyboard surfaces: in-document find
+    (`Cmd/Ctrl+F`) + project-wide find/replace (`Cmd/Ctrl+Shift+F`) in **M5**;
+    Quick Open fuzzy file finder (`Cmd/Ctrl+P`) + Command Palette
+    (`Cmd/Ctrl+Shift+P`) in **Phase 6**, both on a central **command registry**
+    that menus and keybindings also consume (a pluggability seam like
+    `AnalysisService`). Tabs + autosave moved from _Deferred_ into Phase 6.
+    _Why:_ palette + quick-open are the keyboard-first payoff that matches the
+    product stance; the registry keeps commands/keybindings in one place; and
+    Phase 6 is the natural line past which the app is usable daily.
