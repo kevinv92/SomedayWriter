@@ -11,9 +11,9 @@ File explorer on the left, editor on the right. Your work stays as ordinary
 > **command palette** (`Cmd/Ctrl+Shift+P`); find in a document (`Cmd/Ctrl+F`) and
 > across the project (`Cmd/Ctrl+Shift+F`); recent projects, a resizable sidebar,
 > configurable editor typography; and pluggable analysis (`@`-mention completion
->
-> - opt-in spell check). Next is Phase 5 (story intelligence — character/thread
->   linking). See [SPEC.md](SPEC.md) for the full design and roadmap.
+> with an opt-in spell check). Next is Phase 5 (story intelligence —
+> character/thread linking). See [SPEC.md](SPEC.md) for the full design and
+> roadmap.
 
 ## What makes it different
 
