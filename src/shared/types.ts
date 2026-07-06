@@ -17,6 +17,13 @@ export type ProjectConfig = {
     /** Editor text-column width ("measure") in rem, or `'full'` to fill the
      * pane. Default 46. */
     measure?: number | 'full'
+    /** Font: a preset (`serif` | `sans` | `mono`) or any CSS font-family string
+     * (an installed font, e.g. `"iA Writer Duo, monospace"`). Default `serif`. */
+    font?: 'serif' | 'sans' | 'mono' | (string & {})
+    /** Font size in px. Default 16. */
+    fontSize?: number
+    /** Line height (unitless). Default 1.7. */
+    lineHeight?: number
   }
   explorer?: { ignore?: string[] }
   threads?: Record<string, { name?: string; color?: string }>

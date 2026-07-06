@@ -50,7 +50,10 @@ folder without one offers to create it (initialize a new project).
     "defaultExtension": "md",
     "wordWrap": true,
     "diagnostics": false,
-    "measure": 46
+    "measure": 46,
+    "font": "serif",
+    "fontSize": 16,
+    "lineHeight": 1.7
   },
   "explorer": {
     "ignore": [".git", "node_modules", "*.tmp"]
@@ -62,9 +65,22 @@ folder without one offers to create it (initialize a new project).
 - Unknown keys are preserved on save (don't clobber fields the app doesn't know).
 - `editor.measure` — the editor text-column width ("measure") in **rem**
   (default `46`), or `"full"` to fill the pane. Deliberately fixed and centered
-  for prose readability; widening the window doesn't stretch the text. A settings
-  UI to change it without hand-editing arrives in Phase 6; a global default (with
-  per-project override) is part of the app-settings store (decision #28).
+  for prose readability; widening the window doesn't stretch the text.
+- **Editor typography** — `editor.font` (a preset `serif` | `sans` | `mono`, **or
+  any CSS font-family string** naming a font installed on the system, e.g.
+  `"GT Sectra, Georgia, serif"`), `editor.fontSize` (px, default 16), and
+  `editor.lineHeight` (unitless, default 1.7). Applied via CSS variables on the
+  editor pane — no editor rebuild.
+- **Custom / paid fonts.** An **installed** font works today (just name it in
+  `editor.font`). Loading a font **file** that isn't installed — or one that
+  should travel with the project — needs an `@font-face` served through the
+  guarded `writer-file://` protocol (the same one proposed for images); a future
+  `editor.fontFile` setting. The app **never bundles or ships fonts** — it only
+  points at fonts the user already has; committing a paid font file into a shared
+  project is the user's licensing call.
+- The above are wired now but require hand-editing `project.json`; a **settings
+  UI** and a **global default with per-project override** land in Phase 6
+  (decision #28).
 
 ## Layout
 

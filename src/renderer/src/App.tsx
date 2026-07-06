@@ -21,6 +21,17 @@ type ActiveDoc = { path: string; text: string }
 
 type Reveal = { line: number; column: number }
 
+// Resolve an editor.font value to a CSS font-family: a preset keyword, or a
+// custom family string passed through as-is (an installed font).
+function fontStack(font: string | undefined): string {
+  if (!font || font === 'serif') {
+    return 'Georgia, "Iowan Old Style", "Times New Roman", serif'
+  }
+  if (font === 'sans') return 'system-ui, -apple-system, "Segoe UI", sans-serif'
+  if (font === 'mono') return 'ui-monospace, SFMono-Regular, Menlo, monospace'
+  return font
+}
+
 type ModalState =
   | { kind: 'newFile'; dir: string }
   | { kind: 'newFolder'; dir: string }
@@ -339,11 +350,22 @@ export default function App() {
     )
   }
 
-  // Editor measure (text-column width) from config: a rem number, `'full'` to
-  // fill the pane, or the 46rem default.
-  const measure = project.config.editor?.measure
+  // Editor typography from config, applied as CSS vars on the editor pane (no
+  // CodeMirror rebuild). Each falls back to the prose default.
+  const ed = project.config.editor
   const measureVar =
-    measure === 'full' ? 'none' : typeof measure === 'number' ? `${measure}rem` : '46rem'
+    ed?.measure === 'full'
+      ? 'none'
+      : typeof ed?.measure === 'number'
+        ? `${ed.measure}rem`
+        : '46rem'
+  const fontVar = fontStack(ed?.font)
+  const editorStyle = {
+    '--editor-measure': measureVar,
+    '--editor-font': fontVar,
+    '--editor-font-size': ed?.fontSize ? `${ed.fontSize}px` : '16px',
+    '--editor-line-height': ed?.lineHeight ? String(ed.lineHeight) : '1.7'
+  } as CSSProperties
 
   return (
     <div className="app">
@@ -414,10 +436,7 @@ export default function App() {
           )}
         </aside>
 
-        <main
-          className="main"
-          style={{ '--editor-measure': measureVar } as CSSProperties}
-        >
+        <main className="main" style={editorStyle}>
           {doc ? (
             <Editor
               doc={doc}

@@ -279,11 +279,18 @@ const proseHighlightStyle = HighlightStyle.define([
 ])
 
 const proseTheme = EditorView.theme({
-  '&': { height: '100%', fontSize: '16px', backgroundColor: 'transparent' },
+  // Typography is driven by CSS vars (set from editor.* in project.json) with the
+  // hard-coded prose defaults as fallbacks.
+  '&': {
+    height: '100%',
+    fontSize: 'var(--editor-font-size, 16px)',
+    backgroundColor: 'transparent'
+  },
   '&.cm-focused': { outline: 'none' },
   '.cm-scroller': {
-    fontFamily: 'Georgia, "Iowan Old Style", "Times New Roman", serif',
-    lineHeight: '1.7',
+    fontFamily:
+      'var(--editor-font, Georgia, "Iowan Old Style", "Times New Roman", serif)',
+    lineHeight: 'var(--editor-line-height, 1.7)',
     overflow: 'auto'
   },
   '.cm-content': {
