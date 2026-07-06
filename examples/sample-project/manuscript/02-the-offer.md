@@ -1,5 +1,4 @@
 ---
-title: The Offer
 order: 25
 threads: [main, rebellion]
 ---

@@ -1,5 +1,4 @@
 ---
-title: Betrayal
 order: 35
 threads: [rebellion, romance]
 ---

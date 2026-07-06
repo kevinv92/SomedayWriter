@@ -213,6 +213,26 @@ This is the same ordering the (now optional) thread-visualiser editing would hav
 written — so tree-drag reordering covers the core "move things around" need on
 its own.
 
+## File titles (derived, not duplicated)
+
+A scene/chapter's display **title** — shown in the binder/tree, the thread
+visualiser's nodes, the inspector, and export — is **derived**, not required in
+frontmatter. Otherwise the same name is declared three times (filename +
+frontmatter `title` + `#` heading) and the copies drift apart.
+
+Resolution order (first hit wins):
+
+1. **`frontmatter.title`** — an explicit override, for when the display title
+   must differ from the heading, or the file has no `#` heading.
+2. **The first `#` (H1) heading** in the body — the natural source; it's already
+   visible in the prose.
+3. **The filename** — prettified (strip the `NN-` order prefix and `.md`,
+   title-case) as a last resort.
+
+So a normal file declares **no** `title`; it just has `# Arrival`. Frontmatter
+`title` stays available for the override case. `StoryIndex` computes the title
+(Phase 5) so every consumer agrees on one value.
+
 ## Search, quick-open & command palette
 
 Four keyboard-first surfaces, modeled on VS Code. All open on a shortcut, filter
@@ -542,6 +562,36 @@ Lives as a togglable panel/view (e.g. replacing or overlaying the editor pane),
 not always-on. Ships after the deterministic `ThreadProvider` — read-only braid
 first, drag-to-edit second.
 
+## Inspector (file details) pane
+
+A togglable side pane that shows **what the app parses from the current file** —
+a read-only mirror of the model, primarily a **debugging aid** for when a writer
+hand-edits frontmatter incorrectly.
+
+Shows for the active file:
+
+- **Derived title** (and which source won — heading / frontmatter / filename).
+- **Manuscript `order`** and the file's position in reading order.
+- **Thread memberships** (file-level + inline ranges) with per-thread order.
+- **Character mentions** detected in the file (from `StoryIndex`).
+- **Word count** (notes/mentions excluded) and diagnostics count.
+- **Parse warnings** — the key debug value: malformed frontmatter surfaced as a
+  clear message ("couldn't parse `threads` — expected a list"), so a bad edit is
+  obvious instead of silently ignored.
+
+Rules:
+
+- **Reads the same parsed model** the editor/index use (`StoryIndex` + the
+  analysis facade) — it **never** parses frontmatter independently, so "what the
+  inspector shows" always equals "what the app actually sees." That's the whole
+  point.
+- **Another pane in the multi-pane shell.** The app body already hosts sibling
+  panes (tree, editor, project-search); the inspector is one more toggleable
+  panel. A proper resizable pane layout is a Phase 6 / M12 concern.
+- **Ships in Phase 5** (M8b), once `StoryIndex` produces the parsed data worth
+  inspecting; the full YAML frontmatter parse it relies on lands there too
+  (deferred from M6).
+
 ## AI features (split out — deferred)
 
 AI is deliberately **separated from the deterministic core** and deferred to
@@ -666,7 +716,12 @@ turns diagnostics on. Facade seam ready for more providers (incl. future AI and
 The signature features, no AI.
 
 - **M8** — `StoryIndex` scanning the project + `CharacterProvider`
-  (@-mention completion, find-references, go-to-definition).
+  (@-mention completion, find-references, go-to-definition). Includes the full
+  YAML frontmatter parse (deferred from M6) and the derived **title** (see _File
+  titles_).
+- **M8b** — **Inspector (file details) pane** — a read-only mirror of what
+  `StoryIndex` parsed for the current file (title source, order, threads,
+  mentions, parse warnings). See _Inspector (file details) pane_.
 - **M9** — `ThreadProvider`: file-level + inline thread markers, intersecting
   (many-to-many) threads, per-thread ordering.
 - **M10** — **Thread visualiser (read)** — braid view: lane per thread,
@@ -1017,3 +1072,18 @@ initial design conversation.)
     facade changes (exactly the payoff of the design). Provider positions use
     **offsets**, not LSP line/char, matching the editor seam (refines the sketch,
     cf. #20).
+30. **File titles are derived, not duplicated.** A file's display title resolves
+    `frontmatter.title` → first `#` heading → prettified filename; a normal file
+    declares no `title` (it just has the heading). _Why:_ declaring it in
+    frontmatter as well duplicates the name three ways (filename + frontmatter +
+    heading) and the copies drift. `StoryIndex` computes the one title so every
+    consumer (tree, visualiser, inspector, export) agrees. Sample fixture
+    de-duplicated to match.
+31. **Inspector (file-details) pane — specced now, built with Phase 5 (M8b).** A
+    togglable read-only pane mirroring what `StoryIndex` parsed for the current
+    file (title source, order, threads, mentions, and — the point — frontmatter
+    parse warnings), as a debugging aid for hand-edited frontmatter. _Why Phase 5:_
+    it must read the same parsed model the app uses (never parse independently),
+    and that model + full YAML frontmatter parsing arrive with `StoryIndex`.
+    Confirms the shell is a multi-pane system (tree / editor / project-search /
+    inspector / visualiser), with a resizable layout deferred to M12.

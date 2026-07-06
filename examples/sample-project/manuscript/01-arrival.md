@@ -1,5 +1,4 @@
 ---
-title: Arrival
 order: 10
 threads: [main]
 ---
