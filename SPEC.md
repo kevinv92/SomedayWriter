@@ -227,6 +227,15 @@ as you type, and dismiss with `Esc`.
   registered command (New File, Open Project, Toggle Vim, Toggle Diagnostics,
   Reorder…, Save, …) and run it. As in VS Code, **one quick-input widget backs
   both**: Quick Open is filename mode; a leading `>` switches it to command mode.
+- **Go to Entity — `#` prefix in Quick Open** _(Phase 6, needs Phase 5)._ The
+  prose analog of "go to symbol": fuzzy-search **entities** (characters, threads,
+  locations) from `StoryIndex` and jump to the selected one's definition (its
+  profile file) — the same go-to-definition `CharacterProvider` exposes. It's a
+  **mode of the same widget** (like `>` for commands), not a separate shortcut,
+  so there's one thing to learn. Powered by `StoryIndex` (Phase 5), which lands
+  before Quick Open (Phase 6), so entity mode can ship with the widget. A
+  dedicated entity browser/panel stays a later option if `#` mode proves too
+  cramped.
 
 **Command registry (the seam behind the palette).** Commands are declared once in
 a central registry — `{ id, title, keybinding?, run() }` — and **every** trigger
