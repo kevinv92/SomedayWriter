@@ -155,13 +155,50 @@ The **manuscript order** is the sequence scenes/chapters are meant to be read in
 It's a first-class concept because three things depend on it: navigation, the
 thread visualiser's x-axis, and any future export/compile.
 
-- **Source of truth** — a per-file frontmatter `order` value. **Sparse /
-  fractional** (e.g. 10, 20, 30) so inserting a scene between two others is a
-  single-file write, not a renumber of the whole book.
-- **Editing** — **drag to reorder in the file tree**; the app writes the new
-  `order` back to the moved file(s). No hand-typing numbers.
-- **Fallback** — files with no `order` sort after ordered ones, by name, so a
-  fresh project still has a sensible sequence.
+### Storage
+
+- **Source of truth** — a per-file frontmatter `order` value (a number). The
+  file on disk is authoritative; there is **no sidecar order index**.
+- **Sparse / fractional** — values are spaced (default step **10**: `10, 20,
+30…`) so inserting a scene between two others writes a value _between_ them
+  (e.g. `15`) — **a single-file write**, never a renumber of the book.
+- **Per-directory scope (v1)** — `order` sequences a file among its **siblings
+  in the same folder**. The whole-project reading order is the tree walked
+  depth-first with each folder's files in `order`. Global cross-folder ordering,
+  and ordering of _folders_ themselves, are **out of scope for v1** (see
+  _Deferred decisions_).
+
+### Sorting (how the tree renders)
+
+1. **Directories first**, alphabetical — folders are not ordered in v1.
+2. Then **files with an `order`**, ascending; ties broken by filename.
+3. Then **files with no `order`**, alphabetical — so a fresh, untagged project
+   still shows a sensible sequence.
+4. The `NN-` numeric filename prefix is **cosmetic**: `order` is the truth, and
+   the two may legitimately **diverge** after a reorder. Filenames are **never**
+   rewritten to match.
+
+### Reordering (drag in the tree)
+
+- **Drag to reorder** is the only way to set order — **no hand-typing numbers.**
+- Dropping a file **between two siblings** sets its `order` to the **midpoint**
+  of the neighbours' values (or `last + 10` when dropped at the end) and **writes
+  only that one file's frontmatter**. The file is **not** moved or renamed on
+  disk.
+- **Non-destructive write-back** — only the `order` field changes (inserted if
+  absent); title, threads, body text, and the rest of the frontmatter are left
+  untouched.
+- **Renormalize** — rewrite a folder's files back to `10, 20, 30…` **only** when
+  no gap remains between neighbours (the rare escape hatch, and the only case
+  that writes more than one file).
+
+### Reorder vs. move (one gesture, disambiguated by drop target)
+
+- Drop **between siblings** → **reorder**: frontmatter `order` write; file stays
+  put on disk.
+- Drop **onto a folder** → **move**: `rename` on disk (the M4 path); the `order`
+  value rides along unchanged and is simply re-interpreted among the
+  destination folder's siblings.
 
 This is the same ordering the (now optional) thread-visualiser editing would have
 written — so tree-drag reordering covers the core "move things around" need on
@@ -674,6 +711,12 @@ the bottom. (Raised 2026-07-06.)
   share one mechanism: a **guarded custom protocol** (e.g. `writer-file://`) in
   main that serves only files under the open project root — avoids base64 bloat
   and preserves the sandbox. Likely Phase 6 polish, or on demand.
+- **Manuscript-order scope.** _Now:_ `order` sequences files **within their
+  directory**; folders sort alphabetically (dirs-first) and aren't themselves
+  orderable. _Revisit when:_ projects want a single **global** reading order
+  across folders, or want to **order folders** (e.g. parts/acts) — needs a place
+  to store folder order (folders have no frontmatter), likely `project.json` or a
+  per-folder marker.
 - **Desktop shell (Electron vs. Tauri).** _Now:_ staying on Electron; the
   renderer is kept shell-agnostic behind `window.api` (decision #24) so a swap is
   cheap. _Revisit:_ **before Phase 5** — migration cost rises as main-process
@@ -799,3 +842,14 @@ initial design conversation.)
     on Electron**; the cost of switching rises as main-process logic accumulates
     (Phase 5 `StoryIndex`, a future LSP subprocess), so reassess before Phase 5,
     not after. Recorded as a standard in AGENTS.md → _Keep seams intact_.
+25. **Manuscript-order requirements pinned down (ahead of M6).** `order` lives in
+    per-file frontmatter (sparse, step 10), scopes files **within a directory**,
+    and is edited only by **drag** — dropping between siblings rewrites just that
+    file's `order` (midpoint / `last + 10`), never moving the file on disk;
+    dropping onto a folder is a **move** (`rename`) that carries `order` along.
+    Write-back is non-destructive (only the `order` field changes); the `NN-`
+    filename prefix is cosmetic and may diverge from `order`. Renormalize a
+    folder only when a gap runs out. _Why:_ make M6 unambiguous and keep the
+    single-file-write property that motivated sparse ordering (#18). Global
+    cross-folder ordering and orderable folders are deferred (see _Deferred
+    decisions_).
