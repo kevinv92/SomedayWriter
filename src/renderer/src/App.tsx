@@ -10,6 +10,7 @@ import { Editor, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
 import { ProjectSearch } from './components/ProjectSearch'
+import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { AnalysisService } from './analysis/analysis-service'
 import { createMentionProvider } from './analysis/providers/mention-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
@@ -66,6 +67,8 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
+  const [quickInput, setQuickInput] = useState<string | null>(null)
   const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
     null
   )
@@ -99,6 +102,18 @@ export default function App() {
     return service
   }, [])
   useEffect(() => () => analysis.dispose(), [analysis])
+
+  // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P).
+  const projectFiles = useMemo<QuickFile[]>(() => {
+    const out: QuickFile[] = []
+    const walk = (node: TreeNode) => {
+      if (node.type === 'file') {
+        if (node.name.endsWith('.md')) out.push({ path: node.path, name: node.name })
+      } else node.children?.forEach(walk)
+    }
+    tree?.children?.forEach(walk)
+    return out
+  }, [tree])
 
   const refreshTree = async () => {
     setTree(await window.api.readTree())
@@ -467,6 +482,9 @@ export default function App() {
       } else if (k === 'w') {
         e.preventDefault()
         closeActiveRef.current()
+      } else if (k === 'p') {
+        e.preventDefault()
+        setQuickInput(e.shiftKey ? '>' : '')
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -516,6 +534,59 @@ export default function App() {
     '--editor-font-size': ed?.fontSize ? `${ed.fontSize}px` : '16px',
     '--editor-line-height': ed?.lineHeight ? String(ed.lineHeight) : '1.7'
   } as CSSProperties
+
+  // Command registry (SPEC → command palette). Declared once here; the palette,
+  // and later menus/keybindings, draw from it.
+  const commands: QuickCommand[] = [
+    { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
+    {
+      id: 'new-file',
+      title: 'New File',
+      run: () => tree && setModal({ kind: 'newFile', dir: tree.path })
+    },
+    {
+      id: 'new-folder',
+      title: 'New Folder',
+      run: () => tree && setModal({ kind: 'newFolder', dir: tree.path })
+    },
+    {
+      id: 'find-in-project',
+      title: 'Find in Project',
+      hint: '⌘⇧F',
+      run: () => setSearchOpen((v) => !v)
+    },
+    {
+      id: 'toggle-vim',
+      title: `Toggle Vim (${vim ? 'on' : 'off'})`,
+      run: () => setVim((v) => !v)
+    },
+    {
+      id: 'toggle-diagnostics',
+      title: `Toggle Diagnostics (${diagnostics ? 'on' : 'off'})`,
+      run: () => setDiagnostics((v) => !v)
+    },
+    {
+      id: 'toggle-autosave',
+      title: `Toggle Autosave (${autosave ? 'on' : 'off'})`,
+      run: () => setAutosave((v) => !v)
+    },
+    {
+      id: 'save',
+      title: 'Save',
+      hint: '⌘S',
+      run: () => {
+        if (activePath) void saveTab(activePath)
+      }
+    },
+    {
+      id: 'close-tab',
+      title: 'Close Tab',
+      hint: '⌘W',
+      run: () => {
+        if (activePath) closeTab(activePath)
+      }
+    }
+  ]
 
   return (
     <div className="app">
@@ -728,6 +799,16 @@ export default function App() {
           onSave={() => void resolveClosing('save')}
           onDiscard={() => void resolveClosing('discard')}
           onCancel={() => setClosingTab(null)}
+        />
+      )}
+
+      {quickInput !== null && (
+        <QuickInput
+          files={projectFiles}
+          commands={commands}
+          initialQuery={quickInput}
+          onClose={() => setQuickInput(null)}
+          onOpenFile={(path) => openFile(path)}
         />
       )}
     </div>
