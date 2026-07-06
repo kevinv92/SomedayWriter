@@ -82,6 +82,7 @@ export default function App() {
 
   const docsRef = useRef(new Map<string, OpenBuffer>())
   const revealNonce = useRef(0)
+  const didInit = useRef(false)
 
   // The doc handed to the editor — keyed on the active tab only, so typing (which
   // mutates the buffer in the ref) never re-loads the editor. Switching tabs
@@ -315,12 +316,15 @@ export default function App() {
       e.preventDefault()
       const startX = e.clientX
       const startWidth = sidebarWidth
+      let latest = startWidth
       const onMove = (ev: MouseEvent) => {
-        setSidebarWidth(Math.min(Math.max(startWidth + ev.clientX - startX, 160), 480))
+        latest = Math.min(Math.max(startWidth + ev.clientX - startX, 160), 480)
+        setSidebarWidth(latest)
       }
       const onUp = () => {
         window.removeEventListener('mousemove', onMove)
         window.removeEventListener('mouseup', onUp)
+        void window.api.updateSettings({ sidebarWidth: latest })
       }
       window.addEventListener('mousemove', onMove)
       window.addEventListener('mouseup', onUp)
@@ -328,14 +332,19 @@ export default function App() {
     [sidebarWidth]
   )
 
-  // Load recent projects for the welcome screen (only while none is open).
+  // On first mount: load settings, restore the sidebar width, and reopen the
+  // most recent project (falling back to the welcome + recents list if it fails).
   useEffect(() => {
-    if (project) return
+    if (didInit.current) return
+    didInit.current = true
     void (async () => {
       const settings = await window.api.getSettings()
       setRecents(settings.recentProjects)
+      if (settings.sidebarWidth) setSidebarWidth(settings.sidebarWidth)
+      const last = settings.recentProjects[0]
+      if (last) await openRecent(last.path)
     })()
-  }, [project])
+  }, [openRecent])
 
   // --- explorer file operations (M4) ---
 

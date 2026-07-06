@@ -25,8 +25,12 @@ const api = {
   openRecent: (path: string): Promise<OpenProjectResult> =>
     ipcRenderer.invoke('project:openPath', path),
 
-  /** Global app settings (recent projects, …). */
+  /** Global app settings (recent projects, sidebar width, …). */
   getSettings: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
+
+  /** Merge a patch into global app settings. */
+  updateSettings: (patch: Partial<AppSettings>): Promise<AppSettings> =>
+    ipcRenderer.invoke('settings:update', patch),
 
   /** Explorer tree for the open project, or null if none is open. */
   readTree: (): Promise<TreeNode | null> => ipcRenderer.invoke('project:readTree'),

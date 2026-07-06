@@ -13,7 +13,7 @@ import type {
   TreeNode,
   WriteResult
 } from '../shared/types'
-import { addRecentProject, readSettings } from './settings'
+import { addRecentProject, readSettings, updateSettings } from './settings'
 import {
   DEFAULT_IGNORE,
   defaultProjectConfig,
@@ -162,6 +162,11 @@ function registerIpc(): void {
   )
 
   ipcMain.handle('settings:get', (): Promise<AppSettings> => readSettings())
+
+  ipcMain.handle(
+    'settings:update',
+    (_e, patch: Partial<AppSettings>): Promise<AppSettings> => updateSettings(patch)
+  )
 
   ipcMain.handle('project:readTree', async (): Promise<TreeNode | null> => {
     if (!currentProject) return null

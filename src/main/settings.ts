@@ -38,6 +38,13 @@ async function writeSettings(settings: AppSettings): Promise<void> {
   await fs.writeFile(settingsPath(), JSON.stringify(settings, null, 2) + '\n', 'utf8')
 }
 
+/** Merge a partial patch into the stored settings (preserving other keys). */
+export async function updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+  const next = { ...(await readSettings()), ...patch }
+  await writeSettings(next)
+  return next
+}
+
 /** Record an opened project at the front of the recent list (deduped, capped). */
 export async function addRecentProject(
   path: string,

@@ -73,6 +73,8 @@ export type RecentProject = { path: string; name: string; openedAt: number }
  * per-project `project.json` (SPEC → App settings). */
 export type AppSettings = {
   recentProjects: RecentProject[]
+  /** Persisted explorer sidebar width in px. */
+  sidebarWidth?: number
 }
 
 /** Options for project-wide search (M5). */
