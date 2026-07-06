@@ -357,12 +357,34 @@ as you type, and dismiss with `Esc`.
   cramped.
 
 **Command registry (the seam behind the palette).** Commands are declared once in
-a central registry — `{ id, title, keybinding?, run() }` — and **every** trigger
-draws from it: the palette, any menus, and keyboard shortcuts. Adding a command
-must not touch palette or menu code (same pluggability stance as
-`AnalysisService`), and keybindings get a single source of truth. **Fuzzy
-matching** is a small subsequence scorer over filenames / command titles — no
-heavy dependency.
+a central registry — `{ id, title, category, defaultKeybinding?, run() }` — and
+**every** trigger draws from it: the palette, keyboard shortcuts, and the native
+menu. Adding a command must not touch palette or menu code (same pluggability
+stance as `AnalysisService`). One source of truth, three consumers:
+
+- **Palette / shortcuts** — the renderer reads the registry directly (M15 today
+  has an ad-hoc `commands` array; it becomes the registry).
+- **Native menu — generated from the registry, not hand-maintained.** The
+  renderer hands main the menu-relevant commands (id, label, effective
+  keybinding, group) over IPC; main renders them as an Electron `Menu`. That menu
+  builder is the **only shell-specific piece** — the registry and the dispatch
+  stay in the renderer, so a shell swap (Tauri) rewrites just the builder, not the
+  commands (reinforces decision #24, the `window.api` seam). Menu items use
+  `registerAccelerator: false` so the shown shortcut doesn't hijack the key from
+  the renderer / CodeMirror.
+- **User-overridable keybindings.** A **`keybindings.json`** in the app-settings
+  user-data dir remaps any command (the VS Code model); the registry merges
+  `defaultKeybinding` + user overrides into the **effective** binding that the
+  palette shows and the menu displays. Editor-owned keys (CM's `⌘Z`, `⌘F`) are
+  documented as reserved.
+
+**Fuzzy matching** is a small subsequence scorer over filenames / command titles
+— no heavy dependency.
+
+**Status:** the palette + shortcuts exist (M15 + keyboard nav); the **unified
+registry, the generated native menu, and user keybinding overrides are not built
+yet** — a `menu.ts` first cut exists but should be driven by the registry rather
+than a parallel hardcoded list.
 
 ## Keyboard navigation & focus
 
@@ -1464,3 +1486,15 @@ initial design conversation.)
     currently absent. Also spec'd the honest gaps in "completed" phases: project
     replace is replace-all (per-match + regex are refinements), window-bounds
     persistence and a native menu remain.
+41. **One command registry drives palette + shortcuts + menu; keybindings are
+    user-overridable; the menu stays behind the shell seam.** The renderer owns a
+    single registry (`{ id, title, category, defaultKeybinding, run }`); the
+    palette and shortcuts read it, and the **native menu is generated** from it
+    (renderer → main IPC; Electron `Menu` is the only shell-specific part, so a
+    Tauri swap rewrites just the builder — cf. #24). Users remap via a
+    `keybindings.json` in user-data; the registry merges default + override into
+    the effective binding shown in palette + menu. Menu items use
+    `registerAccelerator: false` so displayed shortcuts don't hijack keys from the
+    renderer / CodeMirror. _Why:_ avoids the two-sources-of-truth trap (an ad-hoc
+    palette array + a hardcoded menu list) and delivers customizable keys for
+    free. Not built yet — supersedes the plain "command registry" sketch.
