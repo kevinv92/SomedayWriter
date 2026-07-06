@@ -35,6 +35,9 @@ export type TreeNode = {
   path: string
   type: 'file' | 'directory'
   children?: TreeNode[]
+  /** Manuscript `order` from the file's frontmatter (M6). Files only; absent
+   * when the file declares none. Drives tree sort — see SPEC → Manuscript order. */
+  order?: number
 }
 
 /**
@@ -50,3 +53,23 @@ export type OpenProjectResult =
 export type FileReadResult = { ok: true; text: string } | { ok: false; error: string }
 
 export type WriteResult = { ok: true } | { ok: false; error: string }
+
+/** Options for project-wide search (M5). */
+export type SearchOptions = { caseSensitive?: boolean }
+
+/** One match within a file: 1-based line/column plus the whole line as preview. */
+export type SearchMatch = {
+  line: number
+  column: number
+  preview: string
+}
+
+/** Matches within a single file, for the project-search results list. */
+export type SearchFileResult = {
+  path: string
+  matches: SearchMatch[]
+}
+
+/** Outcome of a project-wide replace-all. */
+export type ReplaceResult =
+  { ok: true; files: number; replacements: number } | { ok: false; error: string }

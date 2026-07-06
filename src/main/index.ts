@@ -6,6 +6,9 @@ import type {
   FileReadResult,
   OpenProjectResult,
   ProjectMeta,
+  ReplaceResult,
+  SearchFileResult,
+  SearchOptions,
   TreeNode,
   WriteResult
 } from '../shared/types'
@@ -13,10 +16,13 @@ import {
   DEFAULT_IGNORE,
   defaultProjectConfig,
   isInside,
+  listMarkdownFiles,
   readProjectConfig,
   readTree,
   writeProjectConfig
 } from './fs-project'
+import { writeOrder } from './frontmatter'
+import { findMatches, replaceAll } from './search'
 
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
@@ -215,6 +221,76 @@ function registerIpc(): void {
       return { ok: false, error: messageOf(err) }
     }
   })
+
+  // --- manuscript order (M6) ---
+
+  ipcMain.handle(
+    'file:setOrder',
+    async (_e, path: string, value: number): Promise<WriteResult> => {
+      if (!guardPath(path)) return OUTSIDE_ERR
+      try {
+        const text = await fs.readFile(path, 'utf8')
+        await fs.writeFile(path, writeOrder(text, value), 'utf8')
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: messageOf(err) }
+      }
+    }
+  )
+
+  // --- project-wide search & replace (M5) ---
+
+  ipcMain.handle(
+    'project:search',
+    async (_e, query: string, opts: SearchOptions): Promise<SearchFileResult[]> => {
+      if (!currentProject || !query) return []
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      const files = await listMarkdownFiles(currentProject.root, ignore)
+      const results: SearchFileResult[] = []
+      for (const path of files) {
+        let text: string
+        try {
+          text = await fs.readFile(path, 'utf8')
+        } catch {
+          continue
+        }
+        const matches = findMatches(text, query, opts)
+        if (matches.length) results.push({ path, matches })
+      }
+      return results
+    }
+  )
+
+  ipcMain.handle(
+    'project:replace',
+    async (
+      _e,
+      query: string,
+      replacement: string,
+      opts: SearchOptions
+    ): Promise<ReplaceResult> => {
+      if (!currentProject) return { ok: false, error: 'No project open.' }
+      if (!query) return { ok: true, files: 0, replacements: 0 }
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      const files = await listMarkdownFiles(currentProject.root, ignore)
+      let changedFiles = 0
+      let total = 0
+      try {
+        for (const path of files) {
+          const text = await fs.readFile(path, 'utf8')
+          const { text: next, count } = replaceAll(text, query, replacement, opts)
+          if (count > 0) {
+            await fs.writeFile(path, next, 'utf8')
+            changedFiles++
+            total += count
+          }
+        }
+        return { ok: true, files: changedFiles, replacements: total }
+      } catch (err) {
+        return { ok: false, error: messageOf(err) }
+      }
+    }
+  )
 }
 
 app.whenReady().then(() => {

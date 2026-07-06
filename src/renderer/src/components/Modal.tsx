@@ -65,6 +65,44 @@ export function PromptModal({
   )
 }
 
+interface UnsavedChangesModalProps {
+  filename: string
+  onSave: () => void
+  onDiscard: () => void
+  onCancel: () => void
+}
+
+/** Shown when leaving a file with unsaved edits — Save / Discard / Cancel.
+ * Guards against the silent data loss called out in the writer review (M-safety). */
+export function UnsavedChangesModal({
+  filename,
+  onSave,
+  onDiscard,
+  onCancel
+}: UnsavedChangesModalProps) {
+  return (
+    <div className="modal-overlay" onMouseDown={onCancel}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <h2 className="modal__title">Unsaved changes</h2>
+        <p className="modal__message">
+          “{filename}” has unsaved changes. Save them before switching?
+        </p>
+        <div className="modal__actions">
+          <button className="toggle" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="modal__danger" onClick={onDiscard}>
+            Discard
+          </button>
+          <button className="modal__primary" onClick={onSave}>
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ConfirmModalProps {
   title: string
   message: string

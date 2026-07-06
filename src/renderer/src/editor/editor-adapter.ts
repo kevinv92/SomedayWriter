@@ -44,6 +44,10 @@ export interface EditorAdapter {
   /** Scroll to and select a range (used by references / visualiser). */
   focusRange(range: Range): void
 
+  /** Scroll to and place the cursor at a 1-based line (and optional 1-based
+   * column). Used to jump to a project-search match. */
+  focusLine(line: number, column?: number): void
+
   getCursor(): CursorPosition
 
   setVimMode(enabled: boolean): void

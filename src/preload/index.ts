@@ -2,6 +2,9 @@ import { contextBridge, ipcRenderer } from 'electron'
 import type {
   FileReadResult,
   OpenProjectResult,
+  ReplaceResult,
+  SearchFileResult,
+  SearchOptions,
   TreeNode,
   WriteResult
 } from '../shared/types'
@@ -41,7 +44,23 @@ const api = {
     ipcRenderer.invoke('path:rename', from, to),
 
   /** Delete a file or folder (recursive) within the project. */
-  remove: (path: string): Promise<WriteResult> => ipcRenderer.invoke('path:remove', path)
+  remove: (path: string): Promise<WriteResult> => ipcRenderer.invoke('path:remove', path),
+
+  /** Set a file's manuscript `order` (frontmatter), preserving the rest (M6). */
+  setOrder: (path: string, value: number): Promise<WriteResult> =>
+    ipcRenderer.invoke('file:setOrder', path, value),
+
+  /** Search text across all `.md` files in the project (M5). */
+  searchProject: (query: string, opts: SearchOptions): Promise<SearchFileResult[]> =>
+    ipcRenderer.invoke('project:search', query, opts),
+
+  /** Replace all occurrences of `query` with `replacement` across the project. */
+  replaceInProject: (
+    query: string,
+    replacement: string,
+    opts: SearchOptions
+  ): Promise<ReplaceResult> =>
+    ipcRenderer.invoke('project:replace', query, replacement, opts)
 }
 
 export type Api = typeof api

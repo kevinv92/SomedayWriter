@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs'
 import { basename, join, resolve, sep } from 'path'
 import type { ProjectConfig, TreeNode } from '../shared/types'
+import { readOrder } from './frontmatter'
 
 /**
  * Filesystem logic for a project: reading the config, walking the tree, and
@@ -62,13 +63,27 @@ export async function writeProjectConfig(
   )
 }
 
-/** Directories first, then files; alphabetical within each group. (Manuscript
- * `order` sorting arrives with Phase 3 / M6.) */
+/** SPEC → Manuscript order: directories first (alphabetical); then files with an
+ * `order` (ascending, ties by name); then files with no `order` (alphabetical). */
 function sortNodes(nodes: TreeNode[]): TreeNode[] {
   return nodes.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'directory' ? -1 : 1
+    if (a.type === 'directory') return a.name.localeCompare(b.name)
+    const ao = a.order
+    const bo = b.order
+    if (ao != null && bo != null) return ao - bo || a.name.localeCompare(b.name)
+    if (ao != null) return -1
+    if (bo != null) return 1
     return a.name.localeCompare(b.name)
   })
+}
+
+async function readOrderOf(path: string): Promise<number | null> {
+  try {
+    return readOrder(await fs.readFile(path, 'utf8'))
+  } catch {
+    return null
+  }
 }
 
 async function readChildren(dir: string, ignore: string[]): Promise<TreeNode[]> {
@@ -85,10 +100,35 @@ async function readChildren(dir: string, ignore: string[]): Promise<TreeNode[]> 
         children: await readChildren(path, ignore)
       })
     } else if (entry.isFile()) {
-      nodes.push({ name: entry.name, path, type: 'file' })
+      const node: TreeNode = { name: entry.name, path, type: 'file' }
+      // Manuscript order lives in each .md file's frontmatter (M6).
+      if (entry.name.endsWith('.md')) {
+        const order = await readOrderOf(path)
+        if (order != null) node.order = order
+      }
+      nodes.push(node)
     }
   }
   return sortNodes(nodes)
+}
+
+/** All `.md` file paths under `root`, honouring `ignore` — for project search. */
+export async function listMarkdownFiles(
+  root: string,
+  ignore: string[]
+): Promise<string[]> {
+  const out: string[] = []
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true })
+    for (const entry of entries) {
+      if (matchesIgnore(entry.name, ignore)) continue
+      const path = join(dir, entry.name)
+      if (entry.isDirectory()) await walk(path)
+      else if (entry.isFile() && entry.name.endsWith('.md')) out.push(path)
+    }
+  }
+  await walk(root)
+  return out
 }
 
 /** Build the explorer tree rooted at `root`, skipping ignored entries. */

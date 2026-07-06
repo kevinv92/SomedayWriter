@@ -560,10 +560,11 @@ Constraints when it lands:
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-06):** Phases 0–2 ✅ complete. **Phase 3 in progress** —
-> M3 (New Project flow) ✅ and M4 (explorer file ops) ✅ done; **M5**
-> (project-wide search/replace) and **M6** (drag-reorder + manuscript order)
-> remain. Real file I/O over IPC backs the tree, open/save, create/rename/delete.
+> **Status (2026-07-06):** Phases 0–3 ✅ complete. **Next: Phase 4** (language
+> intelligence — `AnalysisService` + spellcheck provider). Phase 3 shipped New
+> Project, explorer file ops, in-document + project-wide search/replace, drag
+> reorder/move with sparse frontmatter `order`, and the edit-safety guard
+> (unsaved changes prompt on file switch).
 
 ### Phase 0 — Scaffold ✅
 
@@ -608,7 +609,7 @@ The smallest thing that's actually useful: open a project, edit a file, save it.
 
 **Exit:** can open an existing project, edit a file, and save changes to disk.
 
-### Phase 3 — Project management
+### Phase 3 — Project management ✅
 
 Make it a real workspace, not just a viewer.
 
@@ -618,17 +619,19 @@ Make it a real workspace, not just a viewer.
   form) is deferred — see Deferred decisions._
 - **M4** ✅ — Explorer file ops: new file / new folder / rename / delete, via a
   tree context menu + sidebar buttons, over guarded IPC.
-- **M5** — **Search**: in-document find (`Cmd/Ctrl+F`) **and** project-wide find
-  & replace (`Cmd/Ctrl+Shift+F`) across all files. Quick Open + Command Palette
-  are the other two surfaces and land in Phase 6 — see _Search, quick-open &
-  command palette_ _(near-essential requirement)_.
-- **M6** — **Reorder & manuscript order**: drag scenes in the tree; write sparse
-  `order` back to frontmatter _(near-essential requirement)_.
-- **Edit safety (correctness, not a feature)** — **never silently discard
-  in-memory edits.** Switching away from — or closing — a file with unsaved
-  changes must prompt (save / discard / cancel). This is a near-term fix for a
-  data-loss gap in the current build; the fuller model (per-tab unsaved buffers
-  - optional autosave) lands in Phase 6.
+- **M5** ✅ — **Search**: in-document find (`Cmd/Ctrl+F`, via CodeMirror's search
+  extension through the adapter) **and** project-wide find & replace
+  (`Cmd/Ctrl+Shift+F`) — a main-process scan of all `.md` files, results grouped
+  by file, click-to-open at the match line, plain-substring replace-all. Quick
+  Open + Command Palette are the other two surfaces and land in Phase 6 — see
+  _Search, quick-open & command palette_ _(near-essential requirement)_.
+- **M6** ✅ — **Reorder & manuscript order**: files sort by frontmatter `order`;
+  drag a scene onto another to reorder (sparse midpoint write, renormalize only
+  when a gap runs out) or onto a folder to move; `order` written non-destructively
+  _(near-essential requirement)_.
+- **Edit safety** ✅ — switching away from a file with unsaved changes prompts
+  (save / discard / cancel); never silently discards edits. The fuller model
+  (per-tab unsaved buffers + optional autosave) lands in Phase 6.
 
 **Exit:** can create a project from scratch, manage and reorder its files,
 search/replace across it, and never lose unsaved work by switching files.

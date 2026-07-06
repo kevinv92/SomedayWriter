@@ -23,6 +23,7 @@ import {
   type CompletionContext as CmCompletionContext,
   type CompletionResult
 } from '@codemirror/autocomplete'
+import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import { vim } from '@replit/codemirror-vim'
 
 import type { EditorAdapter } from './editor-adapter'
@@ -91,6 +92,15 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.focus()
   }
 
+  focusLine(line: number, column = 1): void {
+    const view = this.requireView()
+    const { doc } = view.state
+    const target = doc.line(Math.min(Math.max(line, 1), doc.lines))
+    const pos = Math.min(target.from + Math.max(column - 1, 0), target.to)
+    view.dispatch({ selection: { anchor: pos }, scrollIntoView: true })
+    view.focus()
+  }
+
   getCursor(): CursorPosition {
     const { state } = this.requireView()
     const head = state.selection.main.head
@@ -126,8 +136,17 @@ class CodeMirrorAdapter implements EditorAdapter {
         syntaxHighlighting(proseHighlightStyle),
         notesPlugin,
         EditorView.lineWrapping,
+        // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
+        // the text rather than at the bottom, which reads better for prose.
+        search({ top: true }),
+        highlightSelectionMatches(),
         autocompletion({ override: [this.completionDelegate], activateOnTyping: true }),
-        keymap.of([...defaultKeymap, ...historyKeymap, ...completionKeymap]),
+        keymap.of([
+          ...defaultKeymap,
+          ...historyKeymap,
+          ...completionKeymap,
+          ...searchKeymap
+        ]),
         EditorView.updateListener.of(this.handleUpdate),
         proseTheme
       ]
@@ -239,6 +258,25 @@ const proseTheme = EditorView.theme({
   '&.cm-focused .cm-selectionBackground': {
     backgroundColor: 'rgba(37, 99, 235, 0.35)'
   },
+  // Find panel (Cmd/Ctrl+F) — inherit the app theme so it's legible on dark bg.
+  '.cm-panels': {
+    backgroundColor: 'var(--panel)',
+    color: 'var(--fg)',
+    borderBottom: '1px solid var(--border)'
+  },
+  '.cm-panel.cm-search input, .cm-panel.cm-search button': {
+    fontFamily: 'inherit',
+    fontSize: '0.85rem'
+  },
+  '.cm-panel.cm-search input': {
+    background: 'var(--bg)',
+    color: 'var(--fg)',
+    border: '1px solid var(--border)',
+    borderRadius: '4px',
+    padding: '0.1rem 0.3rem'
+  },
+  '.cm-searchMatch': { backgroundColor: 'rgba(234, 179, 8, 0.35)' },
+  '.cm-searchMatch-selected': { backgroundColor: 'rgba(234, 179, 8, 0.65)' },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {
     color: 'var(--muted)',

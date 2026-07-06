@@ -12,9 +12,13 @@ interface FileTreeProps {
   onNewFolder: (dir: string) => void
   onRename: (node: TreeNode) => void
   onDelete: (node: TreeNode) => void
+  /** Drag `draggedPath` and drop it on `target` — a folder (move) or a file
+   * (reorder). App decides which and writes the change (M6). */
+  onDrop: (draggedPath: string, target: TreeNode) => void
 }
 
-/** v1 edits Markdown only; other files show greyed and aren't selectable. */
+/** v1 edits Markdown only; other files show greyed and aren't selectable. Only
+ * Markdown files are draggable (they're the scenes that carry `order`). */
 function isEditable(node: TreeNode): boolean {
   return node.type === 'file' && node.name.endsWith('.md')
 }
@@ -27,24 +31,39 @@ function targetDir(node: TreeNode): string {
 interface RowProps {
   node: TreeNode
   activePath: string | null
+  dropPath: string | null
   onSelect: (path: string) => void
   onContext: (node: TreeNode, x: number, y: number) => void
+  onDragStartNode: (node: TreeNode) => void
+  onDragOverNode: (node: TreeNode) => void
+  onDropNode: (node: TreeNode) => void
 }
 
-function FileRow({ node, activePath, onSelect, onContext }: RowProps) {
+function FileRow(props: RowProps) {
+  const { node, activePath, dropPath, onSelect, onContext } = props
   const editable = isEditable(node)
   const active = node.path === activePath
   return (
     <button
       className={`tree-file${active ? ' tree-file--active' : ''}${
         editable ? '' : ' tree-file--disabled'
-      }`}
+      }${dropPath === node.path ? ' tree-drop' : ''}`}
       disabled={!editable}
+      draggable={editable}
       title={editable ? node.name : 'Only Markdown (.md) files are editable in v1'}
       onClick={() => onSelect(node.path)}
       onContextMenu={(e) => {
         e.preventDefault()
         onContext(node, e.clientX, e.clientY)
+      }}
+      onDragStart={() => props.onDragStartNode(node)}
+      onDragOver={(e) => {
+        e.preventDefault()
+        props.onDragOverNode(node)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        props.onDropNode(node)
       }}
     >
       {node.name}
@@ -52,16 +71,25 @@ function FileRow({ node, activePath, onSelect, onContext }: RowProps) {
   )
 }
 
-function DirRow({ node, activePath, onSelect, onContext }: RowProps) {
+function DirRow(props: RowProps) {
+  const { node, dropPath, onContext } = props
   const [open, setOpen] = useState(true)
   return (
     <div className="tree-dir">
       <button
-        className="tree-dir__label"
+        className={`tree-dir__label${dropPath === node.path ? ' tree-drop' : ''}`}
         onClick={() => setOpen((o) => !o)}
         onContextMenu={(e) => {
           e.preventDefault()
           onContext(node, e.clientX, e.clientY)
+        }}
+        onDragOver={(e) => {
+          e.preventDefault()
+          props.onDragOverNode(node)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          props.onDropNode(node)
         }}
       >
         <span className="tree-dir__caret">{open ? '▾' : '▸'}</span>
@@ -70,13 +98,7 @@ function DirRow({ node, activePath, onSelect, onContext }: RowProps) {
       {open && node.children && node.children.length > 0 && (
         <div className="tree-dir__children">
           {node.children.map((child) => (
-            <TreeItem
-              key={child.path}
-              node={child}
-              activePath={activePath}
-              onSelect={onSelect}
-              onContext={onContext}
-            />
+            <TreeItem key={child.path} {...props} node={child} />
           ))}
         </div>
       )}
@@ -101,9 +123,12 @@ export function FileTree({
   onNewFile,
   onNewFolder,
   onRename,
-  onDelete
+  onDelete,
+  onDrop
 }: FileTreeProps) {
   const [menu, setMenu] = useState<Menu | null>(null)
+  const [dragPath, setDragPath] = useState<string | null>(null)
+  const [dropPath, setDropPath] = useState<string | null>(null)
 
   // Dismiss the context menu on any outside click, scroll, or Escape.
   useEffect(() => {
@@ -127,20 +152,29 @@ export function FileTree({
     setMenu(null)
   }
 
+  const rowProps = {
+    activePath,
+    dropPath,
+    onSelect,
+    onContext: openContext,
+    onDragStartNode: (node: TreeNode) => setDragPath(node.path),
+    onDragOverNode: (node: TreeNode) => {
+      const hover = node.type === 'directory' ? node.path : parentDir(node.path)
+      if (hover !== dropPath) setDropPath(node.path)
+    },
+    onDropNode: (node: TreeNode) => {
+      if (dragPath && dragPath !== node.path) onDrop(dragPath, node)
+      setDragPath(null)
+      setDropPath(null)
+    }
+  }
+
   return (
-    <div className="tree">
+    <div className="tree" onDragEnd={() => setDropPath(null)}>
       {children.length === 0 ? (
         <p className="tree-empty">This project has no files yet.</p>
       ) : (
-        children.map((child) => (
-          <TreeItem
-            key={child.path}
-            node={child}
-            activePath={activePath}
-            onSelect={onSelect}
-            onContext={openContext}
-          />
-        ))
+        children.map((child) => <TreeItem key={child.path} {...rowProps} node={child} />)
       )}
 
       {menu && (

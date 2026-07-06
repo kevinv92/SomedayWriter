@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
-import { ConfirmModal, PromptModal } from './components/Modal'
+import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
+import { ProjectSearch } from './components/ProjectSearch'
 import type { EditorDoc } from './editor/types'
 import type { ProjectMeta, TreeNode } from '@shared/types'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 
 type ActiveDoc = { path: string; text: string }
+
+type Reveal = { line: number; column: number }
 
 type ModalState =
   | { kind: 'newFile'; dir: string }
@@ -22,6 +25,14 @@ export default function App() {
   const [dirty, setDirty] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [pendingOpen, setPendingOpen] = useState<{
+    path: string
+    reveal: Reveal | null
+  } | null>(null)
+  const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
+    null
+  )
   const [vim, setVim] = useState(false)
   const [diagnostics, setDiagnostics] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
@@ -33,6 +44,7 @@ export default function App() {
   // edits don't re-render App — only the derived `dirty` flag does.
   const savedTextRef = useRef('')
   const currentTextRef = useRef('')
+  const revealNonce = useRef(0)
 
   const doc = useMemo<EditorDoc | null>(
     () => (activeDoc ? { uri: activeDoc.path, text: activeDoc.text } : null),
@@ -60,11 +72,12 @@ export default function App() {
     setActiveDoc(null)
     setDirty(false)
     setNotice(null)
-    // Honour the project's default diagnostics setting on open.
     setDiagnostics(result.project.config.editor?.diagnostics ?? false)
   }, [])
 
-  const selectFile = useCallback(async (path: string) => {
+  // Load a file into the editor (optionally revealing a line). No dirty guard —
+  // callers go through `requestOpen` for that.
+  const loadFile = useCallback(async (path: string, reveal?: Reveal) => {
     const result = await window.api.readFile(path)
     if (!result.ok) {
       setNotice(`Couldn't open file: ${result.error}`)
@@ -75,24 +88,72 @@ export default function App() {
     setActiveDoc({ path, text: result.text })
     setDirty(false)
     setNotice(null)
+    if (reveal) {
+      revealNonce.current += 1
+      setRevealTarget({ ...reveal, nonce: revealNonce.current })
+    }
   }, [])
+
+  // Open a file, but guard unsaved edits in the current one (edit-safety fix).
+  const requestOpen = useCallback(
+    (path: string, reveal?: Reveal) => {
+      // Already open: just reveal — never re-read from disk (would drop edits).
+      if (activeDoc?.path === path) {
+        if (reveal) {
+          revealNonce.current += 1
+          setRevealTarget({ ...reveal, nonce: revealNonce.current })
+        }
+        return
+      }
+      if (activeDoc && dirty) {
+        setPendingOpen({ path, reveal: reveal ?? null })
+        return
+      }
+      void loadFile(path, reveal)
+    },
+    [activeDoc, dirty, loadFile]
+  )
 
   const handleDocChange = useCallback((text: string) => {
     currentTextRef.current = text
     setDirty(text !== savedTextRef.current)
   }, [])
 
-  const save = useCallback(async () => {
-    if (!activeDoc) return
+  const save = useCallback(async (): Promise<boolean> => {
+    if (!activeDoc) return true
     const text = currentTextRef.current
     const result = await window.api.writeFile(activeDoc.path, text)
     if (!result.ok) {
       setNotice(`Couldn't save: ${result.error}`)
-      return
+      return false
     }
     savedTextRef.current = text
     setDirty(false)
+    return true
   }, [activeDoc])
+
+  const resolvePending = async (action: 'save' | 'discard') => {
+    const pending = pendingOpen
+    if (!pending) return
+    if (action === 'save' && !(await save())) {
+      setPendingOpen(null) // save failed — keep edits, don't switch
+      return
+    }
+    setPendingOpen(null)
+    void loadFile(pending.path, pending.reveal ?? undefined)
+  }
+
+  // Point the open doc at a moved/renamed path (content unchanged on disk).
+  const remapActiveDoc = (from: string, to: string) => {
+    if (activeDoc?.path === from) {
+      setActiveDoc({ path: to, text: currentTextRef.current })
+    } else if (activeDoc && isInsideDir(activeDoc.path, from)) {
+      setActiveDoc({
+        path: to + activeDoc.path.slice(from.length),
+        text: currentTextRef.current
+      })
+    }
+  }
 
   // --- explorer file operations (M4) ---
 
@@ -105,7 +166,7 @@ export default function App() {
       return
     }
     await refreshTree()
-    if (fileName.endsWith('.md')) await selectFile(path)
+    if (fileName.endsWith('.md')) requestOpen(path)
   }
 
   async function createFolderIn(dir: string, name: string) {
@@ -125,14 +186,7 @@ export default function App() {
       setNotice(`Couldn't rename: ${result.error}`)
       return
     }
-    // Keep the open doc pointed at its new path (rename doesn't touch content, so
-    // carry the live editor text across the reload rather than the stale copy).
-    if (activeDoc?.path === node.path) {
-      setActiveDoc({ path: to, text: currentTextRef.current })
-    } else if (activeDoc && isInsideDir(activeDoc.path, node.path)) {
-      const moved = to + activeDoc.path.slice(node.path.length)
-      setActiveDoc({ path: moved, text: currentTextRef.current })
-    }
+    remapActiveDoc(node.path, to)
     await refreshTree()
   }
 
@@ -152,17 +206,100 @@ export default function App() {
     await refreshTree()
   }
 
-  // Cmd/Ctrl+S saves. Kept in a ref so the listener binds once yet always calls
-  // the current `save` (which closes over the active doc).
+  // --- manuscript order + move (M6) ---
+
+  /** The children array that contains `path` (its siblings), or []. */
+  const siblingsOf = (path: string): TreeNode[] => {
+    const search = (node: TreeNode): TreeNode[] | null => {
+      if (!node.children) return null
+      if (node.children.some((c) => c.path === path)) return node.children
+      for (const child of node.children) {
+        const found = search(child)
+        if (found) return found
+      }
+      return null
+    }
+    return tree ? (search(tree) ?? []) : []
+  }
+
+  const renormalize = async (files: TreeNode[]) => {
+    for (let i = 0; i < files.length; i++) {
+      await window.api.setOrder(files[i].path, (i + 1) * 10)
+    }
+  }
+
+  async function moveInto(fromPath: string, folderPath: string) {
+    const to = joinPath(folderPath, basename(fromPath))
+    if (to === fromPath) return
+    const result = await window.api.rename(fromPath, to)
+    if (!result.ok) {
+      setNotice(`Couldn't move: ${result.error}`)
+      return
+    }
+    remapActiveDoc(fromPath, to)
+    await refreshTree()
+  }
+
+  /** Drop `draggedPath` on `target`: onto a folder → move in; onto an .md file →
+   * place right after it (reorder), moving into that folder first if needed. */
+  async function handleDrop(draggedPath: string, target: TreeNode) {
+    if (target.type === 'directory') {
+      await moveInto(draggedPath, target.path)
+      return
+    }
+    if (!target.name.endsWith('.md')) {
+      await moveInto(draggedPath, parentDir(target.path))
+      return
+    }
+    const targetParent = parentDir(target.path)
+    const sibs = siblingsOf(target.path).filter(
+      (n) => n.type === 'file' && n.path !== draggedPath
+    )
+    const ti = sibs.findIndex((n) => n.path === target.path)
+    if (ti === -1) return
+    const next = sibs[ti + 1]
+    let a = sibs[ti].order
+    let b = next?.order
+    // Ensure the neighbours have orders; renormalize the run if not.
+    if (a == null || (next && b == null)) {
+      await renormalize(sibs)
+      a = (ti + 1) * 10
+      b = next ? (ti + 2) * 10 : undefined
+    }
+    const newOrder = b != null ? (a + b) / 2 : a + 10
+    const set = await window.api.setOrder(draggedPath, newOrder)
+    if (!set.ok) {
+      setNotice(`Couldn't reorder: ${set.error}`)
+      return
+    }
+    if (parentDir(draggedPath) !== targetParent) {
+      const to = joinPath(targetParent, basename(draggedPath))
+      const moved = await window.api.rename(draggedPath, to)
+      if (!moved.ok) {
+        setNotice(`Couldn't move: ${moved.error}`)
+        return
+      }
+      remapActiveDoc(draggedPath, to)
+    }
+    await refreshTree()
+  }
+
+  // Cmd/Ctrl+S saves; Cmd/Ctrl+Shift+F toggles project search. (Plain Cmd/Ctrl+F
+  // is handled inside the editor by CodeMirror.) `save` is read via a ref so the
+  // listener binds once yet always calls the current closure.
   const saveRef = useRef(save)
   useEffect(() => {
     saveRef.current = save
   }, [save])
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+      const mod = e.metaKey || e.ctrlKey
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 's') {
         e.preventDefault()
         void saveRef.current()
+      } else if (mod && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault()
+        setSearchOpen((v) => !v)
       }
     }
     window.addEventListener('keydown', onKeyDown)
@@ -192,6 +329,13 @@ export default function App() {
           <span className="toolbar__project">{project.name}</span>
         </div>
         <div className="toolbar__group">
+          <button
+            className={`toggle${searchOpen ? ' toggle--on' : ''}`}
+            title="Find in Project (⌘/Ctrl+Shift+F)"
+            onClick={() => setSearchOpen((v) => !v)}
+          >
+            Search
+          </button>
           <button
             className={`toggle${vim ? ' toggle--on' : ''}`}
             onClick={() => setVim((v) => !v)}
@@ -232,11 +376,12 @@ export default function App() {
             <FileTree
               root={tree}
               activePath={activeDoc?.path ?? null}
-              onSelect={(path) => void selectFile(path)}
+              onSelect={(path) => requestOpen(path)}
               onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
               onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
               onRename={(node) => setModal({ kind: 'rename', node })}
               onDelete={(node) => setModal({ kind: 'delete', node })}
+              onDrop={(draggedPath, target) => void handleDrop(draggedPath, target)}
             />
           ) : (
             <p className="tree-empty">Loading…</p>
@@ -251,11 +396,19 @@ export default function App() {
               diagnosticsEnabled={diagnostics}
               onStatus={setStatus}
               onDocChange={handleDocChange}
+              revealTarget={revealTarget}
             />
           ) : (
             <div className="placeholder">Select a file to start editing.</div>
           )}
         </main>
+
+        {searchOpen && (
+          <ProjectSearch
+            onClose={() => setSearchOpen(false)}
+            onOpenMatch={(path, line, column) => requestOpen(path, { line, column })}
+          />
+        )}
       </div>
 
       <footer className="statusbar">
@@ -328,6 +481,15 @@ export default function App() {
             setModal(null)
             void deleteNode(modal.node)
           }}
+        />
+      )}
+
+      {pendingOpen && (
+        <UnsavedChangesModal
+          filename={activeDoc ? basename(activeDoc.path) : 'this file'}
+          onSave={() => void resolvePending('save')}
+          onDiscard={() => void resolvePending('discard')}
+          onCancel={() => setPendingOpen(null)}
         />
       )}
     </div>
