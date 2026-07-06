@@ -15,18 +15,28 @@ interface EditorProps {
   vimEnabled: boolean
   diagnosticsEnabled: boolean
   onStatus?: (status: EditorStatus) => void
+  /** Fires the full document text on every edit (drives dirty/save in App). */
+  onDocChange?: (text: string) => void
 }
 
-export function Editor({ doc, vimEnabled, diagnosticsEnabled, onStatus }: EditorProps) {
+export function Editor({
+  doc,
+  vimEnabled,
+  diagnosticsEnabled,
+  onStatus,
+  onDocChange
+}: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<EditorAdapter | null>(null)
   const diagEnabledRef = useRef(diagnosticsEnabled)
   const onStatusRef = useRef(onStatus)
+  const onDocChangeRef = useRef(onDocChange)
 
-  // Keep the latest onStatus callback without re-subscribing the editor.
+  // Keep the latest callbacks without re-subscribing the editor.
   useEffect(() => {
     onStatusRef.current = onStatus
-  }, [onStatus])
+    onDocChangeRef.current = onDocChange
+  }, [onStatus, onDocChange])
 
   // Recompute diagnostics (if on) + status. Stable across renders (reads refs).
   const refresh = useCallback((text?: string) => {
@@ -43,7 +53,10 @@ export function Editor({ doc, vimEnabled, diagnosticsEnabled, onStatus }: Editor
     adapterRef.current = adapter
     adapter.mount(hostRef.current as HTMLElement)
     adapter.setCompletionSource(characterCompletionSource)
-    const off = adapter.onChange((text) => refresh(text))
+    const off = adapter.onChange((text) => {
+      onDocChangeRef.current?.(text)
+      refresh(text)
+    })
     return () => {
       off()
       adapter.dispose()

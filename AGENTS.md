@@ -64,10 +64,20 @@ Bypass in a pinch with `git commit --no-verify` — but fix it, don't leave it.
   across process boundaries rather than redefining them.
 - **Match surrounding style.** Prettier settings: no semicolons, single quotes,
   no trailing commas, 90-col. Run `npm run format` before committing.
-- **Keep seams intact.** Two deliberate abstraction boundaries exist so pieces
+- **Keep seams intact.** Three deliberate abstraction boundaries exist so pieces
   stay swappable — do not bypass them:
   - `EditorAdapter` — only the adapter module imports CodeMirror.
   - `AnalysisService` — the editor talks to this facade, never to a provider.
+  - **`window.api` — the desktop-shell seam.** The renderer must be shell-
+    agnostic: it never imports Electron, `fs`, Node, or `ipcRenderer`, and never
+    references a channel string — it only calls typed methods on `window.api`.
+    All shell-specific code (windows, dialogs, filesystem, IPC handlers) lives in
+    `src/main` + `src/preload`; the IPC payload types live in `src/shared` so
+    they're shell-independent. **Why:** this keeps Electron replaceable (e.g.
+    Tauri) — a shell swap should touch only `src/main`/`src/preload`, never
+    `src/renderer`. Don't leak Electron types or Node APIs into the renderer or
+    into `src/shared`, and don't grow `window.api` with shell-specific concepts
+    (pass plain data, not `BrowserWindow`/`Dialog` handles).
 - **Markdown is canonical.** On-disk and in-memory content is Markdown text.
   Don't introduce a proprietary document format.
 - **Diagnostics (squiggles) are off by default.** Don't wire analysis to nag;

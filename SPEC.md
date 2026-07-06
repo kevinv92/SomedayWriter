@@ -454,10 +454,10 @@ Constraints when it lands:
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-05):** Phase 0 ✅ and Phase 1 ✅ complete. **Next: Phase 2**
-> (real file tree + open/save over IPC). Phase 1 currently loads the sample
-> project via a build-time `?raw` import — Phase 2 replaces that with real file
-> I/O and saving.
+> **Status (2026-07-06):** Phase 0 ✅, Phase 1 ✅, and Phase 2 ✅ complete.
+> **Next: Phase 3** (project management — new project, file ops, search/replace,
+> reorder). Real file I/O over IPC now backs the tree and open/save; the Phase 1
+> `?raw` sample import is gone.
 
 ### Phase 0 — Scaffold ✅
 
@@ -493,12 +493,12 @@ longer a bake-off — it de-risks that choice and builds the seam:
 **Exit:** CM6 edits a markdown file from the sample project through
 `EditorAdapter`, with Vim + a sample squiggle + a sample completion working.
 
-### Phase 2 — Read & Edit (MVP)
+### Phase 2 — Read & Edit (MVP) ✅
 
 The smallest thing that's actually useful: open a project, edit a file, save it.
 
-- **M1** — Pick a folder; detect `project.json`; render the file tree.
-- **M2** — Click a file → load into CodeMirror; save with `Cmd/Ctrl+S`.
+- **M1** ✅ — Pick a folder; detect `project.json`; render the file tree.
+- **M2** ✅ — Click a file → load into CodeMirror; save with `Cmd/Ctrl+S`.
 
 **Exit:** can open an existing project, edit a file, and save changes to disk.
 
@@ -728,3 +728,29 @@ initial design conversation.)
     on export. _Why:_ fits the plain-files, strip-on-export model (like `@{…}`) —
     no sidecar store. Margin/anchored (Google-Docs-style) comments considered but
     deferred as heavier (needs range-anchoring + a separate store).
+23. **Phase 2 built; IPC contract, shared types, and a path guard added.** Real
+    file I/O replaces the `?raw` sample import. Refinements vs. the Process/IPC
+    sketch: `openProject()` bundles the folder dialog + config read into one call
+    returning a **discriminated result** (`ok` / `cancelled` / `no-config` /
+    `invalid-config`) instead of throwing across IPC; `readTree()` takes no
+    argument and reads the main-held current project root rather than trusting a
+    renderer-supplied path. IPC domain types (`ProjectMeta`, `TreeNode`,
+    `ProjectConfig`, result unions) live in **`src/shared/`** (aliased `@shared`
+    in the renderer) so main, preload, and renderer share one definition. Main
+    keeps the open project's root and **guards every file op** so a renderer
+    can't read/write outside it. Save is explicit `Cmd/Ctrl+S` via a
+    renderer-level key listener (no editor-seam change); dirty state is derived
+    by comparing live editor text to the last-saved baseline. Non-`.md` files
+    show in the tree but are greyed/non-selectable (decision #17). _Why:_ keep
+    the renderer untrusted and the seam intact while making failures data, not
+    exceptions.
+24. **`window.api` is a formal desktop-shell seam (Electron kept replaceable).**
+    Electron isn't going away, but the renderer is deliberately shell-agnostic:
+    it talks only to typed `window.api` methods, never to Electron/Node/`fs`/
+    `ipcRenderer`; all shell code lives in `src/main` + `src/preload`; IPC
+    payload types live in `src/shared` free of shell types. _Why:_ a future
+    shell swap (e.g. Tauri, for smaller bundle/RAM) should touch only
+    `src/main`/`src/preload`, leaving `src/renderer` intact. Decision now: **stay
+    on Electron**; the cost of switching rises as main-process logic accumulates
+    (Phase 5 `StoryIndex`, a future LSP subprocess), so reassess before Phase 5,
+    not after. Recorded as a standard in AGENTS.md → _Keep seams intact_.

@@ -4,9 +4,10 @@ A desktop **Markdown** writing tool for prose projects (novels, scripts, docs).
 File explorer on the left, editor on the right. Your work stays as ordinary
 `.md` files on disk — no proprietary format, no lock-in.
 
-> **Status:** early development. Phase 0 (scaffold) is in place — the Electron
-> shell boots and the secure IPC bridge round-trips a ping. Features land in
-> phases; see [SPEC.md](SPEC.md) for the full design and roadmap.
+> **Status:** early development. Through **Phase 2** — you can open a project
+> folder, browse its file tree, edit a Markdown file in the CodeMirror editor,
+> and save with `Cmd/Ctrl+S`. Features land in phases; see [SPEC.md](SPEC.md)
+> for the full design and roadmap.
 
 ## What makes it different
 

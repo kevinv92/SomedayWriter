@@ -61,7 +61,14 @@ body {
 
 .toolbar__group {
   display: flex;
+  align-items: center;
   gap: 0.35rem;
+}
+
+.toolbar__project {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin-left: 0.35rem;
 }
 
 .tab,
@@ -93,6 +100,135 @@ body {
   border-color: var(--accent);
 }
 
+/* --- body: sidebar + editor --- */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--panel);
+  padding: 0.5rem 0.35rem;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* --- file tree --- */
+.tree {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+}
+
+.tree-empty {
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.tree-dir__label,
+.tree-file {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.tree-dir__label:hover,
+.tree-file:not(:disabled):hover {
+  background: var(--border);
+}
+
+.tree-dir__caret {
+  display: inline-block;
+  width: 0.9rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.tree-dir__children {
+  padding-left: 0.85rem;
+}
+
+.tree-file {
+  padding-left: 1.3rem;
+}
+
+.tree-file--active {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.tree-file--active:hover {
+  background: var(--accent);
+}
+
+.tree-file--disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+/* --- welcome screen --- */
+.welcome {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-align: center;
+  color: var(--fg);
+}
+
+.welcome p {
+  color: var(--muted);
+  margin: 0;
+}
+
+.welcome__open {
+  font: inherit;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+}
+
+.welcome__notice {
+  max-width: 32rem;
+  color: var(--muted) !important;
+  font-size: 0.85rem;
+}
+
 /* --- editor --- */
 .editor-host {
   flex: 1;
@@ -114,6 +250,16 @@ body {
   background: var(--panel);
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.statusbar__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 0.4rem;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: middle;
 }
 
 .statusbar__hint {
