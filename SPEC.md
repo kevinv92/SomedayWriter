@@ -411,8 +411,13 @@ we'd only write the TS `LspProvider` adapter, not the server.
 The signature features — linking a character to everywhere it's mentioned,
 tracking story threads — are **deterministic** "language server" features for
 prose. They're the prose equivalent of _go-to-definition_ and _find-references_,
-where the "symbols" are characters, threads, and locations. **No AI required**
-(AI is split out — see below).
+where the "symbols" are characters, threads, and other entities. **No AI
+required** (AI is split out — see below).
+
+The entity model is **type-generic**: an entity is any profile file with a
+`type` (frontmatter), so the same machinery links characters, locations, items,
+factions, magic systems, and more. **v1 (Phase 5) ships `character` + threads**;
+the generic `EntityProvider` and additional types land in **Phase 7**.
 
 ### `StoryIndex` — the project-wide model
 
@@ -420,7 +425,8 @@ Per-file analysis (spellcheck) isn't enough here: to know everywhere a character
 appears you must have read the whole project. So we add a **`StoryIndex`** in the
 main process that:
 
-- scans all project files and extracts **entities** (characters, threads, locations),
+- scans all project files and extracts **entities** — type-generic; `character`
+  - threads in v1, more types (location, item, …) in Phase 7,
 - updates **incrementally** as files change,
 - answers queries the providers use: `definitionOf(entity)`, `referencesTo(entity)`,
   `completionsAt(pos)`.
@@ -433,8 +439,12 @@ How an entity is declared is what keeps linking deterministic (vs. AI guessing):
 
 - **Profile files** (most reliable) — e.g. `characters/mara.md` with frontmatter.
   The file _is_ the entity's "definition." Frontmatter carries a canonical
-  `name` plus **`aliases`** — full names, nicknames, epithets (e.g. `Mara`,
-  `Mara Venn`, `the courier`). Every surface form resolves to the one entity.
+  `name` plus **`aliases`** — full names, nicknames, epithets. Every surface form
+  resolves to the one entity, so a character (`Mara`, `Mara Venn`, `the courier`)
+  **and any other entity type** work the same way: a location
+  `name: Giant's Rest` with `aliases: [Redhill, the old hill]` means `@{Redhill}`
+  and a plain "Giant's Rest" both link to the one place. (Aliases are how
+  in-world renaming — migrants' slang vs. the historical name — stays linked.)
 - **Plain-name detection** (the natural path for prose) — match any known
   surface form (canonical **or** alias) in ordinary text and link it, no markup.
   This is what handles multi-word names like "Captain Corvin" and "the courier"
@@ -735,10 +745,12 @@ The signature features, no AI.
 **Exit:** click a character → see every mention; follow a thread across chapters
 in the braid. (Editing the braid is a stretch goal, not part of the exit.)
 
-### Phase 6 — Polish & v1 · 🏁 Major Milestone
+### Phase 6 — Writing environment · 🏁 v1 Major Milestone
 
-The line where writer-gui is a **"good enough" v1** — a tool a writer would use
-daily. Brings the editing experience up to expectation.
+The **"good enough" v1** — the point writer-gui becomes a comfortable daily
+writing environment: multiple documents, safe editing, fast navigation, and one
+coherent search. **Scoped to the milestones below** — not an open-ended polish
+bucket.
 
 - **M12** — Resizable panes, recent projects, keyboard nav in the tree.
   Introduces the **app-settings store** (`settings.json` in user-data) that backs
@@ -762,13 +774,34 @@ daily. Brings the editing experience up to expectation.
   only difference the writer perceives, not the styling. Options: heavily theme
   CM's find panel to match, or replace it with a custom in-file widget sharing
   the project panel's components.
-- Writing-experience polish (candidates): typewriter / focus mode, a word-count
-  goal.
 
 **Exit (v1):** open or create a project, draft and structure a manuscript across
 tabs without losing work, find anything (in-file, across the project, by
 filename, by command), and reorder scenes — all keyboard-first. **After this
 point we have a good-enough app.**
+
+### Phase 7 — Extended entities (worldbuilding)
+
+Generalize the story model beyond characters and threads to **any entity type**,
+so worldbuilding — locations, items, factions, magic systems — links exactly the
+way characters do. Post-v1, and the deterministic core only: entities as
+referenceable pages. (Enforcing a magic system's _rules_ against the prose is
+semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
+
+- **M17** — **Type-generic `EntityProvider`.** Refactor Phase 5's
+  `CharacterProvider` into one provider parameterized by `type` (already the
+  discriminator in profile frontmatter). Profile files of any `type` —
+  `location`, `item`, `faction` / `organization`, `magic-system`, `artifact` —
+  get the same `@`-mention completion, find-references, go-to-definition, plus
+  **`name` + `aliases`** resolution off `StoryIndex`, with **no per-type code**.
+  Unknown types work with defaults.
+- **M18** — **Registered entity types** in `project.json` (like the threads
+  registry): display name, icon, colour — so the tree, inspector, and visualiser
+  can badge a location vs. an item.
+
+**Exit:** `@{Redhill}` resolves to the location page whose canonical name is
+"Giant's Rest" (via aliases), just like a character; every entity type shares one
+code path.
 
 > **AI features are out of scope for these phases** — see _AI features (split out
 > — deferred)_. They ride the same facade and can be added later without
@@ -842,6 +875,8 @@ Plain-language definitions of terms used above.
 
 - **Split view** — two editors side by side. Tabs (M13) come first; a split pane
   is the additional step beyond them.
+- **Writing-experience polish** — typewriter / focus mode, word-count goals.
+  (Dropped from Phase 6 to keep it scoped; nice-to-haves, not part of v1.)
 - **Config format** — revisit TOML if hand-editing `project.json` gets clunky.
 - **External LSP** — an `LspProvider` that attaches a real language server over
   JSON-RPC; registers behind the same facade (see Analysis section).
@@ -1087,3 +1122,20 @@ initial design conversation.)
     and that model + full YAML frontmatter parsing arrive with `StoryIndex`.
     Confirms the shell is a multi-pane system (tree / editor / project-search /
     inspector / visualiser), with a resizable layout deferred to M12.
+32. **Phase 6 rescoped from "Polish" to "Writing environment".** "Polish" read as
+    an open-ended bucket; Phase 6 is now scoped to the concrete milestones already
+    in it (tabs, autosave, quick-open + palette, unified search, panes / recent
+    projects / keyboard nav + app-settings). Still the 🏁 v1 Major Milestone.
+    Speculative writing-experience extras (typewriter / focus mode, word-count
+    goals) moved to _Deferred (post-v1)_. _Why:_ a named, bounded phase is
+    schedulable; a polish grab-bag isn't.
+33. **Entity model is type-generic; extended types are Phase 7.** An entity is any
+    profile file with a `type` (the discriminator already in the fixture). One
+    `EntityProvider` parameterized by `type` links characters, locations, items,
+    factions, magic systems… with `name` + `aliases` resolution and no per-type
+    code. **v1 (Phase 5) ships `character` + threads**; the generic provider and
+    more types land in **Phase 7**. Worldbuilding entities are referenceable pages
+    (deterministic); enforcing a magic system's _rules_ against the prose is
+    semantic and stays in the AI `ContinuityProvider` lane (deferred). _Why:_ the
+    linking machinery was always entity-agnostic — hard-coding one provider per
+    type would be needless duplication.
