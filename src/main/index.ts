@@ -3,6 +3,7 @@ import { basename, join, resolve } from 'path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
+  AppSettings,
   FileReadResult,
   OpenProjectResult,
   ProjectMeta,
@@ -12,6 +13,7 @@ import type {
   TreeNode,
   WriteResult
 } from '../shared/types'
+import { addRecentProject, readSettings } from './settings'
 import {
   DEFAULT_IGNORE,
   defaultProjectConfig,
@@ -95,8 +97,24 @@ async function offerCreateProject(
   try {
     const config = defaultProjectConfig(basename(root))
     await writeProjectConfig(root, config)
-    return { ok: true, project: setCurrentProject(root, config) }
+    const project = setCurrentProject(root, config)
+    await addRecentProject(root, project.name, Date.now())
+    return { ok: true, project }
   } catch (err) {
+    return { ok: false, reason: 'invalid-config', root, message: messageOf(err) }
+  }
+}
+
+/** Open a known folder path as a project (no dialog). Used by "open recent" and
+ * by `openProject` after the folder is picked. Records it in recent projects. */
+async function openProjectPath(root: string): Promise<OpenProjectResult> {
+  try {
+    const config = await readProjectConfig(root)
+    const project = setCurrentProject(root, config)
+    await addRecentProject(root, project.name, Date.now())
+    return { ok: true, project }
+  } catch (err) {
+    if (isNotFound(err)) return { ok: false, reason: 'no-config', root }
     return { ok: false, reason: 'invalid-config', root, message: messageOf(err) }
   }
 }
@@ -115,13 +133,9 @@ async function openProject(): Promise<OpenProjectResult> {
   }
 
   const root = result.filePaths[0]
-  try {
-    const config = await readProjectConfig(root)
-    return { ok: true, project: setCurrentProject(root, config) }
-  } catch (err) {
-    if (isNotFound(err)) return offerCreateProject(root, win)
-    return { ok: false, reason: 'invalid-config', root, message: messageOf(err) }
-  }
+  const opened = await openProjectPath(root)
+  if (!opened.ok && opened.reason === 'no-config') return offerCreateProject(root, win)
+  return opened
 }
 
 /** Guard renderer-supplied paths: must have a project open and stay inside it. */
@@ -142,6 +156,12 @@ function registerIpc(): void {
   ipcMain.handle('ping', () => 'pong')
 
   ipcMain.handle('project:open', (): Promise<OpenProjectResult> => openProject())
+
+  ipcMain.handle('project:openPath', (_e, root: string): Promise<OpenProjectResult> =>
+    openProjectPath(root)
+  )
+
+  ipcMain.handle('settings:get', (): Promise<AppSettings> => readSettings())
 
   ipcMain.handle('project:readTree', async (): Promise<TreeNode | null> => {
     if (!currentProject) return null

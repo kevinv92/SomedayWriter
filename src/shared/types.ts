@@ -64,6 +64,15 @@ export type FileReadResult = { ok: true; text: string } | { ok: false; error: st
 
 export type WriteResult = { ok: true } | { ok: false; error: string }
 
+/** A project in the recent-projects list (app settings, M12). */
+export type RecentProject = { path: string; name: string; openedAt: number }
+
+/** App/user settings — global, stored in the OS user-data dir, separate from
+ * per-project `project.json` (SPEC → App settings). */
+export type AppSettings = {
+  recentProjects: RecentProject[]
+}
+
 /** Options for project-wide search (M5). */
 export type SearchOptions = { caseSensitive?: boolean }
 

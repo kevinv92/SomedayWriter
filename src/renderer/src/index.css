@@ -229,6 +229,65 @@ body {
   font-size: 0.85rem;
 }
 
+/* --- welcome: recent projects --- */
+.welcome__recents {
+  margin-top: 1rem;
+  width: min(30rem, 90vw);
+  text-align: left;
+}
+
+.welcome__recents-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+}
+
+.welcome__recent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  margin-bottom: 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.welcome__recent:hover {
+  border-color: var(--accent);
+}
+
+.welcome__recent-name {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+
+.welcome__recent-path {
+  font-size: 0.72rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- resizable divider (sidebar ↔ editor) --- */
+.divider {
+  width: 5px;
+  flex-shrink: 0;
+  cursor: col-resize;
+  background: transparent;
+}
+
+.divider:hover {
+  background: var(--accent);
+}
+
 /* --- editor --- */
 .editor-host {
   flex: 1;

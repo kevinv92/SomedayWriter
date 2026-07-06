@@ -14,7 +14,12 @@ import { AnalysisService } from './analysis/analysis-service'
 import { createMentionProvider } from './analysis/providers/mention-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
 import type { EditorDoc } from './editor/types'
-import type { ProjectMeta, TreeNode } from '@shared/types'
+import type {
+  OpenProjectResult,
+  ProjectMeta,
+  RecentProject,
+  TreeNode
+} from '@shared/types'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 
 type ActiveDoc = { path: string; text: string }
@@ -41,6 +46,8 @@ type ModalState =
 
 export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
+  const [recents, setRecents] = useState<RecentProject[]>([])
+  const [sidebarWidth, setSidebarWidth] = useState(240)
   const [tree, setTree] = useState<TreeNode | null>(null)
   const [activeDoc, setActiveDoc] = useState<ActiveDoc | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -86,8 +93,8 @@ export default function App() {
     setTree(await window.api.readTree())
   }
 
-  const openProject = useCallback(async () => {
-    const result = await window.api.openProject()
+  // Apply an open-project result (shared by the dialog and open-recent flows).
+  const applyOpenResult = useCallback(async (result: OpenProjectResult) => {
     if (!result.ok) {
       if (result.reason === 'cancelled') return
       if (result.reason === 'no-config') {
@@ -105,6 +112,45 @@ export default function App() {
     setNotice(null)
     setDiagnostics(result.project.config.editor?.diagnostics ?? false)
   }, [])
+
+  const openProject = useCallback(async () => {
+    await applyOpenResult(await window.api.openProject())
+  }, [applyOpenResult])
+
+  const openRecent = useCallback(
+    async (path: string) => {
+      await applyOpenResult(await window.api.openRecent(path))
+    },
+    [applyOpenResult]
+  )
+
+  // Drag the divider to resize the sidebar (clamped to a readable range).
+  const startSidebarResize = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startWidth = sidebarWidth
+      const onMove = (ev: MouseEvent) => {
+        setSidebarWidth(Math.min(Math.max(startWidth + ev.clientX - startX, 160), 480))
+      }
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+      }
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [sidebarWidth]
+  )
+
+  // Load recent projects for the welcome screen (only while none is open).
+  useEffect(() => {
+    if (project) return
+    void (async () => {
+      const settings = await window.api.getSettings()
+      setRecents(settings.recentProjects)
+    })()
+  }, [project])
 
   // Load a file into the editor (optionally revealing a line). No dirty guard —
   // callers go through `requestOpen` for that.
@@ -345,6 +391,22 @@ export default function App() {
         <button className="welcome__open" onClick={() => void openProject()}>
           Open Project…
         </button>
+        {recents.length > 0 && (
+          <div className="welcome__recents">
+            <div className="welcome__recents-title">Recent projects</div>
+            {recents.map((r) => (
+              <button
+                key={r.path}
+                className="welcome__recent"
+                title={r.path}
+                onClick={() => void openRecent(r.path)}
+              >
+                <span className="welcome__recent-name">{r.name}</span>
+                <span className="welcome__recent-path">{r.path}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {notice && <p className="welcome__notice">{notice}</p>}
       </div>
     )
@@ -400,7 +462,7 @@ export default function App() {
       </header>
 
       <div className="body">
-        <aside className="sidebar">
+        <aside className="sidebar" style={{ width: sidebarWidth }}>
           <div className="sidebar__header">
             <span className="sidebar__title">{project.name}</span>
             <div className="sidebar__actions">
@@ -435,6 +497,13 @@ export default function App() {
             <p className="tree-empty">Loading…</p>
           )}
         </aside>
+
+        <div
+          className="divider"
+          role="separator"
+          title="Drag to resize"
+          onMouseDown={startSidebarResize}
+        />
 
         <main className="main" style={editorStyle}>
           {doc ? (

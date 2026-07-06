@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
+  AppSettings,
   FileReadResult,
   OpenProjectResult,
   ReplaceResult,
@@ -19,6 +20,13 @@ const api = {
 
   /** Prompt for a folder and open it as a project (reads `project.json`). */
   openProject: (): Promise<OpenProjectResult> => ipcRenderer.invoke('project:open'),
+
+  /** Open a known project folder by path (recent projects). */
+  openRecent: (path: string): Promise<OpenProjectResult> =>
+    ipcRenderer.invoke('project:openPath', path),
+
+  /** Global app settings (recent projects, …). */
+  getSettings: (): Promise<AppSettings> => ipcRenderer.invoke('settings:get'),
 
   /** Explorer tree for the open project, or null if none is open. */
   readTree: (): Promise<TreeNode | null> => ipcRenderer.invoke('project:readTree'),
