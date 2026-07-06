@@ -227,7 +227,17 @@ const proseTheme = EditorView.theme({
   '.cm-content': {
     maxWidth: '46rem',
     margin: '0 auto',
-    padding: '2.5rem 1.5rem 40vh'
+    padding: '2.5rem 1.5rem 40vh',
+    // Follow the theme so the caret is visible on both light and dark bg.
+    caretColor: 'var(--fg)'
+  },
+  // `drawSelection()` renders its own caret/selection; without explicit colors
+  // they default to black + a near-invisible tint, so tie them to the theme.
+  '.cm-cursor, .cm-dropCursor': { borderLeftColor: 'var(--fg)' },
+  '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--fg)' },
+  '.cm-selectionBackground': { backgroundColor: 'rgba(120, 130, 150, 0.3)' },
+  '&.cm-focused .cm-selectionBackground': {
+    backgroundColor: 'rgba(37, 99, 235, 0.35)'
   },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {
