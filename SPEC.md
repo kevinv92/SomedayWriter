@@ -694,6 +694,13 @@ daily. Brings the editing experience up to expectation.
   not a requirement.
 - **M15** — **Quick Open (`Cmd/Ctrl+P`) + Command Palette (`Cmd/Ctrl+Shift+P`)**
   on a central command registry — see _Search, quick-open & command palette_.
+- **M16** — **Unify the search UI.** The in-file find (`Cmd/Ctrl+F`, CodeMirror's
+  native widget) and the project-wide panel currently look like two unrelated
+  UIs. Bring them into **one visual language** — matching inputs, buttons,
+  accent, and match highlighting — so scope (this file vs. the project) is the
+  only difference the writer perceives, not the styling. Options: heavily theme
+  CM's find panel to match, or replace it with a custom in-file widget sharing
+  the project panel's components.
 - Writing-experience polish (candidates): typewriter / focus mode, a word-count
   goal.
 
