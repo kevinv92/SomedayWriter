@@ -1079,6 +1079,32 @@ sessions. The goal is beauty + consistency, not new features.
 **Exit:** the whole app reads as one intentional, calm visual language; switching
 theme is one token change; nothing looks like ad-hoc CSS.
 
+### Phase 12 — Command system & keybindings
+
+Unify commands behind **one registry** and make keys **user-overridable** — see
+_Command registry_ and _Keyboard navigation & focus_. Fixes the two-sources-of-
+truth trap (an ad-hoc palette array + hand-written keydown switch + a hardcoded
+menu) and keeps the native menu behind the shell seam.
+
+- **M27** — **Command registry.** One renderer-owned registry
+  (`{ id, title, category, defaultKeybinding, run }`) becomes the single source
+  for the **palette** and the **keyboard shortcuts** (replacing App's ad-hoc
+  `commands` array and the hand-written keydown switch).
+- **M28** — **Generated native menu.** Build the Electron `Menu` from the
+  registry (renderer → main IPC), `registerAccelerator: false` so shown shortcuts
+  don't hijack keys from the renderer / CodeMirror; adds menu-bar discoverability,
+  standard File/Edit/View menus, macOS clipboard (Edit roles), and
+  `Cmd+Shift+[ / ]`. The menu builder is the **only** shell-specific part (seam,
+  decision #24) — plus a **focus-editor** shortcut to finish region nav.
+- **M29** — **User keybindings.** A `keybindings.json` in the app-settings
+  user-data dir remaps any command; the registry merges `defaultKeybinding` +
+  overrides into the **effective** binding shown in the palette and menu.
+  Editor-owned keys (`⌘Z`, `⌘F`) documented as reserved.
+
+**Exit:** one registry feeds the palette, shortcuts, and menu; a writer can remap
+any command in `keybindings.json` and see it reflected everywhere; the menu stays
+replaceable with the shell.
+
 > **AI features are out of scope for these phases** — see _AI features (split out
 > — deferred)_. They ride the same facade and can be added later without
 > reworking the phases above.
