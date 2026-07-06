@@ -4,14 +4,16 @@ A desktop **Markdown** writing tool for prose projects (novels, scripts, docs).
 File explorer on the left, editor on the right. Your work stays as ordinary
 `.md` files on disk — no proprietary format, no lock-in.
 
-> **Status:** early development. **Phases 0–4 complete** — open or create a
-> project, browse the tree, manage files (new / rename / delete / drag-to-move),
-> reorder scenes by drag (manuscript `order` in frontmatter), find in a document
-> (`Cmd/Ctrl+F`) and across the project (`Cmd/Ctrl+Shift+F`), edit + save Markdown
-> with `Cmd/Ctrl+S` (with an unsaved-changes guard), and get pluggable analysis —
-> `@`-mention completion plus an opt-in spell/typo check (diagnostics off by
-> default). Next up is Phase 5 (story intelligence — character/thread linking).
-> See [SPEC.md](SPEC.md) for the full design and roadmap.
+> **Status:** early development. **Phases 0–4 + Phase 6 (the v1 milestone)
+> complete.** Open or create a project; browse and manage files (new / rename /
+> delete / drag-to-move / drag-to-reorder); edit across **tabs** with per-tab
+> unsaved buffers and optional autosave; **Quick Open** (`Cmd/Ctrl+P`) and a
+> **command palette** (`Cmd/Ctrl+Shift+P`); find in a document (`Cmd/Ctrl+F`) and
+> across the project (`Cmd/Ctrl+Shift+F`); recent projects, a resizable sidebar,
+> configurable editor typography; and pluggable analysis (`@`-mention completion
+>
+> - opt-in spell check). Next is Phase 5 (story intelligence — character/thread
+>   linking). See [SPEC.md](SPEC.md) for the full design and roadmap.
 
 ## What makes it different
 

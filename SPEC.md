@@ -53,7 +53,8 @@ folder without one offers to create it (initialize a new project).
     "measure": 46,
     "font": "serif",
     "fontSize": 16,
-    "lineHeight": 1.7
+    "lineHeight": 1.7,
+    "autosave": false
   },
   "explorer": {
     "ignore": [".git", "node_modules", "*.tmp"]
@@ -766,13 +767,16 @@ any client.
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-06):** Phases 0–4 ✅ complete. **Next: Phase 5** (story
-> intelligence — `StoryIndex` + `CharacterProvider`/`ThreadProvider`). Phase 4
-> shipped the `AnalysisService` facade + provider registry wired through the
-> `EditorAdapter`: a spell provider (diagnostics, off by default) and a mention
-> provider (completion). Phase 3 shipped New Project, explorer file ops,
-> in-document + project-wide search/replace, drag reorder/move with sparse
-> frontmatter `order`, and the edit-safety guard.
+> **Status (2026-07-06):** Phases 0–4 ✅ **and Phase 6 ✅** (the v1 Major
+> Milestone) complete — Phase 6 was built ahead of Phase 5, which they don't
+> depend on. **Next: Phase 5** (story intelligence — `StoryIndex` +
+> `CharacterProvider`/`ThreadProvider`). Phase 6 shipped: app-settings store +
+> recent projects + resizable sidebar (M12; tree keyboard-nav still to do), tabs
+> with per-tab unsaved buffers (M13), opt-in autosave (M14), Quick Open +
+> Command Palette on a command registry (M15), and a unified find UI (M16) — all
+> **visually verified** (launch with `ELECTRON_RUN_AS_NODE` unset + CDP; see the
+> GUI-verify memory). Phase 4 = the `AnalysisService` facade + spell/mention
+> providers; Phase 3 = file ops, search/replace, drag reorder, edit-safety.
 
 ### Phase 0 — Scaffold ✅
 
@@ -885,40 +889,33 @@ The signature features, no AI.
 **Exit:** click a character → see every mention; follow a thread across chapters
 in the braid. (Editing the braid is a stretch goal, not part of the exit.)
 
-### Phase 6 — Writing environment · 🏁 v1 Major Milestone
+### Phase 6 — Writing environment · 🏁 v1 Major Milestone ✅
 
 The **"good enough" v1** — the point writer-gui becomes a comfortable daily
 writing environment: multiple documents, safe editing, fast navigation, and one
 coherent search. **Scoped to the milestones below** — not an open-ended polish
 bucket.
 
-- **M12** — Resizable panes, recent projects, keyboard nav in the tree.
-  Introduces the **app-settings store** (`settings.json` in user-data) that backs
-  recent projects + global prefs — see _App settings (global) vs project config_.
-- **M13** — **Tabs / multiple open documents.** The single-editor model becomes a
-  collection (decision #4). Each open doc is its own buffer that **retains
-  unsaved changes** with a per-tab dirty dot — switching tabs never writes to
-  disk and never loses in-memory edits (the full form of the Phase 3 edit-safety
-  fix).
-- **M14** — **Autosave (opt-in).** A debounced, patch-based writer (text diffs,
-  not whole-file rewrites) so it composes with external edits + undo. **Off by
-  default** — explicit `Cmd/Ctrl+S` stays the predictable default (decision #5);
-  the tab buffers already remove the data-loss risk, so autosave is a setting,
-  not a requirement.
-- **M15** — **Quick Open (`Cmd/Ctrl+P`) + Command Palette (`Cmd/Ctrl+Shift+P`)**
-  on a central command registry — see _Search, quick-open & command palette_.
-- **M16** — **Unify the search UI.** The in-file find (`Cmd/Ctrl+F`, CodeMirror's
-  native widget) and the project-wide panel currently look like two unrelated
-  UIs. Bring them into **one visual language** — matching inputs, buttons,
-  accent, and match highlighting — so scope (this file vs. the project) is the
-  only difference the writer perceives, not the styling. Options: heavily theme
-  CM's find panel to match, or replace it with a custom in-file widget sharing
-  the project panel's components.
+- **M12** ✅ — Recent projects + a drag-**resizable sidebar**; the **app-settings
+  store** (`settings.json` in user-data) that backs recent projects + global
+  prefs. _Tree keyboard-nav still to do — the one remaining M12 bit._
+- **M13** ✅ — **Tabs / multiple open documents.** The single-editor model became
+  a collection (decision #4); each tab keeps its own live buffer + saved
+  baseline, so switching tabs never writes and never loses unsaved edits. The
+  unsaved prompt now fires only on **closing** a dirty tab.
+- **M14** ✅ — **Autosave (opt-in)**, `editor.autosave` + a toolbar toggle, off by
+  default; saves the active tab ~1s after it goes dirty. Whole-file write for
+  now (patch-based diffing deferred); explicit `Cmd/Ctrl+S` stays the default.
+- **M15** ✅ — **Quick Open (`Cmd/Ctrl+P`) + Command Palette (`Cmd/Ctrl+Shift+P`)**
+  on a central command registry, one widget (`>` switches modes), fuzzy matcher.
+- **M16** ✅ — **Unified find UI** — CodeMirror's `Cmd/Ctrl+F` panel themed to
+  match the project-search panel / modals / quick-input (inputs, buttons, accent,
+  match highlight). Full design-system unification is **Phase 11**.
 
 **Exit (v1):** open or create a project, draft and structure a manuscript across
 tabs without losing work, find anything (in-file, across the project, by
 filename, by command), and reorder scenes — all keyboard-first. **After this
-point we have a good-enough app.**
+point we have a good-enough app.** _(All milestones visually verified via CDP.)_
 
 ### Phase 7 — Extended entities (worldbuilding)
 
@@ -1407,3 +1404,13 @@ initial design conversation.)
     no AI code in-app), sidesteps API billing, and makes the grounded-in-the-model
     differentiator reusable by any MCP client. The embedded BYO-key chat panel
     stays a deferred convenience. _Supersedes the earlier "two equal paths" framing._
+39. **Phase 6 (v1 Major Milestone) built — ahead of Phase 5.** Phases 5–6 don't
+    depend on each other, so the writing environment shipped first: app-settings
+    store + recent projects + resizable sidebar (M12), tabs with per-tab unsaved
+    buffers (M13), opt-in autosave (M14), Quick Open + command palette on a
+    command registry (M15), unified find UI (M16). Autosave is whole-file for now
+    (patch-based deferred). **And the GUI is verifiable here after all** — an
+    earlier session wrongly believed the sandbox couldn't run Electron; unsetting
+    `ELECTRON_RUN_AS_NODE` launches it, and CDP (remote-debugging port) drives +
+    screenshots it. Every M12–M16 milestone was visually verified this way.
+    Remaining Phase 6 bit: tree keyboard-nav.
