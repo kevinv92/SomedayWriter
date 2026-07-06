@@ -723,6 +723,28 @@ Constraints when it lands:
   assistant is a separate pane but obeys the same key/opt-in/independence rules.
 - Post-v1, its own later **AI phase** — after the deterministic phases (5–9).
 
+### Model access & billing (two paths)
+
+How the LLM is reached — and, critically, how it's **billed** — has two shapes:
+
+- **In-app chat panel** — writer-gui embeds the client, so it needs model access
+  via the **Anthropic API (metered)** or, better, **bring-your-own-key**. A Claude
+  **Pro/Max subscription cannot be used here**: subscription OAuth is for
+  Anthropic's **first-party** clients (Claude Code, Claude Desktop, the official
+  VS Code extension), not third-party apps. writer-gui **never ships its own key.**
+- **writer-gui as an MCP server** _(the subscription-friendly path, recommended)_
+  — expose the project + the deterministic prose tools (`StoryIndex`:
+  find-references, character mentions, manuscript order; file read/search) as an
+  **MCP server**. Drive it from a client that already carries your subscription
+  auth — **Claude Code / Claude Desktop / the Claude VS Code extension** — so the
+  LLM calls run on **your subscription, no API charges**, while writer-gui
+  supplies the grounding. This also makes the "grounded in the real project"
+  differentiator reusable by _any_ MCP client, not just an in-app panel.
+
+Net: the embedded panel is the BYO-key convenience; the **MCP-server** path is how
+a subscriber uses AI over their manuscript without metered API cost — and it's the
+more on-brand shape (the prose "language server" exposed as tools).
+
 ## Phases
 
 Delivery is grouped into phases. Each phase is independently shippable and has a
@@ -1321,3 +1343,12 @@ initial design conversation.)
     (find-references, mentions, order) so it reasons over the real structured
     project. Claude is the default model, provider-flexible. _Why:_ the deterministic
     prose "language server" is exactly the grounding a generic chatbot lacks.
+38. **AI model access: BYO-key panel vs. MCP-server (subscription-friendly).** A
+    third-party app can't ride a user's Claude Pro/Max subscription — that OAuth is
+    for Anthropic first-party clients (Claude Code/Desktop/official extension). So
+    the **in-app chat** needs the metered API / bring-your-own-key (we never ship a
+    key), while the **subscription-cost-free** path is exposing writer-gui as an
+    **MCP server** (project + `StoryIndex` tools) driven from a subscription-authed
+    client (Claude Code/Desktop). _Why:_ MCP sidesteps API billing _and_ makes the
+    grounded-in-the-model differentiator reusable by any MCP client — the more
+    on-brand shape than an embedded panel.
