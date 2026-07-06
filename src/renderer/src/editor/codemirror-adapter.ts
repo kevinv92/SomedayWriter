@@ -244,7 +244,9 @@ const proseTheme = EditorView.theme({
     overflow: 'auto'
   },
   '.cm-content': {
-    maxWidth: '46rem',
+    // Text-column width ("measure"). Driven by --editor-measure (set from
+    // editor.measure in project.json); falls back to a comfortable 46rem.
+    maxWidth: 'var(--editor-measure, 46rem)',
     margin: '0 auto',
     padding: '2.5rem 1.5rem 40vh',
     // Follow the theme so the caret is visible on both light and dark bg.

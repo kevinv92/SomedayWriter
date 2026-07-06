@@ -14,6 +14,9 @@ export type ProjectConfig = {
     defaultExtension?: string
     wordWrap?: boolean
     diagnostics?: boolean
+    /** Editor text-column width ("measure") in rem, or `'full'` to fill the
+     * pane. Default 46. */
+    measure?: number | 'full'
   }
   explorer?: { ignore?: string[] }
   threads?: Record<string, { name?: string; color?: string }>

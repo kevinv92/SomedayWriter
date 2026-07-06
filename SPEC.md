@@ -49,7 +49,8 @@ folder without one offers to create it (initialize a new project).
   "editor": {
     "defaultExtension": "md",
     "wordWrap": true,
-    "diagnostics": false
+    "diagnostics": false,
+    "measure": 46
   },
   "explorer": {
     "ignore": [".git", "node_modules", "*.tmp"]
@@ -59,6 +60,11 @@ folder without one offers to create it (initialize a new project).
 
 - `project.name` is required; everything else has defaults.
 - Unknown keys are preserved on save (don't clobber fields the app doesn't know).
+- `editor.measure` — the editor text-column width ("measure") in **rem**
+  (default `46`), or `"full"` to fill the pane. Deliberately fixed and centered
+  for prose readability; widening the window doesn't stretch the text. A settings
+  UI to change it without hand-editing arrives in Phase 6; a global default (with
+  per-project override) is part of the app-settings store (decision #28).
 
 ## Layout
 

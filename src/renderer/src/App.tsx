@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties
+} from 'react'
 import { Editor, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
@@ -332,6 +339,12 @@ export default function App() {
     )
   }
 
+  // Editor measure (text-column width) from config: a rem number, `'full'` to
+  // fill the pane, or the 46rem default.
+  const measure = project.config.editor?.measure
+  const measureVar =
+    measure === 'full' ? 'none' : typeof measure === 'number' ? `${measure}rem` : '46rem'
+
   return (
     <div className="app">
       <header className="toolbar">
@@ -401,7 +414,10 @@ export default function App() {
           )}
         </aside>
 
-        <main className="main">
+        <main
+          className="main"
+          style={{ '--editor-measure': measureVar } as CSSProperties}
+        >
           {doc ? (
             <Editor
               doc={doc}
