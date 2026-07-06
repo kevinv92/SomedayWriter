@@ -277,6 +277,30 @@ const proseTheme = EditorView.theme({
   },
   '.cm-searchMatch': { backgroundColor: 'rgba(234, 179, 8, 0.35)' },
   '.cm-searchMatch-selected': { backgroundColor: 'rgba(234, 179, 8, 0.65)' },
+  // Autocomplete popup (@-mentions) — theme it so it's legible in light + dark
+  // (CM's defaults render faint on our white background).
+  '.cm-tooltip.cm-tooltip-autocomplete': {
+    background: 'var(--panel)',
+    border: '1px solid var(--border)',
+    borderRadius: '6px',
+    color: 'var(--fg)',
+    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.22)'
+  },
+  '.cm-tooltip-autocomplete > ul': {
+    fontFamily: 'inherit',
+    fontSize: '0.9rem'
+  },
+  '.cm-tooltip-autocomplete > ul > li': {
+    padding: '0.15rem 0.5rem',
+    color: 'var(--fg)'
+  },
+  '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
+    background: 'var(--accent)',
+    color: 'var(--accent-fg)'
+  },
+  '.cm-completionLabel': { color: 'inherit' },
+  '.cm-completionDetail': { color: 'var(--muted)', fontStyle: 'italic' },
+  'li[aria-selected] .cm-completionDetail': { color: 'var(--accent-fg)' },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {
     color: 'var(--muted)',
