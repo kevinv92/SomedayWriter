@@ -387,18 +387,18 @@ Shortcuts, standards-first:
 - **Save** `Cmd/Ctrl+S`, **Close tab** `Cmd/Ctrl+W`, **Find** `Cmd/Ctrl+F` —
   OS / near-universal, already used.
 - **Switch tabs** — the OS standard: **`Ctrl+Tab` / `Ctrl+Shift+Tab`** (next /
-  previous, cross-platform), plus macOS's **`Cmd+Shift+]` / `Cmd+Shift+[`** and
-  **`Cmd+1…9`** (jump to tab _N_), surfaced via the View menu. _(Not built.)_
+  previous, cross-platform, ✅ built) and **`Cmd/Ctrl+1…9`** (jump to tab _N_, ✅
+  built); macOS's **`Cmd+Shift+]` / `Cmd+Shift+[`** will come with the View menu.
 - **Quick Open** `Cmd/Ctrl+P`, **Command Palette** `Cmd/Ctrl+Shift+P`, **Find in
   Project** `Cmd/Ctrl+Shift+F` — editor convention (VS Code), used.
-- **Focus explorer / editor** — _not_ an OS standard, so we pick a convention
-  (`Cmd/Ctrl+Shift+E` explorer; `Esc` / `Cmd/Ctrl+1` editor). App-specific; then
-  the tree's arrow-nav (built, M12) takes over inside the explorer.
+- **Focus explorer** — `Cmd/Ctrl+Shift+E` (✅ built) focuses the tree, then its
+  arrow-nav (M12) takes over. **Focus editor** — `Cmd/Ctrl+1` / `Esc` (not built
+  yet). Not OS standards, so these are our convention.
 
-**Status (honest):** the tree has internal arrow-nav and `Cmd/Ctrl+W` closes a
-tab, but the **native menu, tab-switching keys, and region-focus shortcuts aren't
-built** — moving explorer ⇄ editor ⇄ tabs is still a mouse operation. Remaining
-**Phase 6** refinement.
+**Status (honest):** tab switching (`Ctrl+Tab`, `Cmd/Ctrl+1…9`) and focus-explorer
+(`Cmd/Ctrl+Shift+E`) are **built** and CDP-verified, so explorer ⇄ tabs is now
+keyboard-driven. **Remaining:** the **native menu** (menu-bar discoverability +
+standard File/Edit menus + `Cmd+Shift+[ / ]`) and a focus-editor shortcut.
 
 ## App settings (global) vs project config
 

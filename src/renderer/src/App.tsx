@@ -469,6 +469,11 @@ export default function App() {
 
   const saveRef = useRef<() => void>(() => {})
   const closeActiveRef = useRef<() => void>(() => {})
+  const navRef = useRef({
+    cycleTab: (_dir: 1 | -1) => {},
+    jumpTab: (_n: number) => {},
+    focusExplorer: () => {}
+  })
   useEffect(() => {
     saveRef.current = () => {
       if (activePath) void saveTab(activePath)
@@ -476,9 +481,29 @@ export default function App() {
     closeActiveRef.current = () => {
       if (activePath) closeTab(activePath)
     }
+    navRef.current = {
+      cycleTab: (dir) => {
+        const n = openPaths.length
+        if (!n) return
+        const i = openPaths.indexOf(activePath ?? '')
+        switchTo(openPaths[(i + dir + n) % n])
+      },
+      jumpTab: (num) => {
+        const path = openPaths[num - 1]
+        if (path) switchTo(path)
+      },
+      focusExplorer: () => document.querySelector<HTMLElement>('.tree')?.focus()
+    }
   })
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+Tab / Ctrl+Shift+Tab cycle tabs (the cross-platform standard;
+      // Cmd+Tab is the OS app switcher, so never use it here).
+      if (e.ctrlKey && e.key === 'Tab') {
+        e.preventDefault()
+        navRef.current.cycleTab(e.shiftKey ? -1 : 1)
+        return
+      }
       const mod = e.metaKey || e.ctrlKey
       if (!mod) return
       const k = e.key.toLowerCase()
@@ -494,6 +519,12 @@ export default function App() {
       } else if (k === 'p') {
         e.preventDefault()
         setQuickInput(e.shiftKey ? '>' : '')
+      } else if (k === 'e' && e.shiftKey) {
+        e.preventDefault()
+        navRef.current.focusExplorer()
+      } else if (!e.shiftKey && /^[1-9]$/.test(e.key)) {
+        e.preventDefault()
+        navRef.current.jumpTab(Number(e.key))
       }
     }
     window.addEventListener('keydown', onKeyDown)
