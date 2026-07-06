@@ -310,25 +310,52 @@ const proseTheme = EditorView.theme({
   '&.cm-focused .cm-selectionBackground': {
     backgroundColor: 'rgba(37, 99, 235, 0.35)'
   },
-  // Find panel (Cmd/Ctrl+F) — inherit the app theme so it's legible on dark bg.
+  // In-file find panel (Cmd/Ctrl+F) — styled to match the app's inputs/buttons
+  // (the project-search panel, modals, quick-input) so the two find surfaces read
+  // as one visual language (M16). Full design-system unification is Phase 11.
   '.cm-panels': {
     backgroundColor: 'var(--panel)',
     color: 'var(--fg)',
     borderBottom: '1px solid var(--border)'
   },
-  '.cm-panel.cm-search input, .cm-panel.cm-search button': {
+  '.cm-panel.cm-search': {
+    padding: '0.45rem 0.6rem',
     fontFamily: 'inherit',
-    fontSize: '0.85rem'
+    fontSize: '0.82rem'
   },
-  '.cm-panel.cm-search input': {
+  '.cm-panel.cm-search label': { fontSize: '0.75rem', color: 'var(--muted)' },
+  '.cm-textfield': {
+    fontFamily: 'inherit',
+    fontSize: '0.85rem',
     background: 'var(--bg)',
     color: 'var(--fg)',
     border: '1px solid var(--border)',
-    borderRadius: '4px',
-    padding: '0.1rem 0.3rem'
+    borderRadius: '6px',
+    padding: '0.25rem 0.45rem'
   },
-  '.cm-searchMatch': { backgroundColor: 'rgba(234, 179, 8, 0.35)' },
-  '.cm-searchMatch-selected': { backgroundColor: 'rgba(234, 179, 8, 0.65)' },
+  '.cm-textfield:focus': { outline: 'none', borderColor: 'var(--accent)' },
+  '.cm-button': {
+    fontFamily: 'inherit',
+    fontSize: '0.8rem',
+    background: 'var(--bg)',
+    backgroundImage: 'none',
+    color: 'var(--fg)',
+    border: '1px solid var(--border)',
+    borderRadius: '6px',
+    padding: '0.2rem 0.55rem',
+    cursor: 'pointer'
+  },
+  '.cm-button:hover': { borderColor: 'var(--accent)' },
+  '.cm-panel.cm-search [name=close]': {
+    color: 'var(--muted)',
+    cursor: 'pointer',
+    fontSize: '1.1rem'
+  },
+  '.cm-searchMatch': { backgroundColor: 'rgba(234, 179, 8, 0.32)', borderRadius: '2px' },
+  '.cm-searchMatch-selected': {
+    backgroundColor: 'var(--accent)',
+    color: 'var(--accent-fg)'
+  },
   // Autocomplete popup (@-mentions) — theme it so it's legible in light + dark
   // (CM's defaults render faint on our white background).
   '.cm-tooltip.cm-tooltip-autocomplete': {
