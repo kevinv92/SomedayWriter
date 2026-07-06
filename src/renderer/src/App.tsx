@@ -344,10 +344,10 @@ export default function App() {
         <div className="toolbar__group">
           <button
             className={`toggle${searchOpen ? ' toggle--on' : ''}`}
-            title="Find in Project (⌘/Ctrl+Shift+F)"
+            title="Search across all files (⌘/Ctrl+Shift+F). Use ⌘/Ctrl+F to find in the current file."
             onClick={() => setSearchOpen((v) => !v)}
           >
-            Search
+            Find in Project
           </button>
           <button
             className={`toggle${vim ? ' toggle--on' : ''}`}
