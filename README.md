@@ -4,10 +4,11 @@ A desktop **Markdown** writing tool for prose projects (novels, scripts, docs).
 File explorer on the left, editor on the right. Your work stays as ordinary
 `.md` files on disk — no proprietary format, no lock-in.
 
-> **Status:** early development. Through **Phase 2** — you can open a project
-> folder, browse its file tree, edit a Markdown file in the CodeMirror editor,
-> and save with `Cmd/Ctrl+S`. Features land in phases; see [SPEC.md](SPEC.md)
-> for the full design and roadmap.
+> **Status:** early development. Through **Phase 3 (M3–M4)** — open or create a
+> project, browse the file tree, manage files (new / rename / delete via the
+> tree context menu), and edit + save Markdown with `Cmd/Ctrl+S`. Still to come
+> in Phase 3: project-wide search/replace and drag-to-reorder. Features land in
+> phases; see [SPEC.md](SPEC.md) for the full design and roadmap.
 
 ## What makes it different
 

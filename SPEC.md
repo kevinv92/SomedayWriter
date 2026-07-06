@@ -454,10 +454,10 @@ Constraints when it lands:
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-06):** Phase 0 ✅, Phase 1 ✅, and Phase 2 ✅ complete.
-> **Next: Phase 3** (project management — new project, file ops, search/replace,
-> reorder). Real file I/O over IPC now backs the tree and open/save; the Phase 1
-> `?raw` sample import is gone.
+> **Status (2026-07-06):** Phases 0–2 ✅ complete. **Phase 3 in progress** —
+> M3 (New Project flow) ✅ and M4 (explorer file ops) ✅ done; **M5**
+> (project-wide search/replace) and **M6** (drag-reorder + manuscript order)
+> remain. Real file I/O over IPC backs the tree, open/save, create/rename/delete.
 
 ### Phase 0 — Scaffold ✅
 
@@ -506,8 +506,12 @@ The smallest thing that's actually useful: open a project, edit a file, save it.
 
 Make it a real workspace, not just a viewer.
 
-- **M3** — New Project flow; `explorer.ignore`; word count + unsaved indicator.
-- **M4** — Explorer file ops: new file / new folder / rename / delete.
+- **M3** ✅ — New Project flow (open a folder with no `project.json` → confirm →
+  write a default config); `explorer.ignore` (applied in the tree read); word
+  count + unsaved indicator (from Phase 2). _In-app config **editing** (settings
+  form) is deferred — see Deferred decisions._
+- **M4** ✅ — Explorer file ops: new file / new folder / rename / delete, via a
+  tree context menu + sidebar buttons, over guarded IPC.
 - **M5** — **Project-wide search & replace** _(near-essential requirement)_.
 - **M6** — **Reorder & manuscript order**: drag scenes in the tree; write sparse
   `order` back to frontmatter _(near-essential requirement)_.
@@ -635,6 +639,47 @@ Plain-language definitions of terms used above.
   design later. **Contract already fixed:** export must (1) **strip `@{…}` mention
   wrappers**, leaving the surface text (`@{the courier}` → "the courier"), and
   (2) **remove `%% … %%` note comments** entirely, so the output is clean prose.
+
+## Deferred decisions (revisit later)
+
+Open questions we've deliberately postponed — distinct from _Deferred (post-v1)_
+(features we'll build later) and _Decision history_ (choices already settled).
+Each records what we're doing **now** and the trigger to **revisit**. Newest at
+the bottom. (Raised 2026-07-06.)
+
+- **Config format & external-edit deterrence.** _Now:_ plain, human-readable
+  `project.json` (decision #3), editable outside the app. Considered renaming to
+  a custom/branded extension to discourage hand-editing, but that only adds
+  friction (it's still JSON) and fights the no-lock-in goal. _Revisit when:_
+  project metadata outgrows a single config file, or app-managed state (caches,
+  index) needs somewhere to live — at which point a hidden **`.writer/`
+  dotfolder** (like `.git/`, `.vscode/`) is the idiomatic move, keeping files
+  plain while signalling "app-managed." A custom binary/proprietary format stays
+  off the table.
+- **In-app config editing (settings UI).** _Now:_ `project.json` is created by
+  the New Project flow (M3) and otherwise edited outside the app; it isn't
+  editable in the Markdown editor (decision #17). _Revisit:_ early in Phase 3 —
+  a small settings **form** (name, word-wrap, diagnostics default, ignore list,
+  thread registry) that reads/writes the config while **preserving unknown
+  keys**. This is the intended answer to "how do I edit config in-app," not
+  raw-JSON editing.
+- **Plain-text editing of non-Markdown files.** _Now:_ Markdown-only editing;
+  other files show greyed/non-selectable in the tree (decision #17). _Revisit
+  when:_ users need to edit adjacent plain-text files (`.txt`, config, notes)
+  in-app — would add a stripped-down non-prose editor mode and supersede #17.
+- **Image display.** _Now:_ images are non-`.md`, so they show greyed and aren't
+  viewable. _Revisit:_ two features — (a) a **solo** read-only image viewer in
+  the main pane (fits #17's "read-only" allowance; small), and (b) **inline**
+  rendering of `![](…)` inside Markdown (a CodeMirror widget; larger). Both would
+  share one mechanism: a **guarded custom protocol** (e.g. `writer-file://`) in
+  main that serves only files under the open project root — avoids base64 bloat
+  and preserves the sandbox. Likely Phase 6 polish, or on demand.
+- **Desktop shell (Electron vs. Tauri).** _Now:_ staying on Electron; the
+  renderer is kept shell-agnostic behind `window.api` (decision #24) so a swap is
+  cheap. _Revisit:_ **before Phase 5** — migration cost rises as main-process
+  logic accumulates (`StoryIndex`, a future LSP subprocess), so decide before
+  that lands, not after. Tauri's tax is rewriting main in Rust + webview
+  inconsistency.
 
 ## Decision history
 

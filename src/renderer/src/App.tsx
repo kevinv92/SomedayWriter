@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Editor, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
+import { ConfirmModal, PromptModal } from './components/Modal'
 import type { EditorDoc } from './editor/types'
 import type { ProjectMeta, TreeNode } from '@shared/types'
+import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 
 type ActiveDoc = { path: string; text: string }
 
-function basename(path: string): string {
-  return path.split(/[\\/]/).pop() ?? path
-}
+type ModalState =
+  | { kind: 'newFile'; dir: string }
+  | { kind: 'newFolder'; dir: string }
+  | { kind: 'rename'; node: TreeNode }
+  | { kind: 'delete'; node: TreeNode }
+  | null
 
 export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
@@ -16,6 +21,7 @@ export default function App() {
   const [activeDoc, setActiveDoc] = useState<ActiveDoc | null>(null)
   const [dirty, setDirty] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
+  const [modal, setModal] = useState<ModalState>(null)
   const [vim, setVim] = useState(false)
   const [diagnostics, setDiagnostics] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
@@ -33,6 +39,10 @@ export default function App() {
     [activeDoc]
   )
 
+  const refreshTree = async () => {
+    setTree(await window.api.readTree())
+  }
+
   const openProject = useCallback(async () => {
     const result = await window.api.openProject()
     if (!result.ok) {
@@ -44,9 +54,9 @@ export default function App() {
       }
       return
     }
-    const tree = await window.api.readTree()
+    const nextTree = await window.api.readTree()
     setProject(result.project)
-    setTree(tree)
+    setTree(nextTree)
     setActiveDoc(null)
     setDirty(false)
     setNotice(null)
@@ -84,6 +94,64 @@ export default function App() {
     setDirty(false)
   }, [activeDoc])
 
+  // --- explorer file operations (M4) ---
+
+  async function createFileIn(dir: string, name: string) {
+    const fileName = name.includes('.') ? name : `${name}.md`
+    const path = joinPath(dir, fileName)
+    const result = await window.api.createFile(path)
+    if (!result.ok) {
+      setNotice(`Couldn't create file: ${result.error}`)
+      return
+    }
+    await refreshTree()
+    if (fileName.endsWith('.md')) await selectFile(path)
+  }
+
+  async function createFolderIn(dir: string, name: string) {
+    const result = await window.api.createFolder(joinPath(dir, name))
+    if (!result.ok) {
+      setNotice(`Couldn't create folder: ${result.error}`)
+      return
+    }
+    await refreshTree()
+  }
+
+  async function renameNode(node: TreeNode, newName: string) {
+    const to = joinPath(parentDir(node.path), newName)
+    if (to === node.path) return
+    const result = await window.api.rename(node.path, to)
+    if (!result.ok) {
+      setNotice(`Couldn't rename: ${result.error}`)
+      return
+    }
+    // Keep the open doc pointed at its new path (rename doesn't touch content, so
+    // carry the live editor text across the reload rather than the stale copy).
+    if (activeDoc?.path === node.path) {
+      setActiveDoc({ path: to, text: currentTextRef.current })
+    } else if (activeDoc && isInsideDir(activeDoc.path, node.path)) {
+      const moved = to + activeDoc.path.slice(node.path.length)
+      setActiveDoc({ path: moved, text: currentTextRef.current })
+    }
+    await refreshTree()
+  }
+
+  async function deleteNode(node: TreeNode) {
+    const result = await window.api.remove(node.path)
+    if (!result.ok) {
+      setNotice(`Couldn't delete: ${result.error}`)
+      return
+    }
+    if (
+      activeDoc &&
+      (activeDoc.path === node.path || isInsideDir(activeDoc.path, node.path))
+    ) {
+      setActiveDoc(null)
+      setDirty(false)
+    }
+    await refreshTree()
+  }
+
   // Cmd/Ctrl+S saves. Kept in a ref so the listener binds once yet always calls
   // the current `save` (which closes over the active doc).
   const saveRef = useRef(save)
@@ -105,7 +173,7 @@ export default function App() {
     return (
       <div className="welcome">
         <h1>writer-gui</h1>
-        <p>Open a folder that contains a project.json to start writing.</p>
+        <p>Open a folder with a project.json — or any folder to start a new project.</p>
         <button className="welcome__open" onClick={() => void openProject()}>
           Open Project…
         </button>
@@ -141,11 +209,34 @@ export default function App() {
 
       <div className="body">
         <aside className="sidebar">
+          <div className="sidebar__header">
+            <span className="sidebar__title">{project.name}</span>
+            <div className="sidebar__actions">
+              <button
+                className="icon-btn"
+                title="New file in project root"
+                onClick={() => tree && setModal({ kind: 'newFile', dir: tree.path })}
+              >
+                ＋ File
+              </button>
+              <button
+                className="icon-btn"
+                title="New folder in project root"
+                onClick={() => tree && setModal({ kind: 'newFolder', dir: tree.path })}
+              >
+                ＋ Folder
+              </button>
+            </div>
+          </div>
           {tree ? (
             <FileTree
               root={tree}
               activePath={activeDoc?.path ?? null}
               onSelect={(path) => void selectFile(path)}
+              onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
+              onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
+              onRename={(node) => setModal({ kind: 'rename', node })}
+              onDelete={(node) => setModal({ kind: 'delete', node })}
             />
           ) : (
             <p className="tree-empty">Loading…</p>
@@ -186,6 +277,59 @@ export default function App() {
           )}
         </span>
       </footer>
+
+      {modal?.kind === 'newFile' && (
+        <PromptModal
+          title="New File"
+          label="File name (defaults to .md)"
+          submitLabel="Create"
+          onCancel={() => setModal(null)}
+          onSubmit={(name) => {
+            setModal(null)
+            void createFileIn(modal.dir, name)
+          }}
+        />
+      )}
+      {modal?.kind === 'newFolder' && (
+        <PromptModal
+          title="New Folder"
+          label="Folder name"
+          submitLabel="Create"
+          onCancel={() => setModal(null)}
+          onSubmit={(name) => {
+            setModal(null)
+            void createFolderIn(modal.dir, name)
+          }}
+        />
+      )}
+      {modal?.kind === 'rename' && (
+        <PromptModal
+          title="Rename"
+          label="New name"
+          initialValue={basename(modal.node.path)}
+          submitLabel="Rename"
+          onCancel={() => setModal(null)}
+          onSubmit={(name) => {
+            setModal(null)
+            void renameNode(modal.node, name)
+          }}
+        />
+      )}
+      {modal?.kind === 'delete' && (
+        <ConfirmModal
+          title="Delete"
+          danger
+          confirmLabel="Delete"
+          message={`Delete "${basename(modal.node.path)}"${
+            modal.node.type === 'directory' ? ' and everything inside it' : ''
+          }? This cannot be undone.`}
+          onCancel={() => setModal(null)}
+          onConfirm={() => {
+            setModal(null)
+            void deleteNode(modal.node)
+          }}
+        />
+      )}
     </div>
   )
 }

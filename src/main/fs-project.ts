@@ -40,6 +40,28 @@ export async function readProjectConfig(root: string): Promise<ProjectConfig> {
   return parsed
 }
 
+/** The config written when initializing a new project. */
+export function defaultProjectConfig(name: string): ProjectConfig {
+  return {
+    project: { name, version: '1' },
+    editor: { defaultExtension: 'md', wordWrap: true, diagnostics: false },
+    explorer: { ignore: [...DEFAULT_IGNORE] }
+  }
+}
+
+/** Write `project.json` (pretty-printed). Callers that edit an existing config
+ * should pass the object they read back in, so unknown keys are preserved. */
+export async function writeProjectConfig(
+  root: string,
+  config: ProjectConfig
+): Promise<void> {
+  await fs.writeFile(
+    join(root, CONFIG_FILE),
+    JSON.stringify(config, null, 2) + '\n',
+    'utf8'
+  )
+}
+
 /** Directories first, then files; alphabetical within each group. (Manuscript
  * `order` sorting arrives with Phase 3 / M6.) */
 function sortNodes(nodes: TreeNode[]): TreeNode[] {

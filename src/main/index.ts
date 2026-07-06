@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import { join } from 'path'
+import { basename, join, resolve } from 'path'
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
@@ -9,7 +9,14 @@ import type {
   TreeNode,
   WriteResult
 } from '../shared/types'
-import { DEFAULT_IGNORE, isInside, readProjectConfig, readTree } from './fs-project'
+import {
+  DEFAULT_IGNORE,
+  defaultProjectConfig,
+  isInside,
+  readProjectConfig,
+  readTree,
+  writeProjectConfig
+} from './fs-project'
 
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
@@ -55,11 +62,44 @@ function isNotFound(err: unknown): boolean {
   return (err as NodeJS.ErrnoException)?.code === 'ENOENT'
 }
 
-/** Prompt for a folder, then treat it as a project if it holds a valid
- * `project.json`. Returns typed results rather than throwing across IPC. */
+function setCurrentProject(root: string, config: ProjectMeta['config']): ProjectMeta {
+  currentProject = { root, name: config.project.name, config }
+  return currentProject
+}
+
+/** A folder was picked but has no `project.json` — offer to initialize it.
+ * Runs the confirm + write in main so no renderer-supplied path is trusted. */
+async function offerCreateProject(
+  root: string,
+  win: BrowserWindow | null
+): Promise<OpenProjectResult> {
+  const box = {
+    type: 'question' as const,
+    buttons: ['Create Project', 'Cancel'],
+    defaultId: 0,
+    cancelId: 1,
+    message: 'Create a new writer-gui project here?',
+    detail: `${root}\n\nThis folder has no project.json. Create one to start writing.`
+  }
+  const { response } = win
+    ? await dialog.showMessageBox(win, box)
+    : await dialog.showMessageBox(box)
+  if (response !== 0) return { ok: false, reason: 'cancelled' }
+
+  try {
+    const config = defaultProjectConfig(basename(root))
+    await writeProjectConfig(root, config)
+    return { ok: true, project: setCurrentProject(root, config) }
+  } catch (err) {
+    return { ok: false, reason: 'invalid-config', root, message: messageOf(err) }
+  }
+}
+
+/** Prompt for a folder, then open it as a project — or offer to initialize one
+ * if it has no `project.json`. Returns typed results rather than throwing. */
 async function openProject(): Promise<OpenProjectResult> {
   const win = BrowserWindow.getFocusedWindow()
-  const opts: OpenDialogOptions = { properties: ['openDirectory'] }
+  const opts: OpenDialogOptions = { properties: ['openDirectory', 'createDirectory'] }
   const result = win
     ? await dialog.showOpenDialog(win, opts)
     : await dialog.showOpenDialog(opts)
@@ -71,10 +111,9 @@ async function openProject(): Promise<OpenProjectResult> {
   const root = result.filePaths[0]
   try {
     const config = await readProjectConfig(root)
-    currentProject = { root, name: config.project.name, config }
-    return { ok: true, project: currentProject }
+    return { ok: true, project: setCurrentProject(root, config) }
   } catch (err) {
-    if (isNotFound(err)) return { ok: false, reason: 'no-config', root }
+    if (isNotFound(err)) return offerCreateProject(root, win)
     return { ok: false, reason: 'invalid-config', root, message: messageOf(err) }
   }
 }
@@ -82,6 +121,13 @@ async function openProject(): Promise<OpenProjectResult> {
 /** Guard renderer-supplied paths: must have a project open and stay inside it. */
 function guardPath(path: string): boolean {
   return currentProject !== null && isInside(currentProject.root, path)
+}
+
+// The failure variant is shared by FileReadResult and WriteResult, so this is
+// assignable to both handlers' return types.
+const OUTSIDE_ERR = {
+  ok: false as const,
+  error: 'Path is outside the open project.'
 }
 
 // --- IPC handlers (the only surface the renderer can reach) ---
@@ -98,9 +144,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('file:read', async (_e, path: string): Promise<FileReadResult> => {
-    if (!guardPath(path)) {
-      return { ok: false, error: 'Path is outside the open project.' }
-    }
+    if (!guardPath(path)) return OUTSIDE_ERR
     try {
       const text = await fs.readFile(path, 'utf8')
       return { ok: true, text }
@@ -112,9 +156,7 @@ function registerIpc(): void {
   ipcMain.handle(
     'file:write',
     async (_e, path: string, contents: string): Promise<WriteResult> => {
-      if (!guardPath(path)) {
-        return { ok: false, error: 'Path is outside the open project.' }
-      }
+      if (!guardPath(path)) return OUTSIDE_ERR
       try {
         await fs.writeFile(path, contents, 'utf8')
         return { ok: true }
@@ -123,6 +165,56 @@ function registerIpc(): void {
       }
     }
   )
+
+  // --- explorer file operations (M4) ---
+
+  ipcMain.handle('file:create', async (_e, path: string): Promise<WriteResult> => {
+    if (!guardPath(path)) return OUTSIDE_ERR
+    try {
+      // `wx` fails if the file already exists, so we never clobber content.
+      await fs.writeFile(path, '', { encoding: 'utf8', flag: 'wx' })
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: messageOf(err) }
+    }
+  })
+
+  ipcMain.handle('folder:create', async (_e, path: string): Promise<WriteResult> => {
+    if (!guardPath(path)) return OUTSIDE_ERR
+    try {
+      await fs.mkdir(path)
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: messageOf(err) }
+    }
+  })
+
+  ipcMain.handle(
+    'path:rename',
+    async (_e, from: string, to: string): Promise<WriteResult> => {
+      if (!guardPath(from) || !guardPath(to)) return OUTSIDE_ERR
+      try {
+        await fs.rename(from, to)
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: messageOf(err) }
+      }
+    }
+  )
+
+  ipcMain.handle('path:remove', async (_e, path: string): Promise<WriteResult> => {
+    if (!guardPath(path)) return OUTSIDE_ERR
+    // Deleting the project root would orphan the open project — refuse it.
+    if (currentProject && resolve(path) === resolve(currentProject.root)) {
+      return { ok: false, error: 'Cannot delete the project root.' }
+    }
+    try {
+      await fs.rm(path, { recursive: true, force: false })
+      return { ok: true }
+    } catch (err) {
+      return { ok: false, error: messageOf(err) }
+    }
+  })
 }
 
 app.whenReady().then(() => {
