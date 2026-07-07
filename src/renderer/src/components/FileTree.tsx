@@ -7,6 +7,9 @@ interface FileTreeProps {
    * sidebar header, so it isn't shown as a row here). */
   root: TreeNode
   activePath: string | null
+  /** Icon per profile file (Phase 7, M18), keyed by path — badges a location vs.
+   * an item in the tree. Absent for non-entity files. */
+  entityIcons?: Map<string, string>
   onSelect: (path: string) => void
   onNewFile: (dir: string) => void
   onNewFolder: (dir: string) => void
@@ -34,6 +37,7 @@ type Menu = { node: TreeNode; x: number; y: number }
 export function FileTree({
   root,
   activePath,
+  entityIcons,
   onSelect,
   onNewFile,
   onNewFolder,
@@ -196,6 +200,7 @@ export function FileTree({
             )
           }
           const editable = isEditable(node)
+          const icon = entityIcons?.get(node.path)
           return (
             <button
               key={node.path}
@@ -224,6 +229,7 @@ export function FileTree({
                 onDropNode(node)
               }}
             >
+              {icon && <span className="tree-file__icon">{icon} </span>}
               {node.name}
             </button>
           )

@@ -28,6 +28,41 @@ export type ProjectConfig = {
     autosave?: boolean
   }
   explorer?: { ignore?: string[] }
+  /** Registered entity types (Phase 7, M18) — display metadata + the fields each
+   * type declares. This is type *schema* (tool config), so unlike thread identity
+   * it lives in `project.json`, not in content (decision #45). Merged over the
+   * built-in defaults, so a project only lists what it overrides or adds; see
+   * `resolveEntityTypes`. */
+  entityTypes?: EntityTypeDef[]
+}
+
+/** One field a `type: …` profile declares (Phase 7, M18). Drives frontmatter
+ * intellisense (M19) and new-file templates (M20). */
+export type EntityFieldDef = {
+  /** Frontmatter key, e.g. `region`. */
+  name: string
+  /** Display label; defaults to a title-cased `name`. */
+  label?: string
+  /** Allowed values — makes the field enum-ish, so M19 offers exactly these. */
+  values?: string[]
+  /** A list field (YAML sequence), e.g. `aliases`, `threads`. */
+  repeated?: boolean
+}
+
+/** A registered entity type (Phase 7, M18): how the tree/inspector/visualiser
+ * badge it, plus the fields it declares. `type` matches the frontmatter
+ * discriminator. All display fields are optional — `resolveEntityTypes` fills
+ * sensible defaults so unknown/partial types still work. */
+export type EntityTypeDef = {
+  type: string
+  /** Display name, e.g. "Location". Defaults to a title-cased `type`. */
+  label?: string
+  /** Short glyph (emoji) shown in the tree + type badges. */
+  icon?: string
+  /** Badge accent colour (kept light until the Phase 8 design system). */
+  color?: string
+  /** The fields this type declares, in template/intellisense order. */
+  fields?: EntityFieldDef[]
 }
 
 /** A resolved, opened project. */

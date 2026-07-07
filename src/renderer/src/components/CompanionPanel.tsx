@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CompanionEntry } from '@shared/types'
+import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 
 interface CompanionPanelProps {
   /** The file whose scene drives auto-follow, or null when no tab is open. */
@@ -12,6 +13,8 @@ interface CompanionPanelProps {
   onOpenFull: (path: string) => void
   /** Bumped after a save / entity change so the pane re-reads from disk. */
   refreshKey: number
+  /** Registered entity types (M18), for the entry type badges. */
+  entityTypes: ResolvedEntityType[]
   onClose: () => void
 }
 
@@ -28,6 +31,7 @@ export function CompanionPanel({
   onTogglePin,
   onOpenFull,
   refreshKey,
+  entityTypes,
   onClose
 }: CompanionPanelProps) {
   // Scene set, tagged with the path it's for (so a stale/no-file result is ignored
@@ -92,7 +96,9 @@ export function CompanionPanel({
           >
             <span className="companion-entry__caret">{isOpen ? '▾' : '▸'}</span>
             <span className="companion-entry__title">{entry.title}</span>
-            <span className="companion-entry__type">{entry.type}</span>
+            <span className="companion-entry__type">
+              {entityTypeMeta(entry.type, entityTypes).icon} {entry.type}
+            </span>
             {entry.count != null && (
               <span className="companion-entry__count">×{entry.count}</span>
             )}

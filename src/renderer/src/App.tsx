@@ -27,6 +27,7 @@ import type {
   RecentProject,
   TreeNode
 } from '@shared/types'
+import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 import { entityAt } from './lib/mentions'
 
@@ -169,6 +170,19 @@ export default function App() {
     tree?.children?.forEach(walk)
     return out
   }, [tree])
+
+  // Registered entity types (Phase 7, M18): built-in defaults with this project's
+  // `entityTypes` merged over them. Drives type badges, frontmatter intellisense,
+  // and new-file templates — one source of truth for every "what is a location?".
+  const entityTypes = useMemo(() => resolveEntityTypes(project?.config), [project])
+
+  // Icon per profile file, so the tree can badge a location vs. an item. Keyed by
+  // path off the entity list (only files with a `type:` appear).
+  const entityIcons = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const e of entities) map.set(e.path, entityTypeMeta(e.type, entityTypes).icon)
+    return map
+  }, [entities, entityTypes])
 
   const refreshTree = async () => {
     setTree(await window.api.readTree())
@@ -909,6 +923,7 @@ export default function App() {
             <FileTree
               root={tree}
               activePath={activePath}
+              entityIcons={entityIcons}
               onSelect={(path) => openFile(path)}
               onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
               onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
@@ -1004,6 +1019,7 @@ export default function App() {
         {refsOpen && (
           <ReferencesPanel
             entities={entities}
+            entityTypes={entityTypes}
             onClose={() => setRefsOpen(false)}
             onOpenRef={(path, line, column, length) =>
               openFile(path, { line, column, endColumn: column + length })
@@ -1017,6 +1033,7 @@ export default function App() {
             path={activePath}
             readingPosition={readingPosition}
             refreshKey={inspectorRefresh}
+            entityTypes={entityTypes}
             onClose={() => setInspectorOpen(false)}
           />
         )}
@@ -1028,6 +1045,7 @@ export default function App() {
             onTogglePin={togglePin}
             onOpenFull={(path) => openFile(path)}
             refreshKey={inspectorRefresh}
+            entityTypes={entityTypes}
             onClose={() => setCompanionOpen(false)}
           />
         )}

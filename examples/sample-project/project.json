@@ -10,5 +10,14 @@
   },
   "explorer": {
     "ignore": [".git", "node_modules"]
-  }
+  },
+  "entityTypes": [
+    {
+      "type": "location",
+      "fields": [
+        { "name": "region", "label": "Region" },
+        { "name": "climate", "label": "Climate" }
+      ]
+    }
+  ]
 }

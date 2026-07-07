@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FileInspection } from '@shared/types'
+import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 import { basename } from '../lib/paths'
 
 interface InspectorPanelProps {
@@ -9,6 +10,8 @@ interface InspectorPanelProps {
   readingPosition: { index: number; total: number } | null
   /** Bumped by the app after a save so the pane re-reads the file from disk. */
   refreshKey: number
+  /** Registered entity types (M18), for the mention type badges. */
+  entityTypes: ResolvedEntityType[]
   onClose: () => void
 }
 
@@ -27,6 +30,7 @@ export function InspectorPanel({
   path,
   readingPosition,
   refreshKey,
+  entityTypes,
   onClose
 }: InspectorPanelProps) {
   // Track which path a result is for, so a stale response (or a path switch) is
@@ -135,7 +139,9 @@ export function InspectorPanel({
                   data.mentions.map((mention) => (
                     <div key={mention.name} className="inspector-mention">
                       <span className="inspector-mention__name">{mention.name}</span>
-                      <span className="inspector-mention__type">{mention.type}</span>
+                      <span className="inspector-mention__type">
+                        {entityTypeMeta(mention.type, entityTypes).icon} {mention.type}
+                      </span>
                       <span className="inspector-mention__count">×{mention.count}</span>
                     </div>
                   ))

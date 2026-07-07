@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Entity, EntityRef } from '@shared/types'
+import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 import { basename } from '../lib/paths'
 
 interface ReferencesPanelProps {
   entities: Entity[]
+  /** Registered entity types (M18), for the entity type badges. */
+  entityTypes: ResolvedEntityType[]
   onClose: () => void
   /** Open a mention at its location (path + 1-based line/column) and highlight
    * the matched surface (`length` characters from `column`). */
@@ -34,6 +37,7 @@ function byFile(refs: EntityRef[]): { path: string; refs: EntityRef[] }[] {
  * (`story:entities` / `story:references`). */
 export function ReferencesPanel({
   entities,
+  entityTypes,
   onClose,
   onOpenRef,
   onOpenProfile
@@ -134,7 +138,9 @@ export function ReferencesPanel({
                 onClick={() => selectEntity(entity)}
               >
                 <span className="refs-entity__name">{entity.name}</span>
-                <span className="refs-entity__type">{entity.type}</span>
+                <span className="refs-entity__type">
+                  {entityTypeMeta(entity.type, entityTypes).icon} {entity.type}
+                </span>
               </button>
             ))
           ))}
