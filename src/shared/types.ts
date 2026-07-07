@@ -75,6 +75,9 @@ export type AppSettings = {
   recentProjects: RecentProject[]
   /** Persisted explorer sidebar width in px. */
   sidebarWidth?: number
+  /** Persisted width (px) of the right-side panels (search / references /
+   * inspector / companion), which share one width. */
+  panelWidth?: number
   /** Companion-pane pinned references, keyed by project root → file paths.
    * Personal workspace state (per SPEC → Reference companion pane), not shared
    * in `project.json`. */

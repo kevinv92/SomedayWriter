@@ -57,6 +57,7 @@ export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [recents, setRecents] = useState<RecentProject[]>([])
   const [sidebarWidth, setSidebarWidth] = useState(240)
+  const [panelWidth, setPanelWidth] = useState(320)
   const [tree, setTree] = useState<TreeNode | null>(null)
 
   // Open tabs: the ordered paths, which is active, and which are dirty. The
@@ -405,6 +406,29 @@ export default function App() {
     [sidebarWidth]
   )
 
+  // Drag the right-panel divider to resize the panels (they share one width).
+  // The panels are on the right, so dragging left (smaller clientX) widens them.
+  const startPanelResize = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault()
+      const startX = e.clientX
+      const startWidth = panelWidth
+      let latest = startWidth
+      const onMove = (ev: MouseEvent) => {
+        latest = Math.min(Math.max(startWidth - (ev.clientX - startX), 240), 640)
+        setPanelWidth(latest)
+      }
+      const onUp = () => {
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+        void window.api.updateSettings({ panelWidth: latest })
+      }
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [panelWidth]
+  )
+
   // On first mount: load settings, restore the sidebar width, and reopen the
   // most recent project (falling back to the welcome + recents list if it fails).
   useEffect(() => {
@@ -414,6 +438,7 @@ export default function App() {
       const settings = await window.api.getSettings()
       setRecents(settings.recentProjects)
       if (settings.sidebarWidth) setSidebarWidth(settings.sidebarWidth)
+      if (settings.panelWidth) setPanelWidth(settings.panelWidth)
       allPinsRef.current = settings.pins ?? {}
       const last = settings.recentProjects[0]
       if (last) await openRecent(last.path)
@@ -806,7 +831,10 @@ export default function App() {
         </div>
       </header>
 
-      <div className="body">
+      <div
+        className="body"
+        style={{ '--panel-width': `${panelWidth}px` } as CSSProperties}
+      >
         <aside className="sidebar" style={{ width: sidebarWidth }}>
           <div className="sidebar__header">
             <span className="sidebar__title">{project.name}</span>
@@ -892,6 +920,15 @@ export default function App() {
             <div className="placeholder">Select a file to start editing.</div>
           )}
         </main>
+
+        {(searchOpen || refsOpen || inspectorOpen || companionOpen) && (
+          <div
+            className="divider divider--panel"
+            role="separator"
+            title="Drag to resize"
+            onMouseDown={startPanelResize}
+          />
+        )}
 
         {searchOpen && (
           <ProjectSearch
