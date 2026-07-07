@@ -176,6 +176,15 @@ When you change something, update the record in the same change.
   next" changes materially, update the status memory so a fresh session resumes
   correctly.
 
+**Editing large docs efficiently (SPEC.md / DECISIONS.md):** for **mechanical,
+repetitive** changes — renumbering milestones/decisions, a phrase find-replace
+across many spots, or moving a whole section — prefer a single `perl -i`/`sed`
+(or `head`/`tail` for a split) in one Bash call over many `Edit`s. It's far
+cheaper in context and deterministic. Example:
+`perl -i -pe 's{\bthread registry\b}{type: thread entities}g' SPEC.md`.
+Reserve `Edit` for genuine rewording where judgement is needed. After a `perl`
+sweep, `grep` to confirm no stale matches remain.
+
 **Commits & verification:**
 
 - Verify first: `npm run format && npm run lint && npm run typecheck &&
