@@ -827,17 +827,18 @@ any client.
 Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
-> **Status (2026-07-06):** Phases 0–4 ✅, Phase 6 ✅ (v1 Major Milestone) + the
-> keyboard navigation, and **Phase 5 in progress** — M8 part 1 done: `StoryIndex`
-> (main; real YAML frontmatter parse) + real `@`-mention completion from profile
-> files (`CharacterProvider` replaced the demo). **Next in Phase 5:** M8c
-> (find-references **panel** + go-to-definition — the `referencesTo` backend
-> already works), then M8b inspector, M9 `ThreadProvider`, M10 braid visualiser.
-> Everything built is **CDP-verified** (launch with `ELECTRON_RUN_AS_NODE` unset;
-> see the GUI-verify memory). Phase 6 = tabs/autosave/quick-open+palette/unified
-> find/recent projects/resizable+keyboard-nav sidebar; Phase 4 = `AnalysisService`
-> facade + spell provider; Phase 3 = file ops, search/replace, drag reorder,
-> edit-safety. Phases 7–12 are specced, not built.
+> **Status (2026-07-07):** Phases 0–4 ✅, Phase 6 ✅ (v1 Major Milestone) + the
+> keyboard navigation, and **Phase 5 M8 ✅** — `StoryIndex` (main; real YAML
+> frontmatter parse) + real `@`-mention completion, plus **M8c**: the
+> find-references **panel** and **go-to-definition** (Cmd/Ctrl+click a mention or
+> the command → opens the profile). **Next in Phase 5:** M8b inspector, M9
+> `ThreadProvider`, M10 braid visualiser. Everything built is **CDP-verified**
+> (launch with `ELECTRON_RUN_AS_NODE` unset; see the GUI-verify memory). Phase 6 =
+> tabs/autosave/quick-open+palette/unified find/recent projects/resizable+
+> keyboard-nav sidebar; Phase 4 = `AnalysisService` facade + spell provider; Phase
+> 3 = file ops, search/replace, drag reorder, edit-safety. **Phases 7–12 are
+> specced, not built** — note the reorder: the visual design system is now Phase 8
+> (see decision #42).
 
 ### Phase 0 — Scaffold ✅
 
@@ -978,7 +979,7 @@ bucket.
   on a central command registry, one widget (`>` switches modes), fuzzy matcher.
 - **M16** ✅ — **Unified find UI** — CodeMirror's `Cmd/Ctrl+F` panel themed to
   match the project-search panel / modals / quick-input (inputs, buttons, accent,
-  match highlight). Full design-system unification is **Phase 11**.
+  match highlight). Full design-system unification is **Phase 8**.
 
 **Exit (v1):** open or create a project, draft and structure a manuscript across
 tabs without losing work, find anything (in-file, across the project, by
@@ -1001,79 +1002,42 @@ semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
   **`name` + `aliases`** resolution off `StoryIndex`, with **no per-type code**.
   Unknown types work with defaults.
 - **M18** — **Registered entity types** in `project.json` (like the threads
-  registry): display name, icon, colour — so the tree, inspector, and visualiser
-  can badge a location vs. an item.
+  registry): display name, icon, colour, **and the fields each type declares** —
+  so the tree, inspector, and visualiser can badge a location vs. an item, and so
+  M19/M20 have a schema to drive from.
+- **M19** — **Frontmatter intellisense.** Completion _inside_ the YAML
+  frontmatter block (the editor already tags those lines — `cm-frontmatter-line`),
+  delivered through the `AnalysisService` facade as a new completion context.
+  Suggests **attribute keys** (`type`, `name`, `aliases`, `order`, `threads`, plus
+  the fields the file's `type` declares) and **their values** — `type:` → the
+  registered entity types, `threads:` → the thread registry, enum-ish fields →
+  their allowed set. Schema-driven off M18, so no per-type code; unknown types
+  fall back to the common keys.
+- **M20** — **New-file entity templates.** Creating a file offers a **template
+  per registered entity type** (Character, Location, Item, Faction, Magic
+  System, …) that pre-fills the frontmatter skeleton (`type` + `name` + `aliases`
+  - the type's declared fields) and a starter heading, driven by the same M18
+    registry. Surfaced in the New-File flow + palette ("New Character", "New
+    Location", …); a blank Markdown file stays the default.
 
 **Exit:** `@{Redhill}` resolves to the location page whose canonical name is
 "Giant's Rest" (via aliases), just like a character; every entity type shares one
-code path.
+code path; typing in a profile's frontmatter suggests the right keys and values,
+and "New Location" starts from a filled-in template.
 
-### Phase 8 — Editorial marks (comments & revisions)
-
-Post-v1 editorial layer, plain-text via CriticMarkup — see _Comments & editorial
-marks_. Reuses the decoration + hover-tooltip machinery already in the editor.
-
-- **M19** — **Anchored comments.** `{>>…<<}` (at a point) and
-  `{==span==}{>>…<<}` (attached to a span), rendered as a highlight + hover
-  tooltip, edit-in-source; stripped on export. Reuses the `%%`-notes decoration
-  pattern.
-- **M20** _(optional)_ — **Comments panel** — a per-file list of comments
-  (click-to-jump), surfaced through the inspector / analysis facade.
-- **M21** _(stretch)_ — **Suggested edits / tracked changes** — CriticMarkup
-  insert / delete / substitute marks, accepted or rejected on export.
-
-**Exit:** highlight a sentence, attach a private comment that survives editing
-around it, and confirm it never reaches the exported prose.
-
-### Phase 9 — External analysis providers (opt-in)
-
-Bring third-party grammar/style engines in as providers behind the existing
-`AnalysisService` facade — **no editor or facade change** (this is exactly what
-the pluggable design was for).
-
-- **M22** — A **main-process provider** that calls an external checker's API,
-  maps results → `Diagnostic[]`, and emits through the facade. First targets:
-  **LanguageTool** (open-source, **self-hostable** so prose can stay on-device;
-  or cloud) and **ProWritingAid** (developer API). _Grammarly has no third-party
-  editor API, so it's out._
-- **M23** _(optional)_ — **`LspProvider`**: attach a real language server over
-  JSON-RPC (e.g. `ltex-ls` for LanguageTool) — the deferred-LSP path realized.
-
-Rules: **opt-in, off by default** (the diagnostics toggle); the **API key lives
-in main** (the renderer never sees it); sending prose to a cloud service is
-**disclosed** (self-hosted LanguageTool avoids it entirely). Ships **named**
-integrations — a full user-installable plugin SDK (arbitrary sandboxed
-third-party providers) is a bigger, separate _Deferred_ item.
-
-**Exit:** enable LanguageTool; its grammar/style hits appear as squiggles through
-the same facade as the built-in spell provider, opt-in.
-
-### Phase 10 — MCP server (committed)
-
-Expose the project as an **MCP server** so a subscription-authed client drives AI
-over the manuscript — no API key, no metered cost, no AI code in the app. See
-_MCP server_. Deterministic (it's `StoryIndex` projected over MCP), so it sits
-here in the committed phases, not in the deferred-AI lane. Depends on Phase 5.
-
-- **M24** — MCP server exposing project files (resources) + `StoryIndex` tools
-  (`findReferences`, `definitionOf`, `mentionsIn`, `threadBeats`, order, search),
-  writes routed through the same guarded path. Connect from Claude Code / Desktop.
-
-**Exit:** connect writer-gui as an MCP server in Claude Desktop and ask a
-grounded question ("summarise the rebellion thread") answered from the real index
-— on your subscription, no API charges.
-
-### Phase 11 — Visual design system & writer theme
+### Phase 8 — Visual design system & writer theme
 
 Replace the ad-hoc CSS grown through Phases 2–6 with a **cohesive design system**
 and a visual language **tuned for writers to feel comfortable** during long
-sessions. The goal is beauty + consistency, not new features.
+sessions. The goal is beauty + consistency, not new features. Pulled ahead of the
+editorial/analysis/MCP phases so the app gets a coherent visual language early —
+now that Claude Design access is authorized.
 
-- **M25** — **Design tokens + component library.** A single source of truth for
+- **M21** — **Design tokens + component library.** A single source of truth for
   color, a type scale, spacing, radius, and shadows; the app's surfaces (tree,
   tabs, editor chrome, modals, quick-input, search, status bar) restyled to
   consume them so everything reads as one system.
-- **M26** — **Writer-comfort theme(s).** Low-eye-strain light + dark themes tuned
+- **M22** — **Writer-comfort theme(s).** Low-eye-strain light + dark themes tuned
   for reading/writing (warm paper option, gentle contrast, calm accents), and a
   distraction-light **focus** mode. Themes are a token swap, not per-component
   overrides.
@@ -1087,6 +1051,61 @@ sessions. The goal is beauty + consistency, not new features.
 **Exit:** the whole app reads as one intentional, calm visual language; switching
 theme is one token change; nothing looks like ad-hoc CSS.
 
+### Phase 9 — Editorial marks (comments & revisions)
+
+Post-v1 editorial layer, plain-text via CriticMarkup — see _Comments & editorial
+marks_. Reuses the decoration + hover-tooltip machinery already in the editor.
+
+- **M23** — **Anchored comments.** `{>>…<<}` (at a point) and
+  `{==span==}{>>…<<}` (attached to a span), rendered as a highlight + hover
+  tooltip, edit-in-source; stripped on export. Reuses the `%%`-notes decoration
+  pattern.
+- **M24** _(optional)_ — **Comments panel** — a per-file list of comments
+  (click-to-jump), surfaced through the inspector / analysis facade.
+- **M25** _(stretch)_ — **Suggested edits / tracked changes** — CriticMarkup
+  insert / delete / substitute marks, accepted or rejected on export.
+
+**Exit:** highlight a sentence, attach a private comment that survives editing
+around it, and confirm it never reaches the exported prose.
+
+### Phase 10 — External analysis providers (opt-in)
+
+Bring third-party grammar/style engines in as providers behind the existing
+`AnalysisService` facade — **no editor or facade change** (this is exactly what
+the pluggable design was for).
+
+- **M26** — A **main-process provider** that calls an external checker's API,
+  maps results → `Diagnostic[]`, and emits through the facade. First targets:
+  **LanguageTool** (open-source, **self-hostable** so prose can stay on-device;
+  or cloud) and **ProWritingAid** (developer API). _Grammarly has no third-party
+  editor API, so it's out._
+- **M27** _(optional)_ — **`LspProvider`**: attach a real language server over
+  JSON-RPC (e.g. `ltex-ls` for LanguageTool) — the deferred-LSP path realized.
+
+Rules: **opt-in, off by default** (the diagnostics toggle); the **API key lives
+in main** (the renderer never sees it); sending prose to a cloud service is
+**disclosed** (self-hosted LanguageTool avoids it entirely). Ships **named**
+integrations — a full user-installable plugin SDK (arbitrary sandboxed
+third-party providers) is a bigger, separate _Deferred_ item.
+
+**Exit:** enable LanguageTool; its grammar/style hits appear as squiggles through
+the same facade as the built-in spell provider, opt-in.
+
+### Phase 11 — MCP server (committed)
+
+Expose the project as an **MCP server** so a subscription-authed client drives AI
+over the manuscript — no API key, no metered cost, no AI code in the app. See
+_MCP server_. Deterministic (it's `StoryIndex` projected over MCP), so it sits
+here in the committed phases, not in the deferred-AI lane. Depends on Phase 5.
+
+- **M28** — MCP server exposing project files (resources) + `StoryIndex` tools
+  (`findReferences`, `definitionOf`, `mentionsIn`, `threadBeats`, order, search),
+  writes routed through the same guarded path. Connect from Claude Code / Desktop.
+
+**Exit:** connect writer-gui as an MCP server in Claude Desktop and ask a
+grounded question ("summarise the rebellion thread") answered from the real index
+— on your subscription, no API charges.
+
 ### Phase 12 — Command system & keybindings
 
 Unify commands behind **one registry** and make keys **user-overridable** — see
@@ -1094,17 +1113,17 @@ _Command registry_ and _Keyboard navigation & focus_. Fixes the two-sources-of-
 truth trap (an ad-hoc palette array + hand-written keydown switch + a hardcoded
 menu) and keeps the native menu behind the shell seam.
 
-- **M27** — **Command registry.** One renderer-owned registry
+- **M29** — **Command registry.** One renderer-owned registry
   (`{ id, title, category, defaultKeybinding, run }`) becomes the single source
   for the **palette** and the **keyboard shortcuts** (replacing App's ad-hoc
   `commands` array and the hand-written keydown switch).
-- **M28** — **Generated native menu.** Build the Electron `Menu` from the
+- **M30** — **Generated native menu.** Build the Electron `Menu` from the
   registry (renderer → main IPC), `registerAccelerator: false` so shown shortcuts
   don't hijack keys from the renderer / CodeMirror; adds menu-bar discoverability,
   standard File/Edit/View menus, macOS clipboard (Edit roles), and
   `Cmd+Shift+[ / ]`. The menu builder is the **only** shell-specific part (seam,
   decision #24) — plus a **focus-editor** shortcut to finish region nav.
-- **M29** — **User keybindings.** A `keybindings.json` in the app-settings
+- **M31** — **User keybindings.** A `keybindings.json` in the app-settings
   user-data dir remaps any command; the registry merges `defaultKeybinding` +
   overrides into the **effective** binding shown in the palette and menu.
   Editor-owned keys (`⌘Z`, `⌘F`) documented as reserved.
@@ -1462,7 +1481,7 @@ initial design conversation.)
     build on one agreed model without a rewrite, without over-building before it's
     needed. Marker file stays an explicit declaration (identity remains
     frontmatter-driven, not folder-name-driven — cf. the affirmed principle).
-35. **Anchored comments via CriticMarkup (Phase 8) — resolves the deferred half of
+35. **Anchored comments via CriticMarkup (Phase 9) — resolves the deferred half of
     #22.** Comments attach to a span with CriticMarkup
     (`{==span==}{>>note<<}`), so they live inline in the `.md` (no sidecar store)
     and CodeMirror anchors them **for free** as the text shifts. Rendered with a
@@ -1470,10 +1489,10 @@ initial design conversation.)
     stays the _unanchored_ note; `{>>…<<}` is the _anchored_ comment; both strip on
     export (the contract now also unwraps `{==…==}` highlights). Google-Docs
     margin/threads stays a possible later _display_ layer, not the foundation.
-    CriticMarkup also opens a future tracked-changes lane (M21). _Why:_ inline
+    CriticMarkup also opens a future tracked-changes lane (M25). _Why:_ inline
     marks dodge the anchor-drift + separate-store cost that made #22 defer this,
     and reuse decoration machinery the editor already has.
-36. **External grammar/style tools plug in as providers (Phase 9, opt-in).** They
+36. **External grammar/style tools plug in as providers (Phase 10, opt-in).** They
     ride the existing `AnalysisService` facade — a main-process provider calling
     the tool's API (or an `LspProvider`), mapping results → diagnostics, off by
     default, key in main, cloud use disclosed. First targets **LanguageTool**
@@ -1489,7 +1508,7 @@ initial design conversation.)
     (find-references, mentions, order) so it reasons over the real structured
     project. Claude is the default model, provider-flexible. _Why:_ the deterministic
     prose "language server" is exactly the grounding a generic chatbot lacks.
-38. **MCP server is the committed AI-integration path (Phase 10); in-app chat is
+38. **MCP server is the committed AI-integration path (Phase 11); in-app chat is
     optional/deferred.** A third-party app can't ride a user's Claude Pro/Max
     subscription (that OAuth is Anthropic-first-party only), so rather than embed a
     metered client, writer-gui **exposes an MCP server** — project files + the
@@ -1532,3 +1551,17 @@ initial design conversation.)
     renderer / CodeMirror. _Why:_ avoids the two-sources-of-truth trap (an ad-hoc
     palette array + a hardcoded menu list) and delivers customizable keys for
     free. Not built yet — supersedes the plain "command registry" sketch.
+42. **Visual design system pulled ahead to Phase 8 (was Phase 11).** With Claude
+    Design access authorized, the design-system + writer-comfort-theme work moves
+    up to run right after Phase 7, shifting editorial marks → Phase 9, external
+    analysis → Phase 10, MCP → Phase 11 (command system stays Phase 12). Downstream
+    milestones renumbered to stay sequential (M17–M31). _Why:_ a coherent visual
+    language pays off across every later phase, and it's now unblocked — no reason
+    to let it trail the post-v1 feature phases.
+43. **Phase 7 also gets frontmatter intellisense (M19) + new-file entity templates
+    (M20).** Both hang off the M18 registered-entity-types schema: completion of
+    attribute keys/values inside the YAML frontmatter (through the `AnalysisService`
+    facade, using the existing frontmatter-line tagging), and a per-type file
+    template on New File / palette ("New Character", …). _Why:_ once types are
+    registered and schema'd, both are cheap, schema-driven, and per-type-code-free —
+    they make hand-authoring profiles far less error-prone.
