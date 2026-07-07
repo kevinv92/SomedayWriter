@@ -75,6 +75,10 @@ export type AppSettings = {
   recentProjects: RecentProject[]
   /** Persisted explorer sidebar width in px. */
   sidebarWidth?: number
+  /** Companion-pane pinned references, keyed by project root → file paths.
+   * Personal workspace state (per SPEC → Reference companion pane), not shared
+   * in `project.json`. */
+  pins?: Record<string, string[]>
 }
 
 /** A story entity from `StoryIndex` (Phase 5) — a profile file (`type` in its
@@ -116,6 +120,20 @@ export type FileInspection = {
   /** Malformed-frontmatter messages; empty when the file parses cleanly. This is
    * the pane's key debug value. */
   warnings: string[]
+}
+
+/** One reference in the Companion pane (Phase 5, M8d) — an entity profile or a
+ * pinned note, resolved to what the pane shows: a title, a type badge (the
+ * entity `type`, or `'note'`), a one-line summary for the collapsed row, and the
+ * body for the expanded view. `count` is set only for auto-follow scene entries
+ * (occurrences in the active file). */
+export type CompanionEntry = {
+  path: string
+  title: string
+  type: string
+  summary: string
+  body: string
+  count?: number
 }
 
 /** Options for project-wide search (M5). */

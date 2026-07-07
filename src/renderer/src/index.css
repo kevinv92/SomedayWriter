@@ -925,3 +925,135 @@ body {
   font-size: 0.72rem;
   color: var(--muted);
 }
+
+/* Companion pane (M8d) — pinned + auto-follow references in the panel shell. */
+.companion-zone {
+  padding: 0.5rem 0.6rem 0.25rem;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+}
+
+.companion-hint {
+  padding: 0.15rem 0.6rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.companion-entry {
+  border-bottom: 1px solid var(--border);
+}
+
+.companion-entry__row {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.1rem 0.35rem 0.1rem 0.5rem;
+}
+
+.companion-entry__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.companion-entry__caret {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.companion-entry__title {
+  flex-shrink: 1;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.companion-entry__type {
+  flex-shrink: 0;
+  font-size: 0.66rem;
+  color: var(--muted);
+}
+
+.companion-entry__count {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.companion-pin,
+.companion-open {
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.8rem;
+  line-height: 1;
+  padding: 0.2rem;
+  border-radius: 4px;
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.companion-pin:hover,
+.companion-open:hover {
+  opacity: 0.9;
+  background: var(--border);
+}
+
+.companion-pin--on {
+  opacity: 1;
+  filter: none;
+}
+
+.companion-open {
+  filter: none;
+  color: var(--muted);
+}
+
+.companion-summary {
+  padding: 0 0.6rem 0.4rem 1.4rem;
+  font-size: 0.76rem;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.companion-body {
+  margin: 0 0.5rem 0.5rem 1.4rem;
+  padding: 0.4rem 0.5rem;
+  max-height: 40vh;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.companion-empty {
+  color: var(--muted);
+  font-style: italic;
+}

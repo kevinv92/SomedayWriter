@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type {
   AppSettings,
+  CompanionEntry,
   Entity,
   EntityRef,
   FileInspection,
@@ -86,7 +87,15 @@ const api = {
 
   /** The parsed model for one file on disk — powers the Inspector pane (M8b). */
   inspectFile: (path: string): Promise<FileInspection | null> =>
-    ipcRenderer.invoke('story:inspect', path)
+    ipcRenderer.invoke('story:inspect', path),
+
+  /** Entities detected in a file — the Companion's auto-follow set (M8d). */
+  sceneRefs: (path: string): Promise<CompanionEntry[]> =>
+    ipcRenderer.invoke('story:sceneRefs', path),
+
+  /** Load one reference (entity or pinned note) for the Companion pane (M8d). */
+  loadRef: (path: string): Promise<CompanionEntry | null> =>
+    ipcRenderer.invoke('story:loadRef', path)
 }
 
 export type Api = typeof api

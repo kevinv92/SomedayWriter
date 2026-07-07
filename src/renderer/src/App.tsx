@@ -9,6 +9,7 @@ import {
 import { Editor, type EditorHandle, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
+import { CompanionPanel } from './components/CompanionPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
@@ -73,8 +74,13 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [refsOpen, setRefsOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
-  // Bumped after a save so the (disk-based) Inspector re-reads the active file.
+  const [companionOpen, setCompanionOpen] = useState(false)
+  // Bumped after a save / entity change so the disk-based Inspector + Companion
+  // re-read the active file.
   const [inspectorRefresh, setInspectorRefresh] = useState(0)
+  // Companion pins for the current project (paths); the full per-project map lives
+  // in allPinsRef so persisting one project never clobbers another's.
+  const [pinnedPaths, setPinnedPaths] = useState<string[]>([])
   // Story entities (StoryIndex), for the references panel + go-to-definition.
   const [entities, setEntities] = useState<Entity[]>([])
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
@@ -96,6 +102,8 @@ export default function App() {
   // Live handle onto the editor, for palette-driven go-to-definition (reads the
   // cursor while the editor is unfocused behind the palette).
   const editorHandle = useRef<EditorHandle | null>(null)
+  // The whole Companion pins map (project root → paths), loaded from settings.
+  const allPinsRef = useRef<Record<string, string[]>>({})
 
   // The doc handed to the editor — keyed on the active tab only, so typing (which
   // mutates the buffer in the ref) never re-loads the editor. Switching tabs
@@ -119,13 +127,31 @@ export default function App() {
   useEffect(() => () => analysis.dispose(), [analysis])
 
   // Load story entities (characters, …) from StoryIndex; refresh after edits.
-  // Feeds both the completion provider and the references panel / go-to-definition.
+  // Feeds the completion provider, references/go-to-definition, and (via the
+  // refresh nonce) the disk-based Inspector + Companion scene detection.
   const refreshEntities = useCallback(() => {
     void window.api.storyEntities().then((next) => {
       character.setEntities(next)
       setEntities(next)
     })
+    setInspectorRefresh((n) => n + 1)
   }, [character])
+
+  // Pin/unpin a Companion reference for the current project, persisting the whole
+  // per-project map so other projects' pins are preserved.
+  const togglePin = useCallback(
+    (path: string) => {
+      if (!project) return
+      const current = allPinsRef.current[project.root] ?? []
+      const next = current.includes(path)
+        ? current.filter((p) => p !== path)
+        : [...current, path]
+      allPinsRef.current = { ...allPinsRef.current, [project.root]: next }
+      setPinnedPaths(next)
+      void window.api.updateSettings({ pins: allPinsRef.current })
+    },
+    [project]
+  )
 
   // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P).
   const projectFiles = useMemo<QuickFile[]>(() => {
@@ -234,7 +260,8 @@ export default function App() {
       }
       buffer.saved = buffer.current
       markDirty(path, false)
-      // The Inspector reads from disk; a save is when its view can change.
+      // The Inspector + Companion read from disk; a save is when their view can
+      // change.
       setInspectorRefresh((n) => n + 1)
       return true
     },
@@ -339,6 +366,7 @@ export default function App() {
       setNotice(null)
       setDiagnostics(result.project.config.editor?.diagnostics ?? false)
       setAutosave(result.project.config.editor?.autosave ?? false)
+      setPinnedPaths(allPinsRef.current[result.project.root] ?? [])
       refreshEntities()
     },
     [refreshEntities]
@@ -386,6 +414,7 @@ export default function App() {
       const settings = await window.api.getSettings()
       setRecents(settings.recentProjects)
       if (settings.sidebarWidth) setSidebarWidth(settings.sidebarWidth)
+      allPinsRef.current = settings.pins ?? {}
       const last = settings.recentProjects[0]
       if (last) await openRecent(last.path)
     })()
@@ -659,6 +688,21 @@ export default function App() {
       run: () => setInspectorOpen((v) => !v)
     },
     {
+      id: 'toggle-companion',
+      title: 'Toggle Companion',
+      run: () => setCompanionOpen((v) => !v)
+    },
+    {
+      id: 'pin-to-companion',
+      title: 'Pin Current File to Companion',
+      run: () => {
+        if (activePath) {
+          togglePin(activePath)
+          setCompanionOpen(true)
+        }
+      }
+    },
+    {
       id: 'toggle-vim',
       title: `Toggle Vim (${vim ? 'on' : 'off'})`,
       run: () => setVim((v) => !v)
@@ -725,6 +769,13 @@ export default function App() {
             onClick={() => setRefsOpen((v) => !v)}
           >
             References
+          </button>
+          <button
+            className={`toggle${companionOpen ? ' toggle--on' : ''}`}
+            title="Companion: keep character sheets & notes at hand — auto-follows the scene, pin to keep one in view"
+            onClick={() => setCompanionOpen((v) => !v)}
+          >
+            Companion
           </button>
           <button
             className={`toggle${inspectorOpen ? ' toggle--on' : ''}`}
@@ -866,6 +917,17 @@ export default function App() {
             readingPosition={readingPosition}
             refreshKey={inspectorRefresh}
             onClose={() => setInspectorOpen(false)}
+          />
+        )}
+
+        {companionOpen && (
+          <CompanionPanel
+            activePath={activePath}
+            pinnedPaths={pinnedPaths}
+            onTogglePin={togglePin}
+            onOpenFull={(path) => openFile(path)}
+            refreshKey={inspectorRefresh}
+            onClose={() => setCompanionOpen(false)}
           />
         )}
       </div>

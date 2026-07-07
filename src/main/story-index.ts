@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import type { Entity, EntityRef, FileInspection } from '../shared/types'
+import type { CompanionEntry, Entity, EntityRef, FileInspection } from '../shared/types'
 import { listMarkdownFiles } from './fs-project'
 import {
   deriveTitle,
@@ -111,15 +111,15 @@ function stringListWarnings(data: Record<string, unknown>, key: string): string[
   return []
 }
 
-/** Entities mentioned in `body`, with per-entity counts. One combined
+/** Entities detected in `body`, with per-entity counts. One combined
  * longest-first scan (like `referencesTo`) so "Mara Venn" isn't also counted as
- * "Mara"; `self` (the profile being inspected) is excluded so a file doesn't
- * report mentions of itself. */
-function mentionsIn(
+ * "Mara"; `selfPath` (the file being scanned, if it's a profile) is excluded so a
+ * file doesn't report mentions of itself. Sorted by count, then name. */
+function detectMentions(
   body: string,
   entities: Entity[],
   selfPath: string
-): FileInspection['mentions'] {
+): { entity: Entity; count: number }[] {
   const owner = new Map<string, Entity>() // surface → entity (first wins)
   for (const entity of entities) {
     if (entity.path === selfPath) continue
@@ -142,9 +142,36 @@ function mentionsIn(
     if (seen) seen.count++
     else counts.set(entity.id, { entity, count: 1 })
   }
-  return [...counts.values()]
-    .map(({ entity, count }) => ({ name: entity.name, type: entity.type, count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  return [...counts.values()].sort(
+    (a, b) => b.count - a.count || a.entity.name.localeCompare(b.entity.name)
+  )
+}
+
+function mentionsIn(
+  body: string,
+  entities: Entity[],
+  selfPath: string
+): FileInspection['mentions'] {
+  return detectMentions(body, entities, selfPath).map(({ entity, count }) => ({
+    name: entity.name,
+    type: entity.type,
+    count
+  }))
+}
+
+/** A reference's one-line summary for the Companion's collapsed row: an explicit
+ * `summary:` frontmatter field, else the first prose line of the body (skipping
+ * headings and notes). */
+function summarize(data: Record<string, unknown>, body: string): string {
+  if (typeof data.summary === 'string' && data.summary.trim()) {
+    return data.summary.trim()
+  }
+  for (const raw of body.split('\n')) {
+    const line = raw.trim()
+    if (!line || line.startsWith('#') || line.startsWith('%%')) continue
+    return line.replace(/^[-*]\s+/, '')
+  }
+  return ''
 }
 
 /** Manuscript word count: `body` (frontmatter already stripped) with `%%notes%%`
@@ -191,4 +218,51 @@ export async function inspectFile(
     wordCount: countManuscriptWords(body),
     warnings: [...warnings, ...fieldWarnings]
   }
+}
+
+/** Load one Companion reference (M8d) from a file on disk — an entity profile or
+ * an arbitrary pinned note. Title/type come from the entity when the path is one;
+ * otherwise the derived title and `'note'`. Returns null if unreadable. */
+export async function loadCompanionEntry(
+  path: string,
+  entities: Entity[]
+): Promise<CompanionEntry | null> {
+  let text: string
+  try {
+    text = await fs.readFile(path, 'utf8')
+  } catch {
+    return null
+  }
+  const { data, body } = parseFrontmatterDetailed(text)
+  const entity = entities.find((e) => e.path === path)
+  return {
+    path,
+    title: entity ? entity.name : deriveTitle(text, path),
+    type: entity ? entity.type : 'note',
+    summary: summarize(data, body),
+    body: body.trim()
+  }
+}
+
+/** The Companion's auto-follow set for the active file (M8d): the entities
+ * detected in it, each resolved to a full `CompanionEntry` (read from its own
+ * profile) with the in-file occurrence `count`. Sorted by count. */
+export async function sceneEntities(
+  activePath: string,
+  entities: Entity[]
+): Promise<CompanionEntry[]> {
+  let text: string
+  try {
+    text = await fs.readFile(activePath, 'utf8')
+  } catch {
+    return []
+  }
+  const { body } = parseFrontmatterDetailed(text)
+  const detected = detectMentions(body, entities, activePath)
+  const out: CompanionEntry[] = []
+  for (const { entity, count } of detected) {
+    const entry = await loadCompanionEntry(entity.path, entities)
+    if (entry) out.push({ ...entry, count })
+  }
+  return out
 }

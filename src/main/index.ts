@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
   AppSettings,
+  CompanionEntry,
   Entity,
   EntityRef,
   FileInspection,
@@ -16,7 +17,13 @@ import type {
   TreeNode,
   WriteResult
 } from '../shared/types'
-import { buildEntities, inspectFile, referencesTo } from './story-index'
+import {
+  buildEntities,
+  inspectFile,
+  loadCompanionEntry,
+  referencesTo,
+  sceneEntities
+} from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
 import {
   DEFAULT_IGNORE,
@@ -188,6 +195,27 @@ function registerIpc(): void {
       const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
       const entities = await buildEntities(currentProject.root, ignore)
       return inspectFile(path, entities)
+    }
+  )
+
+  // Companion pane (M8d): the auto-follow scene set + single-reference loading.
+  ipcMain.handle(
+    'story:sceneRefs',
+    async (_e, path: string): Promise<CompanionEntry[]> => {
+      if (!currentProject || !guardPath(path)) return []
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      const entities = await buildEntities(currentProject.root, ignore)
+      return sceneEntities(path, entities)
+    }
+  )
+
+  ipcMain.handle(
+    'story:loadRef',
+    async (_e, path: string): Promise<CompanionEntry | null> => {
+      if (!currentProject || !guardPath(path)) return null
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      const entities = await buildEntities(currentProject.root, ignore)
+      return loadCompanionEntry(path, entities)
     }
   )
 
