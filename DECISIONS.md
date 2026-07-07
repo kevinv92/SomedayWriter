@@ -331,3 +331,10 @@ initial design conversation.)
     frontmatter, not prose) staying thread-specific. Entity-_type_ registration
     (M18) is schema, not content, so it stays in `project.json`. _Refines the
     earlier "threads optionally registered in project.json" framing (#10)._
+46. **Inline thread markers deferred from M9 to Phase 9 (M25b).** Inline range
+    markers (a `<!-- thread -->` span scoping part of a scene) are the same
+    pattern as CriticMarkup comments — an inline range rendered as an editor
+    decoration and stripped on export. Rather than duplicate that decoration/
+    strip machinery in Phase 5, the feature rides Phase 9's editorial-marks
+    toolbox. _Why:_ file-level threads (M9, done) already feed the M10 braid, so
+    inline is a low-priority refinement best built where its machinery lives.

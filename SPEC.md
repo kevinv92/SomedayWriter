@@ -1044,8 +1044,8 @@ The signature features, no AI.
   identity (name/colour/description) from optional `type: thread` entity files
   (decision #45); membership/order stay in each scene's frontmatter. Panel lists
   each thread's beats in order (click-to-open) with intersection (⋈) badges.
-  **Deferred:** inline range markers (a `<!-- thread -->` span scoping part of a
-  file) — needs editor-decoration work; file-level feeds the M10 braid.
+  Inline range markers move to **Phase 9 (M25b)** — same inline-decoration +
+  strip-on-export pattern as CriticMarkup (decision #46); file-level feeds M10.
 - **M10** — **Thread visualiser (read)** — braid view: lane per thread,
   intersections, ordering toggle, click-to-open.
 - **M11** _(stretch / at risk)_ — **Thread visualiser (edit)** — drag to reorder
@@ -1164,6 +1164,11 @@ marks_. Reuses the decoration + hover-tooltip machinery already in the editor.
   (click-to-jump), surfaced through the inspector / analysis facade.
 - **M25** _(stretch)_ — **Suggested edits / tracked changes** — CriticMarkup
   insert / delete / substitute marks, accepted or rejected on export.
+- **M25b** _(from M9)_ — **Inline thread markers** — a `<!-- thread:x -->…
+  <!-- /thread -->` span scoping part of a scene to a thread, so one file feeds
+  several threads at different points. Rides this phase's inline-decoration +
+  strip-on-export machinery; extends `buildThreads` with sub-scene beats that the
+  braid (M10) then renders.
 
 **Exit:** highlight a sentence, attach a private comment that survives editing
 around it, and confirm it never reaches the exported prose.
