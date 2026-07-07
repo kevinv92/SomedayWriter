@@ -13,6 +13,7 @@ import { CompanionPanel } from './components/CompanionPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
+import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { AnalysisService } from './analysis/analysis-service'
 import { createCharacterProvider } from './analysis/providers/character-provider'
@@ -76,6 +77,7 @@ export default function App() {
   const [refsOpen, setRefsOpen] = useState(false)
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [companionOpen, setCompanionOpen] = useState(false)
+  const [threadsOpen, setThreadsOpen] = useState(false)
   // Bumped after a save / entity change so the disk-based Inspector + Companion
   // re-read the active file.
   const [inspectorRefresh, setInspectorRefresh] = useState(0)
@@ -718,6 +720,11 @@ export default function App() {
       run: () => setCompanionOpen((v) => !v)
     },
     {
+      id: 'toggle-threads',
+      title: 'Toggle Threads',
+      run: () => setThreadsOpen((v) => !v)
+    },
+    {
       id: 'pin-to-companion',
       title: 'Pin Current File to Companion',
       run: () => {
@@ -801,6 +808,13 @@ export default function App() {
             onClick={() => setCompanionOpen((v) => !v)}
           >
             Companion
+          </button>
+          <button
+            className={`toggle${threadsOpen ? ' toggle--on' : ''}`}
+            title="Threads: each storyline's beats in order, across the manuscript"
+            onClick={() => setThreadsOpen((v) => !v)}
+          >
+            Threads
           </button>
           <button
             className={`toggle${inspectorOpen ? ' toggle--on' : ''}`}
@@ -921,7 +935,7 @@ export default function App() {
           )}
         </main>
 
-        {(searchOpen || refsOpen || inspectorOpen || companionOpen) && (
+        {(searchOpen || refsOpen || inspectorOpen || companionOpen || threadsOpen) && (
           <div
             className="divider divider--panel"
             role="separator"
@@ -965,6 +979,14 @@ export default function App() {
             onOpenFull={(path) => openFile(path)}
             refreshKey={inspectorRefresh}
             onClose={() => setCompanionOpen(false)}
+          />
+        )}
+
+        {threadsOpen && (
+          <ThreadsPanel
+            onOpenBeat={(path) => openFile(path)}
+            refreshKey={inspectorRefresh}
+            onClose={() => setThreadsOpen(false)}
           />
         )}
       </div>

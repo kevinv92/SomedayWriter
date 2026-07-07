@@ -1,5 +1,12 @@
 import { promises as fs } from 'fs'
-import type { CompanionEntry, Entity, EntityRef, FileInspection } from '../shared/types'
+import type {
+  CompanionEntry,
+  Entity,
+  EntityRef,
+  FileInspection,
+  Thread,
+  ThreadBeat
+} from '../shared/types'
 import { listMarkdownFiles } from './fs-project'
 import {
   deriveTitle,
@@ -265,4 +272,125 @@ export async function sceneEntities(
     if (entry) out.push({ ...entry, count })
   }
   return out
+}
+
+/** Parse a scene's `threads:` frontmatter (M9). Supports the plain form
+ * `[rebellion, romance]` and the per-beat-order form
+ * `[{ name: rebellion, order: 3 }]`; ignores malformed entries. */
+function parseThreadTags(value: unknown): { tag: string; order: number | null }[] {
+  if (!Array.isArray(value)) return []
+  const out: { tag: string; order: number | null }[] = []
+  for (const item of value) {
+    if (typeof item === 'string' && item.trim()) {
+      out.push({ tag: item.trim(), order: null })
+    } else if (item && typeof item === 'object') {
+      const name = (item as { name?: unknown }).name
+      const order = (item as { order?: unknown }).order
+      if (typeof name === 'string' && name.trim()) {
+        out.push({ tag: name.trim(), order: typeof order === 'number' ? order : null })
+      }
+    }
+  }
+  return out
+}
+
+/** Beat ordering within a thread: explicit per-thread order first (nulls last),
+ * then manuscript order (nulls last), then title. */
+function compareBeats(a: ThreadBeat, b: ThreadBeat): number {
+  const ta = a.threadOrder
+  const tb = b.threadOrder
+  if (ta != null && tb != null && ta !== tb) return ta - tb
+  if (ta != null && tb == null) return -1
+  if (ta == null && tb != null) return 1
+  const ma = a.manuscriptOrder
+  const mb = b.manuscriptOrder
+  if (ma != null && mb != null && ma !== mb) return ma - mb
+  if (ma != null && mb == null) return -1
+  if (ma == null && mb != null) return 1
+  return a.title.localeCompare(b.title)
+}
+
+/** The project-wide thread model (M9): membership + per-thread ordering from each
+ * scene's `threads:` frontmatter, with identity (name, colour, description) drawn
+ * from an optional `type: thread` entity file (decision #45). Many-to-many — a
+ * scene can appear as a beat on several threads. Intersections (scenes on 2+
+ * threads) are left for the caller to derive from overlapping beat paths. */
+export async function buildThreads(
+  root: string,
+  ignore: string[],
+  entities: Entity[]
+): Promise<Thread[]> {
+  const files = await listMarkdownFiles(root, ignore)
+  const threadEntities = entities.filter((e) => e.type === 'thread')
+  const resolve = (tag: string): Entity | undefined => {
+    const t = tag.toLowerCase()
+    return threadEntities.find(
+      (e) => e.name.toLowerCase() === t || e.aliases.some((a) => a.toLowerCase() === t)
+    )
+  }
+
+  // Collect beats grouped by lowercased tag (the grouping key).
+  const groups = new Map<string, { tag: string; beats: ThreadBeat[] }>()
+  for (const path of files) {
+    let text: string
+    try {
+      text = await fs.readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const { data } = parseFrontmatter(text)
+    const tags = parseThreadTags(data.threads)
+    if (!tags.length) continue
+    const title = deriveTitle(text, path)
+    const manuscriptOrder = readOrder(text)
+    for (const { tag, order } of tags) {
+      const key = tag.toLowerCase()
+      let group = groups.get(key)
+      if (!group) {
+        group = { tag, beats: [] }
+        groups.set(key, group)
+      }
+      group.beats.push({ path, title, manuscriptOrder, threadOrder: order })
+    }
+  }
+
+  // Resolve identity (from a type:thread entity file) + sort beats.
+  const threads: Thread[] = []
+  const resolvedPaths = new Set<string>()
+  for (const { tag, beats } of groups.values()) {
+    beats.sort(compareBeats)
+    threads.push(await buildThread(tag, beats, resolve(tag), resolvedPaths))
+  }
+  // Include declared threads (a type:thread file) that no scene tags yet.
+  for (const entity of threadEntities) {
+    if (resolvedPaths.has(entity.path)) continue
+    threads.push(await buildThread(entity.name, [], entity, resolvedPaths))
+  }
+
+  return threads.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+async function buildThread(
+  tag: string,
+  beats: ThreadBeat[],
+  entity: Entity | undefined,
+  resolvedPaths: Set<string>
+): Promise<Thread> {
+  let name = tag
+  let color: string | null = null
+  let description = ''
+  let path: string | null = null
+  if (entity) {
+    resolvedPaths.add(entity.path)
+    name = entity.name
+    path = entity.path
+    try {
+      const { data, body } = parseFrontmatter(await fs.readFile(entity.path, 'utf8'))
+      if (typeof data.color === 'string') color = data.color.trim()
+      description = summarize(data, body)
+    } catch {
+      // entity file vanished mid-scan — keep the tag-only identity
+    }
+  }
+  return { name, tag, color, description, path, beats }
 }

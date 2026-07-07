@@ -6,6 +6,7 @@ import type {
   EntityRef,
   FileInspection,
   FileReadResult,
+  Thread,
   OpenProjectResult,
   ReplaceResult,
   SearchFileResult,
@@ -95,7 +96,10 @@ const api = {
 
   /** Load one reference (entity or pinned note) for the Companion pane (M8d). */
   loadRef: (path: string): Promise<CompanionEntry | null> =>
-    ipcRenderer.invoke('story:loadRef', path)
+    ipcRenderer.invoke('story:loadRef', path),
+
+  /** The project-wide thread model — membership + per-thread order (M9). */
+  storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads')
 }
 
 export type Api = typeof api

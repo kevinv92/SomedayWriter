@@ -124,6 +124,33 @@ export type FileInspection = {
   warnings: string[]
 }
 
+/** One scene on a thread (Phase 5, M9). `threadOrder` is the explicit per-thread
+ * beat position when the scene declares one; otherwise it's null and the beat
+ * falls back to `manuscriptOrder` (then title) for sequencing. */
+export type ThreadBeat = {
+  path: string
+  title: string
+  manuscriptOrder: number | null
+  threadOrder: number | null
+}
+
+/** A story thread (Phase 5, M9): a storyline running across scenes. Membership +
+ * per-thread order come from each scene's `threads:` frontmatter; identity
+ * (display name, colour, description) comes from an optional `type: thread`
+ * entity file (decision #45) — `path`/`color`/`description` are null/empty when no
+ * such file exists. `beats` are ordered in thread order. */
+export type Thread = {
+  /** Display name — the entity's name when resolved, else the raw tag. */
+  name: string
+  /** The raw tag used in scene frontmatter (the grouping key). */
+  tag: string
+  color: string | null
+  description: string
+  /** The `type: thread` entity file, if one exists. */
+  path: string | null
+  beats: ThreadBeat[]
+}
+
 /** One reference in the Companion pane (Phase 5, M8d) — an entity profile or a
  * pinned note, resolved to what the pane shows: a title, a type badge (the
  * entity `type`, or `'note'`), a one-line summary for the collapsed row, and the

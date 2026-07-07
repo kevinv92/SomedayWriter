@@ -9,6 +9,7 @@ import type {
   EntityRef,
   FileInspection,
   FileReadResult,
+  Thread,
   OpenProjectResult,
   ProjectMeta,
   ReplaceResult,
@@ -19,6 +20,7 @@ import type {
 } from '../shared/types'
 import {
   buildEntities,
+  buildThreads,
   inspectFile,
   loadCompanionEntry,
   referencesTo,
@@ -218,6 +220,13 @@ function registerIpc(): void {
       return loadCompanionEntry(path, entities)
     }
   )
+
+  ipcMain.handle('story:threads', async (): Promise<Thread[]> => {
+    if (!currentProject) return []
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    const entities = await buildEntities(currentProject.root, ignore)
+    return buildThreads(currentProject.root, ignore, entities)
+  })
 
   ipcMain.handle(
     'settings:update',
