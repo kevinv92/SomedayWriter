@@ -1053,14 +1053,14 @@ The signature features, no AI.
   can drop in without touching the model. _Deferred:_ lane grouping/spacing (via a
   `group:` field on `type: thread` files) + drag-to-reorder lanes; widening the
   x-axis from threaded scenes to the whole manuscript.
-- **M11** _(stretch / at risk)_ — **Thread visualiser (edit)** — drag to reorder
-  within a thread, move / add / remove membership; writes tags back to files.
-  **May be dropped**: tree-drag reordering (M6) already covers the core "move
-  things around" need, and editable-braid drag is costly. Ships only if the
+- **M11** _(deferred — future, not MVP)_ — **Thread visualiser (edit)** — drag to
+  reorder within a thread, move / add / remove membership; writes tags back to
+  files. **Not part of the MVP.** Tree-drag reordering (M6) already covers the core
+  "move things around" need, and editable-braid drag is costly. Revisit only if the
   read-only braid proves people want to _edit_ from it.
 
 **Exit:** click a character → see every mention; follow a thread across chapters
-in the braid. (Editing the braid is a stretch goal, not part of the exit.)
+in the braid. (Editing the braid is deferred future work, not part of the exit.)
 
 ### Phase 6 — Writing environment · 🏁 v1 Major Milestone ✅
 
