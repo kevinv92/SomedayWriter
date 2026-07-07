@@ -197,20 +197,32 @@ class CodeMirrorAdapter implements EditorAdapter {
 
   /**
    * Bridges CM's pull-based completion to our editor-agnostic CompletionSource.
-   * Recognizes `@mention` tokens (the character-linking convention) and asks the
-   * registered source for candidates; the range logic stays editor-side.
+   * Two trigger contexts, both with editor-side range logic: `@mention` tokens
+   * anywhere (entity linking), and any word inside the leading `---` frontmatter
+   * block (Phase 7 M19 key/value intellisense). The registered providers decide
+   * what to offer for the position; here we only pick the replacement range.
    */
   private readonly completionDelegate = async (
     ctx: CmCompletionContext
   ): Promise<CompletionResult | null> => {
     const source = this.completionSource
     if (!source) return null
-    const token = ctx.matchBefore(/@\w*/)
-    if (!token) return null
+    let from: number
+    if (inFrontmatter(ctx.state, ctx.pos)) {
+      const word = ctx.matchBefore(/[\w-]*/)
+      from = word ? word.from : ctx.pos
+      // Don't pop an empty list open on its own; wait for a keystroke or an
+      // explicit invoke (Ctrl+Space).
+      if (!ctx.explicit && from === ctx.pos) return null
+    } else {
+      const token = ctx.matchBefore(/@\w*/)
+      if (!token) return null
+      from = token.from
+    }
     const results = await source({ text: ctx.state.doc.toString(), offset: ctx.pos })
     if (!results || results.length === 0) return null
     return {
-      from: token.from,
+      from,
       options: results.map((r) => ({
         label: r.label,
         apply: r.apply ?? r.label,
@@ -275,6 +287,24 @@ function frontmatterDecorations(view: EditorView): DecorationSet {
     }
   }
   return builder.finish()
+}
+
+/** True when `pos` sits inside the leading `---` … `---` frontmatter body (not on
+ * a fence line) — the trigger region for frontmatter intellisense (M19). Mirrors
+ * the decoration's block detection, but keyed to a cursor position. */
+function inFrontmatter(state: EditorState, pos: number): boolean {
+  const { doc } = state
+  if (doc.lines < 2 || doc.line(1).text.trim() !== '---') return false
+  let close = -1
+  for (let n = 2; n <= doc.lines; n++) {
+    if (doc.line(n).text.trim() === '---') {
+      close = n
+      break
+    }
+  }
+  const line = doc.lineAt(pos).number
+  const last = close === -1 ? doc.lines : close - 1
+  return line >= 2 && line <= last
 }
 
 const frontmatterPlugin = ViewPlugin.fromClass(

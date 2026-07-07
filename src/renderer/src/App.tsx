@@ -18,6 +18,7 @@ import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { AnalysisService } from './analysis/analysis-service'
 import { createEntityProvider } from './analysis/providers/entity-provider'
+import { createFrontmatterProvider } from './analysis/providers/frontmatter-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
 import type { EditorDoc } from './editor/types'
 import type {
@@ -124,12 +125,14 @@ export default function App() {
   // The analysis facade + its providers (Phase 4). Created once; the editor
   // talks only to this, never to a provider (SPEC seam).
   const entityProvider = useMemo(() => createEntityProvider(), [])
+  const frontmatterProvider = useMemo(() => createFrontmatterProvider(), [])
   const analysis = useMemo(() => {
     const service = new AnalysisService()
     service.register(entityProvider.provider)
+    service.register(frontmatterProvider.provider)
     service.register(createSpellProvider())
     return service
-  }, [entityProvider])
+  }, [entityProvider, frontmatterProvider])
   useEffect(() => () => analysis.dispose(), [analysis])
 
   // Load story entities (characters, locations, items, …) from StoryIndex;
@@ -139,10 +142,11 @@ export default function App() {
   const refreshEntities = useCallback(() => {
     void window.api.storyEntities().then((next) => {
       entityProvider.setEntities(next)
+      frontmatterProvider.setEntities(next)
       setEntities(next)
     })
     setInspectorRefresh((n) => n + 1)
-  }, [entityProvider])
+  }, [entityProvider, frontmatterProvider])
 
   // Pin/unpin a Companion reference for the current project, persisting the whole
   // per-project map so other projects' pins are preserved.
@@ -176,6 +180,12 @@ export default function App() {
   // `entityTypes` merged over them. Drives type badges, frontmatter intellisense,
   // and new-file templates — one source of truth for every "what is a location?".
   const entityTypes = useMemo(() => resolveEntityTypes(project?.config), [project])
+
+  // Feed the registry to the frontmatter completer (M19) so `type:`/field
+  // suggestions track the open project's schema.
+  useEffect(() => {
+    frontmatterProvider.setEntityTypes(entityTypes)
+  }, [frontmatterProvider, entityTypes])
 
   // Icon per profile file, so the tree can badge a location vs. an item. Keyed by
   // path off the entity list (only files with a `type:` appear).

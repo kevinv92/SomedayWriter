@@ -18,7 +18,10 @@ export function createEntityProvider(): {
   const provider: AnalysisProvider = {
     id: 'entity',
     capabilities: ['completion'],
-    complete(_ctx: CompletionContext): Completion[] {
+    complete(ctx: CompletionContext): Completion[] {
+      // Only offer entities when the cursor sits in an `@`-mention token, so we
+      // stand down inside frontmatter (M19) and anywhere else.
+      if (!/@[\w]*$/.test(ctx.text.slice(0, ctx.offset))) return []
       return entities.flatMap((entity) =>
         [entity.name, ...entity.aliases].map((surface) => ({
           label: `@${surface}`,
