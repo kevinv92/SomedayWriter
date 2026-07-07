@@ -2,7 +2,7 @@
 
 Guidance for AI coding agents (and humans) working in this repo. Keep changes
 consistent with what's here. For the product design and roadmap, read
-[SPEC.md](SPEC.md) — especially its **Decision history**, which records _why_
+[SPEC.md](SPEC.md) — especially **[DECISIONS.md](DECISIONS.md)**, which records _why_
 choices were made so they aren't re-litigated.
 
 ## What this is
@@ -153,7 +153,7 @@ When you change something, update the record in the same change.
 - You **finish a phase or milestone** → mark it done (`✅`) and update the
   **Status** line at the top of the Phases section (what's done, what's next).
 - You **make a non-trivial decision** (a choice with a trade-off, a scope
-  change, a reversal) → append a numbered entry to **Decision history** with the
+  change, a reversal) → append a numbered entry to **[DECISIONS.md](DECISIONS.md)** with the
   _why_. Never silently contradict an existing entry — add a new one that
   supersedes it and say so.
 - **Behavior or a contract changes** (an interface, a config key, the export
@@ -194,7 +194,7 @@ and the decision (if any) is logged.
 - Generated/vendored dirs (`node_modules/`, `out/`, `dist/`) are git-ignored and
   listed in `.cursorignore` — **don't index or read them**; they're noise.
 - Start from `SPEC.md` (design) and this file (practices) before reading source.
-- The source of truth for _decisions_ is `SPEC.md` → Decision history.
+- The source of truth for _decisions_ is **DECISIONS.md**.
 - `npm run pack:ai` runs **repomix** → a single-file digest (`repomix-output.xml`)
   of the whole repo for pasting into an LLM. Config: `repomix.config.json`;
   extra excludes: `.repomixignore`. The output is git-ignored.
