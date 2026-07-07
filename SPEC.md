@@ -914,11 +914,12 @@ Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
 > **Status (2026-07-07):** Phases 0–4 ✅, Phase 6 ✅ (v1 Major Milestone) + the
-> keyboard navigation, and **Phase 5 M8 + M8b + M8c ✅** — `StoryIndex` (main;
-> real YAML frontmatter parse) + real `@`-mention completion; **M8c**
-> find-references **panel** + **go-to-definition**; **M8b** Inspector pane. **Next
-> in Phase 5:** M8d Companion pane (auto-follow + pin), M9 `ThreadProvider`, M10
-> braid visualiser. Everything built is **CDP-verified**
+> keyboard navigation, and **Phase 5 M8–M9 ✅** — `StoryIndex` + `@`-mention
+> completion (M8), find-references + go-to-definition (M8c), Inspector pane (M8b),
+> Companion pane (M8d, auto-follow + pin), and `ThreadProvider` + Threads panel
+> (M9, file-level; inline markers deferred). Right-side panels are resizable.
+> **Next in Phase 5:** M10 braid visualiser (read), then M11 (edit, stretch).
+> Everything built is **CDP-verified**
 > (launch with `ELECTRON_RUN_AS_NODE` unset; see the GUI-verify memory). Phase 6 =
 > tabs/autosave/quick-open+palette/unified find/recent projects/resizable+
 > keyboard-nav sidebar; Phase 4 = `AnalysisService` facade + spell provider; Phase
@@ -1038,10 +1039,13 @@ The signature features, no AI.
   detected in the active file, reusing M8b's mention engine) with **pin-to-freeze**
   for project-long anchors. Read-first, collapse-to-summary, "open full" → tab.
   See _Reference companion pane_.
-- **M9** — `ThreadProvider`: file-level + inline thread markers, intersecting
-  (many-to-many) threads, per-thread ordering. Thread **identity** (name/colour/
-  description) comes from optional `type: thread` entity files, not `project.json`
-  (decision #45); membership/order stay in each scene's frontmatter.
+- **M9** ✅ _(file-level; inline deferred)_ — `ThreadProvider` (`buildThreads`) +
+  a **Threads panel**: intersecting (many-to-many) threads, per-thread ordering,
+  identity (name/colour/description) from optional `type: thread` entity files
+  (decision #45); membership/order stay in each scene's frontmatter. Panel lists
+  each thread's beats in order (click-to-open) with intersection (⋈) badges.
+  **Deferred:** inline range markers (a `<!-- thread -->` span scoping part of a
+  file) — needs editor-decoration work; file-level feeds the M10 braid.
 - **M10** — **Thread visualiser (read)** — braid view: lane per thread,
   intersections, ordering toggle, click-to-open.
 - **M11** _(stretch / at risk)_ — **Thread visualiser (edit)** — drag to reorder
