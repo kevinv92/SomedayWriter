@@ -1090,7 +1090,7 @@ tabs without losing work, find anything (in-file, across the project, by
 filename, by command), and reorder scenes — all keyboard-first. **After this
 point we have a good-enough app.** _(All milestones visually verified via CDP.)_
 
-### Phase 7 — Extended entities (worldbuilding)
+### Phase 7 — Extended entities (worldbuilding) ✅
 
 Generalize the story model beyond characters and threads to **any entity type**,
 so worldbuilding — locations, items, factions, magic systems — links exactly the
@@ -1098,32 +1098,36 @@ way characters do. Post-v1, and the deterministic core only: entities as
 referenceable pages. (Enforcing a magic system's _rules_ against the prose is
 semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
 
-- **M17** — **Type-generic `EntityProvider`.** Refactor Phase 5's
-  `CharacterProvider` into one provider parameterized by `type` (already the
-  discriminator in profile frontmatter). Profile files of any `type` —
+- **M17** ✅ — **Type-generic `EntityProvider`.** Phase 5's `CharacterProvider`
+  is now `createEntityProvider` (`entity-provider.ts`), parameterized by `type`
+  (already the discriminator in profile frontmatter). Profile files of any `type` —
   `location`, `item`, `faction` / `organization`, `magic-system`, `artifact` —
   get the same `@`-mention completion, find-references, go-to-definition, plus
   **`name` + `aliases`** resolution off `StoryIndex`, with **no per-type code**.
-  Unknown types work with defaults.
-- **M18** — **Registered entity types** in `project.json`: display name, icon,
-  colour, **and the fields each type declares** — so the tree, inspector, and
-  visualiser can badge a location vs. an item, and so M19/M20 have a schema to
-  drive from. (This is type _schema_ — tool config — not story content, so unlike
-  threads it stays in `project.json`; cf. decision #45.)
-- **M19** — **Frontmatter intellisense.** Completion _inside_ the YAML
-  frontmatter block (the editor already tags those lines — `cm-frontmatter-line`),
-  delivered through the `AnalysisService` facade as a new completion context.
-  Suggests **attribute keys** (`type`, `name`, `aliases`, `order`, `threads`, plus
-  the fields the file's `type` declares) and **their values** — `type:` → the
-  registered entity types, `threads:` → the `type: thread` entities, enum-ish
-  fields → their allowed set. Schema-driven off M18 + `StoryIndex`, so no per-type
-  code; unknown types fall back to the common keys.
-- **M20** — **New-file entity templates.** Creating a file offers a **template
-  per registered entity type** (Character, Location, Item, Faction, Magic
-  System, …) that pre-fills the frontmatter skeleton (`type` + `name` + `aliases`
-  - the type's declared fields) and a starter heading, driven by the same M18
-    registry. Surfaced in the New-File flow + palette ("New Character", "New
-    Location", …); a blank Markdown file stays the default.
+  Unknown types work with defaults. (Was already type-generic; this retired the
+  character-specific name.)
+- **M18** ✅ — **Registered entity types** in `project.json` `entityTypes`:
+  display name, icon, colour, **and the fields each type declares**. Built-in
+  defaults (character, location, item, faction, magic-system, thread) live in
+  `src/shared/entity-types.ts`; project config merges _over_ them via
+  `resolveEntityTypes`. The tree badges a location vs. an item, and the
+  inspector/companion/references type badges carry the icon (lightweight —
+  emoji + colour, real styling deferred to Phase 8). (Type _schema_ — tool config,
+  not story content, so unlike threads it stays in `project.json`; cf. #45.)
+- **M19** ✅ — **Frontmatter intellisense.** Completion _inside_ the YAML block,
+  delivered as a `frontmatter` provider through the `AnalysisService` facade
+  (`lib/frontmatter-context.ts` classifies key vs. value; the editor's completion
+  delegate now triggers on any word in the block, not just `@`). Suggests
+  **attribute keys** (`type`, `name`, `aliases`, `order`, `threads`, plus the
+  file's `type` fields) and **their values** — `type:` → registered types,
+  `threads:` → `type: thread` entities, enum-ish fields → their set. Schema-driven
+  off M18 + `StoryIndex`; unknown types fall back to the common keys.
+- **M20** ✅ — **New-file entity templates.** Creating a file offers a **template
+  per registered entity type** (`entityTemplate`) that pre-fills the frontmatter
+  skeleton (`type` + `name` + `aliases` + the type's declared fields) and a
+  starter heading, driven by the M18 registry. Surfaced both in the New-File
+  modal's type picker (`NewFileModal`) and as palette commands ("New Character",
+  "New Location", …); a blank Markdown file stays the default.
 
 **Exit:** `@{Redhill}` resolves to the location page whose canonical name is
 "Giant's Rest" (via aliases), just like a character; every entity type shares one
