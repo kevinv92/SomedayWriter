@@ -1046,8 +1046,13 @@ The signature features, no AI.
   each thread's beats in order (click-to-open) with intersection (⋈) badges.
   Inline range markers move to **Phase 9 (M25b)** — same inline-decoration +
   strip-on-export pattern as CriticMarkup (decision #46); file-level feeds M10.
-- **M10** — **Thread visualiser (read)** — braid view: lane per thread,
-  intersections, ordering toggle, click-to-open.
+- **M10** ✅ _(MVP)_ — **Thread visualiser (read)** — `BraidView`: lane per thread,
+  intersection crossings, ordering toggle (manuscript vs. follow-thread),
+  click-to-open, on a pan/zoom SVG board (main pane). One **replaceable view** over
+  the stable `ThreadProvider` model (`story:threads`) — a different visualization
+  can drop in without touching the model. _Deferred:_ lane grouping/spacing (via a
+  `group:` field on `type: thread` files) + drag-to-reorder lanes; widening the
+  x-axis from threaded scenes to the whole manuscript.
 - **M11** _(stretch / at risk)_ — **Thread visualiser (edit)** — drag to reorder
   within a thread, move / add / remove membership; writes tags back to files.
   **May be dropped**: tree-drag reordering (M6) already covers the core "move
