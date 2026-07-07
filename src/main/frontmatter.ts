@@ -8,6 +8,7 @@
  */
 
 import { parse as parseYaml } from 'yaml'
+import type { TitleSource } from '../shared/types'
 
 const DELIM = '---'
 const ORDER_RE = /^order:\s*(-?\d+(?:\.\d+)?)\s*$/
@@ -23,16 +24,37 @@ export function parseFrontmatter(text: string): {
   data: Record<string, unknown>
   body: string
 } {
+  const { data, body } = parseFrontmatterDetailed(text)
+  return { data, body }
+}
+
+/**
+ * Like `parseFrontmatter`, but also reports **why** a block failed to parse — the
+ * Inspector pane (M8b) surfaces these so a bad hand-edit is obvious instead of
+ * silently ignored. Same swallow-don't-throw contract: malformed input yields
+ * empty data plus a warning.
+ */
+export function parseFrontmatterDetailed(text: string): {
+  data: Record<string, unknown>
+  body: string
+  warnings: string[]
+} {
   const match = FM_BLOCK.exec(text)
-  if (!match) return { data: {}, body: text }
+  if (!match) return { data: {}, body: text, warnings: [] }
+  const warnings: string[] = []
   let data: Record<string, unknown> = {}
   try {
     const parsed: unknown = parseYaml(match[1])
-    if (parsed && typeof parsed === 'object') data = parsed as Record<string, unknown>
-  } catch {
-    // malformed frontmatter — treat as no data
+    if (parsed && typeof parsed === 'object') {
+      data = parsed as Record<string, unknown>
+    } else if (parsed != null) {
+      warnings.push('Frontmatter is not a set of key/value fields.')
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message.split('\n')[0] : String(err)
+    warnings.push(`Couldn't parse frontmatter: ${message}`)
   }
-  return { data, body: text.slice(match[0].length) }
+  return { data, body: text.slice(match[0].length), warnings }
 }
 
 function firstHeading(body: string): string | null {
@@ -45,12 +67,24 @@ function prettifyFilename(path: string): string {
   return base.replace(/\.md$/i, '').replace(/^\d+[-_\s]*/, '')
 }
 
-/** A file's display title: `frontmatter.title` → first `#` heading → filename
- * (SPEC → File titles). */
-export function deriveTitle(text: string, path: string): string {
+/** A file's display title plus which source won: `frontmatter.title` → first `#`
+ * heading → filename (SPEC → File titles). */
+export function deriveTitleDetailed(
+  text: string,
+  path: string
+): { value: string; source: TitleSource } {
   const { data, body } = parseFrontmatter(text)
-  if (typeof data.title === 'string' && data.title.trim()) return data.title.trim()
-  return firstHeading(body) ?? prettifyFilename(path)
+  if (typeof data.title === 'string' && data.title.trim()) {
+    return { value: data.title.trim(), source: 'frontmatter' }
+  }
+  const heading = firstHeading(body)
+  if (heading) return { value: heading, source: 'heading' }
+  return { value: prettifyFilename(path), source: 'filename' }
+}
+
+/** A file's display title (SPEC → File titles). */
+export function deriveTitle(text: string, path: string): string {
+  return deriveTitleDetailed(text, path).value
 }
 
 type Frontmatter = { lines: string[]; open: number; close: number }

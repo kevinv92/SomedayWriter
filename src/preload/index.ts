@@ -3,6 +3,7 @@ import type {
   AppSettings,
   Entity,
   EntityRef,
+  FileInspection,
   FileReadResult,
   OpenProjectResult,
   ReplaceResult,
@@ -81,7 +82,11 @@ const api = {
 
   /** Every reference to an entity across the manuscript (find-references). */
   storyReferences: (entity: Entity): Promise<EntityRef[]> =>
-    ipcRenderer.invoke('story:references', entity)
+    ipcRenderer.invoke('story:references', entity),
+
+  /** The parsed model for one file on disk — powers the Inspector pane (M8b). */
+  inspectFile: (path: string): Promise<FileInspection | null> =>
+    ipcRenderer.invoke('story:inspect', path)
 }
 
 export type Api = typeof api

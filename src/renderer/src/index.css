@@ -828,3 +828,100 @@ body {
   font-size: 0.7rem;
   color: var(--muted);
 }
+
+/* Inspector pane (M8b) — read-only file details in the search-panel shell. */
+.inspector-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin: 0.25rem 0.35rem 0.6rem;
+}
+
+.inspector-warning {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  padding: 0.35rem 0.5rem;
+  border-radius: 6px;
+  color: #b45309;
+  background: rgba(217, 119, 6, 0.14);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+}
+
+.inspector-field {
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.inspector-field__label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+.inspector-field__value {
+  font-size: 0.85rem;
+  color: var(--fg);
+}
+
+.inspector-field__note {
+  margin-left: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.inspector-field__empty {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.inspector-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.inspector-tag {
+  font-size: 0.72rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  background: var(--border);
+  color: var(--fg);
+}
+
+.inspector-mention {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.12rem 0;
+}
+
+.inspector-mention__name {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.82rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inspector-mention__type {
+  flex-shrink: 0;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.inspector-mention__count {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.inspector-file {
+  padding: 0.5rem 0.6rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}

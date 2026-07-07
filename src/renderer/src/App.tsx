@@ -9,6 +9,7 @@ import {
 import { Editor, type EditorHandle, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
+import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
@@ -71,6 +72,9 @@ export default function App() {
   const [modal, setModal] = useState<ModalState>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [refsOpen, setRefsOpen] = useState(false)
+  const [inspectorOpen, setInspectorOpen] = useState(false)
+  // Bumped after a save so the (disk-based) Inspector re-reads the active file.
+  const [inspectorRefresh, setInspectorRefresh] = useState(0)
   // Story entities (StoryIndex), for the references panel + go-to-definition.
   const [entities, setEntities] = useState<Entity[]>([])
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
@@ -230,6 +234,8 @@ export default function App() {
       }
       buffer.saved = buffer.current
       markDirty(path, false)
+      // The Inspector reads from disk; a save is when its view can change.
+      setInspectorRefresh((n) => n + 1)
       return true
     },
     [markDirty]
@@ -648,6 +654,11 @@ export default function App() {
       }
     },
     {
+      id: 'toggle-inspector',
+      title: 'Toggle Inspector',
+      run: () => setInspectorOpen((v) => !v)
+    },
+    {
       id: 'toggle-vim',
       title: `Toggle Vim (${vim ? 'on' : 'off'})`,
       run: () => setVim((v) => !v)
@@ -680,6 +691,17 @@ export default function App() {
     }
   ]
 
+  // The active file's position among its reading-ordered `.md` siblings, for the
+  // Inspector — derived from the already-sorted tree (matches the explorer).
+  const readingPosition = (() => {
+    if (!activePath) return null
+    const files = siblingsOf(activePath).filter(
+      (n) => n.type === 'file' && n.name.endsWith('.md')
+    )
+    const index = files.findIndex((n) => n.path === activePath)
+    return index === -1 ? null : { index: index + 1, total: files.length }
+  })()
+
   return (
     <div className="app">
       <header className="toolbar">
@@ -703,6 +725,13 @@ export default function App() {
             onClick={() => setRefsOpen((v) => !v)}
           >
             References
+          </button>
+          <button
+            className={`toggle${inspectorOpen ? ' toggle--on' : ''}`}
+            title="Inspector: what the app parses from the current file (title, order, threads, mentions, warnings)"
+            onClick={() => setInspectorOpen((v) => !v)}
+          >
+            Inspector
           </button>
           <button
             className={`toggle${vim ? ' toggle--on' : ''}`}
@@ -828,6 +857,15 @@ export default function App() {
               openFile(path, { line, column, endColumn: column + length })
             }
             onOpenProfile={(entity) => openFile(entity.path)}
+          />
+        )}
+
+        {inspectorOpen && (
+          <InspectorPanel
+            path={activePath}
+            readingPosition={readingPosition}
+            refreshKey={inspectorRefresh}
+            onClose={() => setInspectorOpen(false)}
           />
         )}
       </div>

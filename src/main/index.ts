@@ -6,6 +6,7 @@ import type {
   AppSettings,
   Entity,
   EntityRef,
+  FileInspection,
   FileReadResult,
   OpenProjectResult,
   ProjectMeta,
@@ -15,7 +16,7 @@ import type {
   TreeNode,
   WriteResult
 } from '../shared/types'
-import { buildEntities, referencesTo } from './story-index'
+import { buildEntities, inspectFile, referencesTo } from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
 import {
   DEFAULT_IGNORE,
@@ -179,6 +180,16 @@ function registerIpc(): void {
     const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
     return referencesTo(entity, currentProject.root, ignore)
   })
+
+  ipcMain.handle(
+    'story:inspect',
+    async (_e, path: string): Promise<FileInspection | null> => {
+      if (!currentProject || !guardPath(path)) return null
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      const entities = await buildEntities(currentProject.root, ignore)
+      return inspectFile(path, entities)
+    }
+  )
 
   ipcMain.handle(
     'settings:update',

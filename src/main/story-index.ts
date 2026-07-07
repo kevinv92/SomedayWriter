@@ -1,7 +1,17 @@
 import { promises as fs } from 'fs'
-import type { Entity, EntityRef } from '../shared/types'
+import type { Entity, EntityRef, FileInspection } from '../shared/types'
 import { listMarkdownFiles } from './fs-project'
-import { deriveTitle, parseFrontmatter } from './frontmatter'
+import {
+  deriveTitle,
+  deriveTitleDetailed,
+  parseFrontmatter,
+  parseFrontmatterDetailed,
+  readOrder
+} from './frontmatter'
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
 
 /**
  * The project-wide story model (SPEC → StoryIndex), in the main process because
@@ -58,8 +68,10 @@ export async function referencesTo(
   if (!surfaces.length) return []
   // Longest first so "Mara Venn" wins over "Mara" at the same spot.
   surfaces.sort((a, b) => b.length - a.length)
-  const escaped = surfaces.map((s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  const re = new RegExp(`(?<![\\w])(?:${escaped.join('|')})(?![\\w])`, 'g')
+  const re = new RegExp(
+    `(?<![\\w])(?:${surfaces.map(escapeRegExp).join('|')})(?![\\w])`,
+    'g'
+  )
 
   const files = await listMarkdownFiles(root, ignore)
   const refs: EntityRef[] = []
@@ -87,4 +99,96 @@ export async function referencesTo(
     }
   }
   return refs
+}
+
+function stringListWarnings(data: Record<string, unknown>, key: string): string[] {
+  const value = data[key]
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return [`Couldn't parse \`${key}\` — expected a list.`]
+  if (value.some((x) => typeof x !== 'string')) {
+    return [`\`${key}\` has non-text entries.`]
+  }
+  return []
+}
+
+/** Entities mentioned in `body`, with per-entity counts. One combined
+ * longest-first scan (like `referencesTo`) so "Mara Venn" isn't also counted as
+ * "Mara"; `self` (the profile being inspected) is excluded so a file doesn't
+ * report mentions of itself. */
+function mentionsIn(
+  body: string,
+  entities: Entity[],
+  selfPath: string
+): FileInspection['mentions'] {
+  const owner = new Map<string, Entity>() // surface → entity (first wins)
+  for (const entity of entities) {
+    if (entity.path === selfPath) continue
+    for (const surface of [entity.name, ...entity.aliases]) {
+      if (surface && !owner.has(surface)) owner.set(surface, entity)
+    }
+  }
+  const surfaces = [...owner.keys()].sort((a, b) => b.length - a.length)
+  if (!surfaces.length) return []
+  const re = new RegExp(
+    `(?<![\\w])(?:${surfaces.map(escapeRegExp).join('|')})(?![\\w])`,
+    'g'
+  )
+  const counts = new Map<string, { entity: Entity; count: number }>()
+  let m: RegExpExecArray | null
+  while ((m = re.exec(body)) !== null) {
+    const entity = owner.get(m[0])
+    if (!entity) continue
+    const seen = counts.get(entity.id)
+    if (seen) seen.count++
+    else counts.set(entity.id, { entity, count: 1 })
+  }
+  return [...counts.values()]
+    .map(({ entity, count }) => ({ name: entity.name, type: entity.type, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+}
+
+/** Manuscript word count: `body` (frontmatter already stripped) with `%%notes%%`
+ * removed and `@{mention}` braces unwrapped to their surface — i.e. what the
+ * exported prose would contain. */
+function countManuscriptWords(body: string): number {
+  const prose = body.replace(/%%[^\n]*?%%/g, ' ').replace(/@\{([^}]*)\}/g, '$1')
+  return prose.trim().match(/\S+/g)?.length ?? 0
+}
+
+/** The read-only model the Inspector pane mirrors (M8b): what the app parses
+ * from one file on disk. Reuses the same frontmatter parse + title derivation +
+ * mention matching the editor and index use — it never parses independently, so
+ * "what the inspector shows" equals "what the app sees". */
+export async function inspectFile(
+  path: string,
+  entities: Entity[]
+): Promise<FileInspection | null> {
+  let text: string
+  try {
+    text = await fs.readFile(path, 'utf8')
+  } catch {
+    return null
+  }
+  const { data, body, warnings } = parseFrontmatterDetailed(text)
+  const fieldWarnings = [
+    ...stringListWarnings(data, 'threads'),
+    ...stringListWarnings(data, 'aliases'),
+    ...(data.order !== undefined && typeof data.order !== 'number'
+      ? ['Couldn’t parse `order` — expected a number.']
+      : []),
+    ...(data.type !== undefined && typeof data.type !== 'string'
+      ? ['`type` should be text.']
+      : [])
+  ]
+  return {
+    path,
+    title: deriveTitleDetailed(text, path),
+    order: readOrder(text),
+    threads: Array.isArray(data.threads)
+      ? data.threads.filter((x): x is string => typeof x === 'string')
+      : [],
+    mentions: mentionsIn(body, entities, path),
+    wordCount: countManuscriptWords(body),
+    warnings: [...warnings, ...fieldWarnings]
+  }
 }

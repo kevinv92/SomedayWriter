@@ -96,6 +96,28 @@ export type EntityRef = {
   preview: string
 }
 
+/** Where a file's display title came from (SPEC → File titles). */
+export type TitleSource = 'frontmatter' | 'heading' | 'filename'
+
+/** What `StoryIndex` + the frontmatter parser see for one file — the read-only
+ * model the Inspector pane mirrors (Phase 5, M8b). Reflects the file **on disk**
+ * (the index is disk-based), so unsaved edits appear after a save. */
+export type FileInspection = {
+  path: string
+  title: { value: string; source: TitleSource }
+  /** Manuscript `order` from frontmatter, or null when none is declared. */
+  order: number | null
+  /** File-level thread memberships from frontmatter (inline ranges are M9). */
+  threads: string[]
+  /** Entities mentioned in the prose, with occurrence counts (self excluded). */
+  mentions: { name: string; type: string; count: number }[]
+  /** Manuscript word count — frontmatter/notes excluded, mentions unwrapped. */
+  wordCount: number
+  /** Malformed-frontmatter messages; empty when the file parses cleanly. This is
+   * the pane's key debug value. */
+  warnings: string[]
+}
+
 /** Options for project-wide search (M5). */
 export type SearchOptions = { caseSensitive?: boolean }
 
