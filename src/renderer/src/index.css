@@ -757,3 +757,74 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* References panel (M8c) — reuses the search-panel shell, adds an entity picker
+ * and a selected-entity header. */
+.refs-selected {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.refs-selected__name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refs-back,
+.refs-profile {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 0.75rem;
+  padding: 0.15rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.refs-back:hover,
+.refs-profile:hover {
+  border-color: var(--accent);
+}
+
+.refs-entity {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+}
+
+.refs-entity:hover {
+  background: var(--border);
+}
+
+.refs-entity__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.refs-entity__type {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+}

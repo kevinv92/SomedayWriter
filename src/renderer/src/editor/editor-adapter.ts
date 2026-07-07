@@ -44,11 +44,25 @@ export interface EditorAdapter {
   /** Scroll to and select a range (used by references / visualiser). */
   focusRange(range: Range): void
 
-  /** Scroll to and place the cursor at a 1-based line (and optional 1-based
-   * column). Used to jump to a project-search match. */
-  focusLine(line: number, column?: number): void
+  /** Scroll to a 1-based line and place the cursor at `column`. If `endColumn`
+   * is given, select the span `[column, endColumn)` so the match is highlighted
+   * (jump-to-reference); otherwise just place the caret (jump-to-search-match). */
+  focusLine(line: number, column?: number, endColumn?: number): void
 
   getCursor(): CursorPosition
+
+  /** The cursor line's full text plus the 1-based cursor column — enough to
+   * resolve a mention under the cursor (go-to-definition) without leaking
+   * editor internals. */
+  getCursorContext(): { lineText: string; column: number }
+
+  /** Register (or clear) a handler invoked when the user requests
+   * go-to-definition on a mention via the editor (Cmd/Ctrl+click). It receives
+   * the clicked line's text and 1-based column; the caller resolves the entity
+   * and opens its profile (StoryIndex lives outside the editor seam). */
+  setGoToDefinition(
+    handler: ((ctx: { lineText: string; column: number }) => void) | null
+  ): void
 
   setVimMode(enabled: boolean): void
 

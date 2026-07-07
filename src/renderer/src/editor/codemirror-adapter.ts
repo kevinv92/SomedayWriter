@@ -47,6 +47,8 @@ class CodeMirrorAdapter implements EditorAdapter {
   private completionSource: CompletionSource | null = null
   private currentUri = ''
   private readonly changeCbs = new Set<(text: string) => void>()
+  private goToDefinition: ((ctx: { lineText: string; column: number }) => void) | null =
+    null
 
   mount(parent: HTMLElement): void {
     this.view = new EditorView({ state: this.buildState(''), parent })
@@ -92,12 +94,18 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.focus()
   }
 
-  focusLine(line: number, column = 1): void {
+  focusLine(line: number, column = 1, endColumn?: number): void {
     const view = this.requireView()
     const { doc } = view.state
     const target = doc.line(Math.min(Math.max(line, 1), doc.lines))
     const pos = Math.min(target.from + Math.max(column - 1, 0), target.to)
-    view.dispatch({ selection: { anchor: pos }, scrollIntoView: true })
+    // With an end column, select the span (e.g. the matched mention) so it's
+    // visibly highlighted; otherwise just place the caret.
+    const head =
+      endColumn != null
+        ? Math.min(target.from + Math.max(endColumn - 1, 0), target.to)
+        : pos
+    view.dispatch({ selection: { anchor: pos, head }, scrollIntoView: true })
     view.focus()
   }
 
@@ -106,6 +114,19 @@ class CodeMirrorAdapter implements EditorAdapter {
     const head = state.selection.main.head
     const line = state.doc.lineAt(head)
     return { offset: head, line: line.number, column: head - line.from + 1 }
+  }
+
+  getCursorContext(): { lineText: string; column: number } {
+    const { state } = this.requireView()
+    const head = state.selection.main.head
+    const line = state.doc.lineAt(head)
+    return { lineText: line.text, column: head - line.from + 1 }
+  }
+
+  setGoToDefinition(
+    handler: ((ctx: { lineText: string; column: number }) => void) | null
+  ): void {
+    this.goToDefinition = handler
   }
 
   setVimMode(enabled: boolean): void {
@@ -149,6 +170,20 @@ class CodeMirrorAdapter implements EditorAdapter {
           ...searchKeymap
         ]),
         EditorView.updateListener.of(this.handleUpdate),
+        // Cmd/Ctrl+click a mention → go-to-definition (VS Code's gesture). We
+        // hand the clicked line + column to the registered resolver, which owns
+        // the StoryIndex lookup and opens the profile.
+        EditorView.domEventHandlers({
+          mousedown: (event, view) => {
+            if (!this.goToDefinition || !(event.metaKey || event.ctrlKey)) return false
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+            if (pos == null) return false
+            const line = view.state.doc.lineAt(pos)
+            event.preventDefault()
+            this.goToDefinition({ lineText: line.text, column: pos - line.from + 1 })
+            return true
+          }
+        }),
         proseTheme
       ]
     })

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { createCodeMirrorAdapter } from '../editor/codemirror-adapter'
 import type { EditorAdapter } from '../editor/editor-adapter'
 import type { EditorDoc } from '../editor/types'
@@ -8,6 +8,13 @@ import { countWords } from '../lib/text'
 export interface EditorStatus {
   words: number
   cursor: { line: number; column: number }
+}
+
+/** Imperative handle for actions that need live editor state (go-to-definition
+ * from the command palette, which reads the cursor while the editor is unfocused). */
+export interface EditorHandle {
+  /** The cursor line's text + 1-based column, or null before mount. */
+  cursorContext(): { lineText: string; column: number } | null
 }
 
 interface EditorProps {
@@ -20,10 +27,21 @@ interface EditorProps {
   onStatus?: (status: EditorStatus) => void
   /** Fires the full document text on every edit (drives dirty/save in App). */
   onDocChange?: (text: string) => void
-  /** When set, scroll to and place the cursor at this 1-based line/column (used
-   * to jump to a project-search match). The `nonce` forces re-reveal even when
-   * the same line is targeted twice. */
-  revealTarget?: { line: number; column: number; nonce: number } | null
+  /** When set, scroll to this 1-based line/column (jump to a search match or a
+   * reference). An `endColumn` selects the span so it's highlighted. The `nonce`
+   * forces re-reveal even when the same line is targeted twice. */
+  revealTarget?: {
+    line: number
+    column: number
+    endColumn?: number
+    nonce: number
+  } | null
+  /** Go-to-definition: fired on Cmd/Ctrl+click with the clicked line's text and
+   * 1-based column. App resolves the entity (StoryIndex) and opens its profile. */
+  onGoToDefinition?: (lineText: string, column: number) => void
+  /** Filled with an imperative handle so App can read the cursor for a
+   * palette-triggered go-to-definition (see EditorHandle). */
+  handleRef?: RefObject<EditorHandle | null>
 }
 
 export function Editor({
@@ -33,19 +51,23 @@ export function Editor({
   analysis,
   onStatus,
   onDocChange,
-  revealTarget
+  revealTarget,
+  onGoToDefinition,
+  handleRef
 }: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<EditorAdapter | null>(null)
   const onStatusRef = useRef(onStatus)
   const onDocChangeRef = useRef(onDocChange)
+  const onGoToDefinitionRef = useRef(onGoToDefinition)
   const docUriRef = useRef(doc.uri)
 
   // Keep the latest callbacks without re-subscribing the editor.
   useEffect(() => {
     onStatusRef.current = onStatus
     onDocChangeRef.current = onDocChange
-  }, [onStatus, onDocChange])
+    onGoToDefinitionRef.current = onGoToDefinition
+  }, [onStatus, onDocChange, onGoToDefinition])
 
   // Word count + cursor for the status bar. Diagnostics no longer computed here —
   // they arrive from the facade.
@@ -62,6 +84,12 @@ export function Editor({
     adapterRef.current = adapter
     adapter.mount(hostRef.current as HTMLElement)
     adapter.setCompletionSource(analysis.completionSource)
+    adapter.setGoToDefinition((ctx) =>
+      onGoToDefinitionRef.current?.(ctx.lineText, ctx.column)
+    )
+    if (handleRef) {
+      handleRef.current = { cursorContext: () => adapter.getCursorContext() }
+    }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {
       if (uri === docUriRef.current) adapter.setDiagnostics(diags)
     })
@@ -75,8 +103,9 @@ export function Editor({
       offDiagnostics()
       adapter.dispose()
       adapterRef.current = null
+      if (handleRef) handleRef.current = null
     }
-  }, [analysis, emitStatus])
+  }, [analysis, emitStatus, handleRef])
 
   // Load the document whenever it changes (also runs on first mount).
   useEffect(() => {
@@ -92,8 +121,15 @@ export function Editor({
   // the doc is in place; `nonce` in the dep re-fires it for repeat targets.
   useEffect(() => {
     if (!revealTarget) return
-    adapterRef.current?.focusLine(revealTarget.line, revealTarget.column)
-  }, [revealTarget])
+    adapterRef.current?.focusLine(
+      revealTarget.line,
+      revealTarget.column,
+      revealTarget.endColumn
+    )
+    // The jump moves the cursor without a doc change, so refresh the status bar
+    // (line/column) to match where we landed.
+    emitStatus()
+  }, [revealTarget, emitStatus])
 
   // React to the Vim toggle.
   useEffect(() => {

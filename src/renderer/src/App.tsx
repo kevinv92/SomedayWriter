@@ -6,24 +6,27 @@ import {
   useState,
   type CSSProperties
 } from 'react'
-import { Editor, type EditorStatus } from './components/Editor'
+import { Editor, type EditorHandle, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
 import { ProjectSearch } from './components/ProjectSearch'
+import { ReferencesPanel } from './components/ReferencesPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { AnalysisService } from './analysis/analysis-service'
 import { createCharacterProvider } from './analysis/providers/character-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
 import type { EditorDoc } from './editor/types'
 import type {
+  Entity,
   OpenProjectResult,
   ProjectMeta,
   RecentProject,
   TreeNode
 } from '@shared/types'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
+import { entityAt } from './lib/mentions'
 
-type Reveal = { line: number; column: number }
+type Reveal = { line: number; column: number; endColumn?: number }
 
 /** One open document: its last-saved baseline and its live buffer. Kept in a ref
  * (not state) so per-keystroke edits don't re-render App; switching tabs restores
@@ -67,6 +70,9 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
   const [searchOpen, setSearchOpen] = useState(false)
+  const [refsOpen, setRefsOpen] = useState(false)
+  // Story entities (StoryIndex), for the references panel + go-to-definition.
+  const [entities, setEntities] = useState<Entity[]>([])
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
   const [quickInput, setQuickInput] = useState<string | null>(null)
   const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
@@ -83,6 +89,9 @@ export default function App() {
   const docsRef = useRef(new Map<string, OpenBuffer>())
   const revealNonce = useRef(0)
   const didInit = useRef(false)
+  // Live handle onto the editor, for palette-driven go-to-definition (reads the
+  // cursor while the editor is unfocused behind the palette).
+  const editorHandle = useRef<EditorHandle | null>(null)
 
   // The doc handed to the editor — keyed on the active tab only, so typing (which
   // mutates the buffer in the ref) never re-loads the editor. Switching tabs
@@ -106,8 +115,12 @@ export default function App() {
   useEffect(() => () => analysis.dispose(), [analysis])
 
   // Load story entities (characters, …) from StoryIndex; refresh after edits.
+  // Feeds both the completion provider and the references panel / go-to-definition.
   const refreshEntities = useCallback(() => {
-    void window.api.storyEntities().then(character.setEntities)
+    void window.api.storyEntities().then((next) => {
+      character.setEntities(next)
+      setEntities(next)
+    })
   }, [character])
 
   // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P).
@@ -168,6 +181,21 @@ export default function App() {
       })()
     },
     [fireReveal, switchTo]
+  )
+
+  // Go-to-definition: resolve the entity under a cursor position (a Cmd/Ctrl+click
+  // in the editor, or the palette command reading the cursor) and open its profile.
+  const goToDefinition = useCallback(
+    (lineText: string, column: number) => {
+      const entity = entityAt(lineText, column, entities)
+      if (!entity) {
+        setNotice('No entity under the cursor.')
+        return
+      }
+      setNotice(null)
+      openFile(entity.path)
+    },
+    [entities, openFile]
   )
 
   const markDirty = useCallback((path: string, isDirty: boolean) => {
@@ -607,6 +635,19 @@ export default function App() {
       run: () => setSearchOpen((v) => !v)
     },
     {
+      id: 'find-references',
+      title: 'Find References…',
+      run: () => setRefsOpen(true)
+    },
+    {
+      id: 'go-to-definition',
+      title: 'Go to Definition',
+      run: () => {
+        const ctx = editorHandle.current?.cursorContext()
+        if (ctx) goToDefinition(ctx.lineText, ctx.column)
+      }
+    },
+    {
       id: 'toggle-vim',
       title: `Toggle Vim (${vim ? 'on' : 'off'})`,
       run: () => setVim((v) => !v)
@@ -655,6 +696,13 @@ export default function App() {
             onClick={() => setSearchOpen((v) => !v)}
           >
             Find in Project
+          </button>
+          <button
+            className={`toggle${refsOpen ? ' toggle--on' : ''}`}
+            title="Find every mention of a character/entity. Cmd/Ctrl+click a mention to jump to its profile."
+            onClick={() => setRefsOpen((v) => !v)}
+          >
+            References
           </button>
           <button
             className={`toggle${vim ? ' toggle--on' : ''}`}
@@ -757,6 +805,8 @@ export default function App() {
               onStatus={setStatus}
               onDocChange={handleDocChange}
               revealTarget={revealTarget}
+              onGoToDefinition={goToDefinition}
+              handleRef={editorHandle}
             />
           ) : (
             <div className="placeholder">Select a file to start editing.</div>
@@ -767,6 +817,17 @@ export default function App() {
           <ProjectSearch
             onClose={() => setSearchOpen(false)}
             onOpenMatch={(path, line, column) => openFile(path, { line, column })}
+          />
+        )}
+
+        {refsOpen && (
+          <ReferencesPanel
+            entities={entities}
+            onClose={() => setRefsOpen(false)}
+            onOpenRef={(path, line, column, length) =>
+              openFile(path, { line, column, endColumn: column + length })
+            }
+            onOpenProfile={(entity) => openFile(entity.path)}
           />
         )}
       </div>

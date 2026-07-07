@@ -930,13 +930,17 @@ turns diagnostics on. Facade seam ready for more providers (incl. future AI and
 
 The signature features, no AI.
 
-- **M8** _(part 1 ✅)_ — `StoryIndex` scanning the project + `CharacterProvider`.
-  **Built:** the index (main; `story-index.ts`), the full YAML frontmatter parse
-  (`parseFrontmatter`/`deriveTitle` in `frontmatter.ts`), type-generic entity
-  extraction, `referencesTo`, IPC (`story:entities`/`story:references`), and real
-  `@`-mention completion from profile files (`CharacterProvider` replaced the demo).
-  **Remaining (M8c):** the find-references **panel** (backend done) and
-  **go-to-definition** UI (a gesture/command on a mention → open the profile).
+- **M8** ✅ — `StoryIndex` scanning the project + `CharacterProvider`, plus the
+  find-references + go-to-definition UI. **Built:** the index (main;
+  `story-index.ts`), the full YAML frontmatter parse (`parseFrontmatter`/
+  `deriveTitle` in `frontmatter.ts`), type-generic entity extraction,
+  `referencesTo`, IPC (`story:entities`/`story:references`), real `@`-mention
+  completion from profile files (`CharacterProvider` replaced the demo), and
+  **(M8c)** the **find-references panel** (`ReferencesPanel` — pick an entity →
+  every mention grouped by file, click to jump with the mention highlighted) and
+  **go-to-definition** (`lib/mentions.ts` `entityAt` resolves the entity under a
+  cursor; Cmd/Ctrl+click a mention or the "Go to Definition" command → opens the
+  profile). Surfaced via a toolbar "References" toggle + palette commands.
 - **M8b** — **Inspector (file details) pane** — a read-only mirror of what
   `StoryIndex` parsed for the current file (title source, order, threads,
   mentions, parse warnings). See _Inspector (file details) pane_.
