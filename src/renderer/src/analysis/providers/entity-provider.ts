@@ -2,20 +2,21 @@ import type { AnalysisProvider, Completion, CompletionContext } from '../types'
 import type { Entity } from '@shared/types'
 
 /**
- * Completion provider for `@`-mentions of story entities — the real
- * `CharacterProvider` (Phase 5, M8), replacing the Phase-4 hardcoded demo. Its
- * data comes from `StoryIndex` (the project's profile files) via `setEntities`;
- * it offers each entity's canonical name + every alias, inserting the braced
- * `@{surface}` form (multi-word, stripped on export). Type-generic — a location
- * or item profile completes the same way (Phase 7).
+ * Completion provider for `@`-mentions of story entities (Phase 5 M8, made fully
+ * type-generic in Phase 7 M17 — the former `CharacterProvider`). Its data comes
+ * from `StoryIndex` (the project's profile files) via `setEntities`; it offers
+ * each entity's canonical name + every alias, inserting the braced `@{surface}`
+ * form (multi-word, stripped on export). Every entity type — character, location,
+ * item, faction, magic-system, or an unknown one — completes through this one
+ * path, with the type shown as the completion's category badge.
  */
-export function createCharacterProvider(): {
+export function createEntityProvider(): {
   provider: AnalysisProvider
   setEntities: (entities: Entity[]) => void
 } {
   let entities: Entity[] = []
   const provider: AnalysisProvider = {
-    id: 'character',
+    id: 'entity',
     capabilities: ['completion'],
     complete(_ctx: CompletionContext): Completion[] {
       return entities.flatMap((entity) =>

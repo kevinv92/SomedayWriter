@@ -17,7 +17,7 @@ import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { AnalysisService } from './analysis/analysis-service'
-import { createCharacterProvider } from './analysis/providers/character-provider'
+import { createEntityProvider } from './analysis/providers/entity-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
 import type { EditorDoc } from './editor/types'
 import type {
@@ -123,25 +123,26 @@ export default function App() {
 
   // The analysis facade + its providers (Phase 4). Created once; the editor
   // talks only to this, never to a provider (SPEC seam).
-  const character = useMemo(() => createCharacterProvider(), [])
+  const entityProvider = useMemo(() => createEntityProvider(), [])
   const analysis = useMemo(() => {
     const service = new AnalysisService()
-    service.register(character.provider)
+    service.register(entityProvider.provider)
     service.register(createSpellProvider())
     return service
-  }, [character])
+  }, [entityProvider])
   useEffect(() => () => analysis.dispose(), [analysis])
 
-  // Load story entities (characters, …) from StoryIndex; refresh after edits.
-  // Feeds the completion provider, references/go-to-definition, and (via the
-  // refresh nonce) the disk-based Inspector + Companion scene detection.
+  // Load story entities (characters, locations, items, …) from StoryIndex;
+  // refresh after edits. Feeds the completion provider, references/
+  // go-to-definition, and (via the refresh nonce) the disk-based Inspector +
+  // Companion scene detection.
   const refreshEntities = useCallback(() => {
     void window.api.storyEntities().then((next) => {
-      character.setEntities(next)
+      entityProvider.setEntities(next)
       setEntities(next)
     })
     setInspectorRefresh((n) => n + 1)
-  }, [character])
+  }, [entityProvider])
 
   // Pin/unpin a Companion reference for the current project, persisting the whole
   // per-project map so other projects' pins are preserved.

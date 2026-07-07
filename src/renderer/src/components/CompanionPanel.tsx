@@ -150,7 +150,7 @@ export function CompanionPanel({
         <div className="companion-zone">📌 Pinned</div>
         {pinned.length === 0 ? (
           <div className="companion-hint">
-            Pin a character or a note to keep it here across scenes.
+            Pin an entity or a note to keep it here across scenes.
           </div>
         ) : (
           pinned.map(renderEntry)
