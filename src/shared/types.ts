@@ -28,7 +28,6 @@ export type ProjectConfig = {
     autosave?: boolean
   }
   explorer?: { ignore?: string[] }
-  threads?: Record<string, { name?: string; color?: string }>
 }
 
 /** A resolved, opened project. */

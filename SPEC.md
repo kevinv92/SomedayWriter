@@ -427,9 +427,10 @@ standard File/Edit menus + `Cmd+Shift+[ / ]`) and a focus-editor shortcut.
 Two tiers of configuration, stored **separately**:
 
 - **Project config — `project.json`** (per project, in the folder). Describes the
-  _project_: name, `explorer.ignore`, thread registry, and per-project editor
-  defaults (`wordWrap`, `diagnostics`, `defaultExtension`). Travels with the
-  folder; lives in the writer's repo.
+  _project_ as **tool/editor configuration**: name, `explorer.ignore`, and
+  per-project editor defaults (`wordWrap`, `diagnostics`, `defaultExtension`).
+  **Story content — threads, entities — lives in files, not here** (decision #45).
+  Travels with the folder; lives in the writer's repo.
 - **App settings — `settings.json`** in the OS user-data dir
   (`app.getPath('userData')`, e.g. `~/Library/Application Support/writer-gui/`).
   Describes the _app / user_, independent of any project: **recent projects**
@@ -619,7 +620,8 @@ Both just query `StoryIndex`; they add no editor or facade changes.
 ### Threads
 
 A **thread** is a story line (a subplot, a mystery, a character arc) that runs
-across many files. Threads are first-class entities in `StoryIndex`.
+across many files. A thread is itself an **entity** (`type: thread`) in
+`StoryIndex` — see _Thread identity_ below — with scenes tagged into it.
 
 **Tagging.** Threads are declared by tagging, at two granularities:
 
@@ -636,8 +638,28 @@ across many files. Threads are first-class entities in `StoryIndex`.
   `<!-- /thread -->` pair or an `@thread(romance)` line. Lets one file feed
   several threads at different points.
 
-Threads may optionally be registered in `project.json` (display name, color) so
-they render consistently; an unregistered tag still works with defaults.
+**Thread identity — an optional `type: thread` entity, not `project.json`.** A
+thread's display name, color, and (its real value) a **description of the arc**
+live in an optional profile file like any other entity — `threads/rebellion.md`
+with `type: thread`:
+
+```md
+---
+type: thread
+name: Rebellion
+color: crimson
+---
+
+The slow burn from whispered dissent in the harbor to open revolt.
+```
+
+Nothing thread-related sits in `project.json` — that's tool/editor config, not
+story content (decision #45). Threads are **zero-ceremony by default**: tagging
+`threads: [rebellion]` in scenes just works with defaults; you create the entity
+file only when you want to name / colour / describe the thread. Because a thread
+is an entity, it gets find-references, go-to-definition, Companion pinning, and an
+Inspector view for free — the one thread-specific part is that its **membership**
+query scans scene frontmatter (`threads:` lists), not prose mentions.
 
 **Intersecting threads (many-to-many).** A file — or a scene inside it — can
 belong to _multiple_ threads at once, and threads freely overlap. `StoryIndex`
@@ -931,9 +953,9 @@ longer a bake-off — it de-risks that choice and builds the seam:
   as quiet asides, excluded from word count, and stripped on export.
 - **Sample project fixture** — a real writer-gui Project checked into the repo at
   `examples/sample-project/` to open while developing and to assert against in
-  tests. It exercises the core model: `project.json` (with a `threads` registry),
-  manuscript files with sparse `order` + thread tags, and character profiles the
-  prose mentions by name. Kept small and stable.
+  tests. It exercises the core model: `project.json` (tool config), manuscript
+  files with sparse `order` + thread tags, and character profiles the prose
+  mentions by name. Kept small and stable.
 
 **Exit:** CM6 edits a markdown file from the sample project through
 `EditorAdapter`, with Vim + a sample squiggle + a sample completion working.
@@ -1017,7 +1039,9 @@ The signature features, no AI.
   for project-long anchors. Read-first, collapse-to-summary, "open full" → tab.
   See _Reference companion pane_.
 - **M9** — `ThreadProvider`: file-level + inline thread markers, intersecting
-  (many-to-many) threads, per-thread ordering.
+  (many-to-many) threads, per-thread ordering. Thread **identity** (name/colour/
+  description) comes from optional `type: thread` entity files, not `project.json`
+  (decision #45); membership/order stay in each scene's frontmatter.
 - **M10** — **Thread visualiser (read)** — braid view: lane per thread,
   intersections, ordering toggle, click-to-open.
 - **M11** _(stretch / at risk)_ — **Thread visualiser (edit)** — drag to reorder
@@ -1072,18 +1096,19 @@ semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
   get the same `@`-mention completion, find-references, go-to-definition, plus
   **`name` + `aliases`** resolution off `StoryIndex`, with **no per-type code**.
   Unknown types work with defaults.
-- **M18** — **Registered entity types** in `project.json` (like the threads
-  registry): display name, icon, colour, **and the fields each type declares** —
-  so the tree, inspector, and visualiser can badge a location vs. an item, and so
-  M19/M20 have a schema to drive from.
+- **M18** — **Registered entity types** in `project.json`: display name, icon,
+  colour, **and the fields each type declares** — so the tree, inspector, and
+  visualiser can badge a location vs. an item, and so M19/M20 have a schema to
+  drive from. (This is type _schema_ — tool config — not story content, so unlike
+  threads it stays in `project.json`; cf. decision #45.)
 - **M19** — **Frontmatter intellisense.** Completion _inside_ the YAML
   frontmatter block (the editor already tags those lines — `cm-frontmatter-line`),
   delivered through the `AnalysisService` facade as a new completion context.
   Suggests **attribute keys** (`type`, `name`, `aliases`, `order`, `threads`, plus
   the fields the file's `type` declares) and **their values** — `type:` → the
-  registered entity types, `threads:` → the thread registry, enum-ish fields →
-  their allowed set. Schema-driven off M18, so no per-type code; unknown types
-  fall back to the common keys.
+  registered entity types, `threads:` → the `type: thread` entities, enum-ish
+  fields → their allowed set. Schema-driven off M18 + `StoryIndex`, so no per-type
+  code; unknown types fall back to the common keys.
 - **M20** — **New-file entity templates.** Creating a file offers a **template
   per registered entity type** (Character, Location, Item, Faction, Magic
   System, …) that pre-fills the frontmatter skeleton (`type` + `name` + `aliases`
@@ -1311,8 +1336,8 @@ the bottom. (Raised 2026-07-06.)
 - **In-app config editing (settings UI).** _Now:_ `project.json` is created by
   the New Project flow (M3) and otherwise edited outside the app; it isn't
   editable in the Markdown editor (decision #17). _Revisit:_ early in Phase 3 —
-  a small settings **form** (name, word-wrap, diagnostics default, ignore list,
-  thread registry) that reads/writes the config while **preserving unknown
+  a small settings **form** (name, word-wrap, diagnostics default, ignore list)
+  that reads/writes the config while **preserving unknown
   keys**. This is the intended answer to "how do I edit config in-app," not
   raw-JSON editing.
 - **Plain-text editing of non-Markdown files.** _Now:_ Markdown-only editing;
@@ -1369,7 +1394,8 @@ initial design conversation.)
    are the differentiator and don't need an LLM to be reliable.
 10. **Threads: file-level + inline markers, many-to-many, per-thread ordering.**
     A scene can sit on multiple threads; each thread can order its beats
-    independently of manuscript order.
+    independently of manuscript order. Thread _identity_ is an optional
+    `type: thread` entity file, not a `project.json` registry (decision #45).
 11. **Thread visualiser is editable (two-way)** — a braid view where dragging
     reorders beats / changes membership and **writes tags back to the files**.
     _Why:_ also resolved decision #10's ordering — you drag instead of
@@ -1636,7 +1662,21 @@ initial design conversation.)
     template on New File / palette ("New Character", …). _Why:_ once types are
     registered and schema'd, both are cheap, schema-driven, and per-type-code-free —
     they make hand-authoring profiles far less error-prone.
-44. **Reference companion pane: auto-follow the scene, pin to freeze (M8d).** The
+44. **Threads are `type: thread` entities; nothing thread-related in
+    `project.json`.** `project.json` is **tool/editor configuration**; a thread's
+    identity (name, colour, and a _description of the arc_) is **story content**,
+    so it moves to an optional profile file — `threads/rebellion.md` with
+    `type: thread` — like any other entity. Threads stay **zero-ceremony**: tagging
+    `threads: [rebellion]` in scenes works with defaults, and the entity file is
+    created only to name/colour/describe a thread. _Why:_ (1) keeps story data out
+    of the tool-config file (the config type drops its dead `threads` registry);
+    (2) a file can hold the arc's prose a JSON blob never could; (3) a thread then
+    reuses the entire entity system — find-references (its scenes), go-to-definition,
+    Companion, Inspector — with only the membership query (scan scene `threads:`
+    frontmatter, not prose) staying thread-specific. Entity-_type_ registration
+    (M18) is schema, not content, so it stays in `project.json`. _Refines the
+    earlier "threads optionally registered in project.json" framing (#10)._
+45. **Reference companion pane: auto-follow the scene, pin to freeze (M8d).** The
     writer's real need while drafting is a _glance_ at the bible (eye colour, a
     world rule, the motif), not another editing tab — tabs are single-focus and
     make you navigate away from the prose. So a right-side pane keeps references at
