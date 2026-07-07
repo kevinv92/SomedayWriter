@@ -753,6 +753,70 @@ Rules:
   inspecting; the full YAML frontmatter parse it relies on lands there too
   (deferred from M6).
 
+## Reference companion pane
+
+A side pane that keeps the **story bible at hand while drafting** — the digital
+equivalent of the notebook open beside the keyboard, or the character sheet taped
+to the monitor. The writer **glances**, they don't switch; it lives in peripheral
+vision, read-mostly, and never takes over the editor. Distinct from _tabs_ (the
+documents you're **editing**) and from _Find References_ (a search/navigate tool)
+— this is what you **consult** while writing. **Ships in Phase 5 (M8d).**
+
+**Two zones, one pane:**
+
+- **📌 Pinned** — anchors the writer freezes (the antagonist, a `themes.md` note,
+  the protagonist). They stay **regardless of scene** and **persist per project**
+  across restarts. This is the small handful (2–3) of book-long references.
+- **In this scene** — **auto-follows** the active file: the entities detected in
+  it (reusing M8b's mention engine pointed at "the current file"). As the writer
+  moves between chapters/scenes, this zone **repopulates on its own** — no list to
+  curate. This is the notebook turning its own pages.
+
+**Behaviour:**
+
+- **Auto-follow is the default; pinning is the exception.** Attention while
+  drafting is mostly "who's in this scene," occasionally "hold this one thing." A
+  hand-curated pin list would go stale every scene — so the pane fills itself, and
+  the writer only pins the few things that matter all the way through. Pin/unpin
+  from an entry's pin icon, a "Pin to reference" gesture on a mention in the prose,
+  or the References/entity picker.
+- **Read-first.** Entries are **collapsed by default with a one-line summary
+  showing** (a `summary:` frontmatter field, else the first trait line), so the
+  common glance needs no expand. Expanding shows the profile/note text **in place
+  — it never navigates the editor** (jumping is go-to-definition's job). A quiet
+  **"open full" → tab** promotes a reference to a real editor tab for the rare
+  in-draft edit or a long read.
+- **Pin anything, not just entities.** A character/location is a rich entry
+  (profile + "appears here ×N"); a **theme/motif** is just a note file rendered as
+  text. No themes subsystem — pinning a note covers it.
+- **The cardinal rule — auto-follow may change _membership_ but must never move
+  what the writer is reading.** New scene entities appear (bottom of the zone),
+  departed ones fade — but the entry you have **expanded and scrolled stays exactly
+  put** until you leave it. Membership updates are **debounced** so the list never
+  twitches per keystroke. Scroll/expand state is **remembered per entry** for the
+  session; **pinned entries keep it persistently**.
+
+**Rules & scope:**
+
+- **Another pane in the multi-pane shell** (like the tree / inspector / search),
+  **drag-resizable** — widen it when leaning on a longer reference. A small pane is
+  the right default: the job is a short glance, and narrow even nudges terse,
+  well-kept sheets. Genuinely long reading **graduates to a tab** via "open full"
+  (tabs preserve their own scroll), so the pane needn't grow.
+- **Reads the same model** the editor/index use (`StoryIndex` + the analysis
+  facade); it never parses independently.
+- **Pins are personal workspace state**, stored **per project in the app-settings
+  store** (like sidebar width) — not in the shared `project.json`.
+- **v1 scope:** "in this scene" = the **whole active file** (reuses M8b as-is);
+  **cursor-proximity** (narrowing to the current scene within a long chapter) is a
+  later refinement. Auto-follow + pinning ship together (pinning is what makes the
+  pane trustworthy for anchors).
+- **Empty states:** no file open → show pinned only; a file with no detected
+  entities → a soft "nothing detected here yet" under the auto zone.
+
+**Naming:** toggle it **Companion** to avoid colliding with the _References_
+(find-references) panel — one is what you keep beside you, the other is a search.
+
 ## AI features (split out — deferred)
 
 AI is deliberately **separated from the deterministic core** and deferred to
@@ -828,11 +892,11 @@ Delivery is grouped into phases. Each phase is independently shippable and has a
 clear exit criterion; milestones (M#) are the concrete steps inside it.
 
 > **Status (2026-07-07):** Phases 0–4 ✅, Phase 6 ✅ (v1 Major Milestone) + the
-> keyboard navigation, and **Phase 5 M8 ✅** — `StoryIndex` (main; real YAML
-> frontmatter parse) + real `@`-mention completion, plus **M8c**: the
-> find-references **panel** and **go-to-definition** (Cmd/Ctrl+click a mention or
-> the command → opens the profile). **Next in Phase 5:** M8b inspector, M9
-> `ThreadProvider`, M10 braid visualiser. Everything built is **CDP-verified**
+> keyboard navigation, and **Phase 5 M8 + M8b + M8c ✅** — `StoryIndex` (main;
+> real YAML frontmatter parse) + real `@`-mention completion; **M8c**
+> find-references **panel** + **go-to-definition**; **M8b** Inspector pane. **Next
+> in Phase 5:** M8d Companion pane (auto-follow + pin), M9 `ThreadProvider`, M10
+> braid visualiser. Everything built is **CDP-verified**
 > (launch with `ELECTRON_RUN_AS_NODE` unset; see the GUI-verify memory). Phase 6 =
 > tabs/autosave/quick-open+palette/unified find/recent projects/resizable+
 > keyboard-nav sidebar; Phase 4 = `AnalysisService` facade + spell provider; Phase
@@ -942,9 +1006,16 @@ The signature features, no AI.
   **go-to-definition** (`lib/mentions.ts` `entityAt` resolves the entity under a
   cursor; Cmd/Ctrl+click a mention or the "Go to Definition" command → opens the
   profile). Surfaced via a toolbar "References" toggle + palette commands.
-- **M8b** — **Inspector (file details) pane** — a read-only mirror of what
-  `StoryIndex` parsed for the current file (title source, order, threads,
-  mentions, parse warnings). See _Inspector (file details) pane_.
+- **M8b** ✅ — **Inspector (file details) pane** — a read-only mirror of what
+  `StoryIndex` parsed for the current file (title source, order + reading
+  position, threads, mentions with counts, word count, parse warnings).
+  `inspectFile` in main + `InspectorPanel`; toolbar toggle + palette command.
+  See _Inspector (file details) pane_.
+- **M8d** — **Reference companion pane** — keep the story bible at hand while
+  drafting: a right-side pane that **auto-follows the scene** (shows the entities
+  detected in the active file, reusing M8b's mention engine) with **pin-to-freeze**
+  for project-long anchors. Read-first, collapse-to-summary, "open full" → tab.
+  See _Reference companion pane_.
 - **M9** — `ThreadProvider`: file-level + inline thread markers, intersecting
   (many-to-many) threads, per-thread ordering.
 - **M10** — **Thread visualiser (read)** — braid view: lane per thread,
@@ -1565,3 +1636,21 @@ initial design conversation.)
     template on New File / palette ("New Character", …). _Why:_ once types are
     registered and schema'd, both are cheap, schema-driven, and per-type-code-free —
     they make hand-authoring profiles far less error-prone.
+44. **Reference companion pane: auto-follow the scene, pin to freeze (M8d).** The
+    writer's real need while drafting is a _glance_ at the bible (eye colour, a
+    world rule, the motif), not another editing tab — tabs are single-focus and
+    make you navigate away from the prose. So a right-side pane keeps references at
+    hand. Crucially it **auto-follows the scene** (shows the entities detected in
+    the current file — M8b's mention engine) rather than being a hand-curated pin
+    list, because what a writer needs shifts every scene and a manual list goes
+    stale; **pinning** is reserved for the 2–3 book-long anchors (antagonist, a
+    `themes.md` note), persisted per project. Read-first (collapse-to-summary,
+    "open full" → tab); the **cardinal rule** is that auto-follow may change list
+    _membership_ but must **never move the entry the writer is currently reading**
+    (debounced updates, per-entry scroll memory). A small resizable pane is right
+    — the job is a short glance; long reads graduate to a tab. _Why:_ mirrors how a
+    writer's attention actually moves ("who's in this scene" mostly, "hold this one
+    thing" occasionally) and removes the pin-management busywork a pure pin list
+    would impose. Named **Companion** to avoid colliding with the _References_
+    (find-references) panel. Reuses the existing pane shell + mention engine, so
+    it's small.
