@@ -9,6 +9,7 @@ import {
 import { Editor, type EditorHandle, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
 import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
+import { BraidView } from './components/BraidView'
 import { CompanionPanel } from './components/CompanionPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
@@ -78,6 +79,7 @@ export default function App() {
   const [inspectorOpen, setInspectorOpen] = useState(false)
   const [companionOpen, setCompanionOpen] = useState(false)
   const [threadsOpen, setThreadsOpen] = useState(false)
+  const [braidOpen, setBraidOpen] = useState(false)
   // Bumped after a save / entity change so the disk-based Inspector + Companion
   // re-read the active file.
   const [inspectorRefresh, setInspectorRefresh] = useState(0)
@@ -735,6 +737,11 @@ export default function App() {
       run: () => setThreadsOpen((v) => !v)
     },
     {
+      id: 'toggle-braid',
+      title: 'Toggle Thread Braid',
+      run: () => setBraidOpen((v) => !v)
+    },
+    {
       id: 'reload-from-disk',
       title: 'Reload from Disk',
       run: () => void forceRefresh()
@@ -832,6 +839,13 @@ export default function App() {
             Threads
           </button>
           <button
+            className={`toggle${braidOpen ? ' toggle--on' : ''}`}
+            title="Braid: a visual map of how threads run through the manuscript"
+            onClick={() => setBraidOpen((v) => !v)}
+          >
+            Braid
+          </button>
+          <button
             className={`toggle${inspectorOpen ? ' toggle--on' : ''}`}
             title="Inspector: what the app parses from the current file (title, order, threads, mentions, warnings)"
             onClick={() => setInspectorOpen((v) => !v)}
@@ -915,45 +929,59 @@ export default function App() {
         />
 
         <main className="main" style={editorStyle}>
-          {openPaths.length > 0 && (
-            <div className="tabstrip">
-              {openPaths.map((p) => (
-                <div
-                  key={p}
-                  className={`tabstrip__tab${p === activePath ? ' tabstrip__tab--active' : ''}`}
-                  title={p}
-                  onClick={() => switchTo(p)}
-                >
-                  <span className="tabstrip__name">{basename(p)}</span>
-                  {dirtyPaths.has(p) && <span className="tabstrip__dot" />}
-                  <button
-                    className="tabstrip__close"
-                    title="Close (⌘/Ctrl+W)"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      closeTab(p)
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-          {doc ? (
-            <Editor
-              doc={doc}
-              vimEnabled={vim}
-              diagnosticsEnabled={diagnostics}
-              analysis={analysis}
-              onStatus={setStatus}
-              onDocChange={handleDocChange}
-              revealTarget={revealTarget}
-              onGoToDefinition={goToDefinition}
-              handleRef={editorHandle}
+          {braidOpen ? (
+            <BraidView
+              sceneOrder={projectFiles.map((f) => f.path)}
+              refreshKey={inspectorRefresh}
+              onOpen={(path) => {
+                openFile(path)
+                setBraidOpen(false)
+              }}
+              onClose={() => setBraidOpen(false)}
             />
           ) : (
-            <div className="placeholder">Select a file to start editing.</div>
+            <>
+              {openPaths.length > 0 && (
+                <div className="tabstrip">
+                  {openPaths.map((p) => (
+                    <div
+                      key={p}
+                      className={`tabstrip__tab${p === activePath ? ' tabstrip__tab--active' : ''}`}
+                      title={p}
+                      onClick={() => switchTo(p)}
+                    >
+                      <span className="tabstrip__name">{basename(p)}</span>
+                      {dirtyPaths.has(p) && <span className="tabstrip__dot" />}
+                      <button
+                        className="tabstrip__close"
+                        title="Close (⌘/Ctrl+W)"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          closeTab(p)
+                        }}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {doc ? (
+                <Editor
+                  doc={doc}
+                  vimEnabled={vim}
+                  diagnosticsEnabled={diagnostics}
+                  analysis={analysis}
+                  onStatus={setStatus}
+                  onDocChange={handleDocChange}
+                  revealTarget={revealTarget}
+                  onGoToDefinition={goToDefinition}
+                  handleRef={editorHandle}
+                />
+              ) : (
+                <div className="placeholder">Select a file to start editing.</div>
+              )}
+            </>
           )}
         </main>
 
