@@ -43,6 +43,38 @@ import { findMatches, replaceAll } from './search'
 // validated against this root, so a renderer can't reach outside it.
 let currentProject: ProjectMeta | null = null
 
+// Cached story index: `buildEntities`/`buildThreads` each scan the whole project,
+// and several IPC handlers need them per panel refresh. Cache both and invalidate
+// on any write (or a manual "Reload from Disk"), so a refresh with several panels
+// open doesn't re-scan the project multiple times.
+let entityCache: Entity[] | null = null
+let threadCache: Thread[] | null = null
+
+async function getEntities(): Promise<Entity[]> {
+  if (!currentProject) return []
+  if (!entityCache) {
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    entityCache = await buildEntities(currentProject.root, ignore)
+  }
+  return entityCache
+}
+
+async function getThreads(): Promise<Thread[]> {
+  if (!currentProject) return []
+  if (!threadCache) {
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    threadCache = await buildThreads(currentProject.root, ignore, await getEntities())
+  }
+  return threadCache
+}
+
+/** Drop the cached index — call on any write or when files may have changed on
+ * disk (project open, external edits via the manual reload). */
+function invalidateStoryIndex(): void {
+  entityCache = null
+  threadCache = null
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1100,
@@ -85,6 +117,7 @@ function isNotFound(err: unknown): boolean {
 
 function setCurrentProject(root: string, config: ProjectMeta['config']): ProjectMeta {
   currentProject = { root, name: config.project.name, config }
+  invalidateStoryIndex() // a different project → rebuild the index on next fetch
   return currentProject
 }
 
@@ -178,11 +211,7 @@ function registerIpc(): void {
 
   // --- story intelligence (Phase 5) ---
 
-  ipcMain.handle('story:entities', (): Promise<Entity[]> => {
-    if (!currentProject) return Promise.resolve([])
-    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-    return buildEntities(currentProject.root, ignore)
-  })
+  ipcMain.handle('story:entities', (): Promise<Entity[]> => getEntities())
 
   ipcMain.handle('story:references', (_e, entity: Entity): Promise<EntityRef[]> => {
     if (!currentProject) return Promise.resolve([])
@@ -194,9 +223,7 @@ function registerIpc(): void {
     'story:inspect',
     async (_e, path: string): Promise<FileInspection | null> => {
       if (!currentProject || !guardPath(path)) return null
-      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-      const entities = await buildEntities(currentProject.root, ignore)
-      return inspectFile(path, entities)
+      return inspectFile(path, await getEntities())
     }
   )
 
@@ -205,9 +232,7 @@ function registerIpc(): void {
     'story:sceneRefs',
     async (_e, path: string): Promise<CompanionEntry[]> => {
       if (!currentProject || !guardPath(path)) return []
-      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-      const entities = await buildEntities(currentProject.root, ignore)
-      return sceneEntities(path, entities)
+      return sceneEntities(path, await getEntities())
     }
   )
 
@@ -215,18 +240,15 @@ function registerIpc(): void {
     'story:loadRef',
     async (_e, path: string): Promise<CompanionEntry | null> => {
       if (!currentProject || !guardPath(path)) return null
-      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-      const entities = await buildEntities(currentProject.root, ignore)
-      return loadCompanionEntry(path, entities)
+      return loadCompanionEntry(path, await getEntities())
     }
   )
 
-  ipcMain.handle('story:threads', async (): Promise<Thread[]> => {
-    if (!currentProject) return []
-    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-    const entities = await buildEntities(currentProject.root, ignore)
-    return buildThreads(currentProject.root, ignore, entities)
-  })
+  ipcMain.handle('story:threads', (): Promise<Thread[]> => getThreads())
+
+  // Manual "Reload from Disk": drop the cache so external edits (another editor,
+  // a git checkout) are picked up on the next fetch.
+  ipcMain.handle('story:refresh', (): void => invalidateStoryIndex())
 
   ipcMain.handle(
     'settings:update',
@@ -255,6 +277,7 @@ function registerIpc(): void {
       if (!guardPath(path)) return OUTSIDE_ERR
       try {
         await fs.writeFile(path, contents, 'utf8')
+        invalidateStoryIndex()
         return { ok: true }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
@@ -269,6 +292,7 @@ function registerIpc(): void {
     try {
       // `wx` fails if the file already exists, so we never clobber content.
       await fs.writeFile(path, '', { encoding: 'utf8', flag: 'wx' })
+      invalidateStoryIndex()
       return { ok: true }
     } catch (err) {
       return { ok: false, error: messageOf(err) }
@@ -291,6 +315,7 @@ function registerIpc(): void {
       if (!guardPath(from) || !guardPath(to)) return OUTSIDE_ERR
       try {
         await fs.rename(from, to)
+        invalidateStoryIndex()
         return { ok: true }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
@@ -306,6 +331,7 @@ function registerIpc(): void {
     }
     try {
       await fs.rm(path, { recursive: true, force: false })
+      invalidateStoryIndex()
       return { ok: true }
     } catch (err) {
       return { ok: false, error: messageOf(err) }
@@ -321,6 +347,7 @@ function registerIpc(): void {
       try {
         const text = await fs.readFile(path, 'utf8')
         await fs.writeFile(path, writeOrder(text, value), 'utf8')
+        invalidateStoryIndex()
         return { ok: true }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
@@ -375,6 +402,7 @@ function registerIpc(): void {
             total += count
           }
         }
+        if (changedFiles > 0) invalidateStoryIndex()
         return { ok: true, files: changedFiles, replacements: total }
       } catch (err) {
         return { ok: false, error: messageOf(err) }

@@ -99,7 +99,10 @@ const api = {
     ipcRenderer.invoke('story:loadRef', path),
 
   /** The project-wide thread model — membership + per-thread order (M9). */
-  storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads')
+  storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads'),
+
+  /** Drop the cached story index so external file changes are re-read. */
+  refreshIndex: (): Promise<void> => ipcRenderer.invoke('story:refresh')
 }
 
 export type Api = typeof api

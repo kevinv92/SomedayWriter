@@ -173,6 +173,16 @@ export default function App() {
     refreshEntities()
   }
 
+  // Manual "Reload from Disk": drop the main-process index cache, re-read the
+  // tree + entities, and nudge the panels to refetch. For changes made outside
+  // the app (another editor, a git checkout) that the app can't see.
+  const forceRefresh = useCallback(async () => {
+    await window.api.refreshIndex()
+    setTree(await window.api.readTree())
+    refreshEntities()
+    setNotice('Reloaded from disk.')
+  }, [refreshEntities])
+
   const fireReveal = useCallback((reveal: Reveal) => {
     revealNonce.current += 1
     setRevealTarget({ ...reveal, nonce: revealNonce.current })
@@ -725,6 +735,11 @@ export default function App() {
       run: () => setThreadsOpen((v) => !v)
     },
     {
+      id: 'reload-from-disk',
+      title: 'Reload from Disk',
+      run: () => void forceRefresh()
+    },
+    {
       id: 'pin-to-companion',
       title: 'Pin Current File to Companion',
       run: () => {
@@ -841,6 +856,13 @@ export default function App() {
             onClick={() => setAutosave((a) => !a)}
           >
             Autosave: {autosave ? 'on' : 'off'}
+          </button>
+          <button
+            className="toggle"
+            title="Reload from disk — re-scan the project for changes made outside the app"
+            onClick={() => void forceRefresh()}
+          >
+            ↻ Reload
           </button>
         </div>
       </header>
