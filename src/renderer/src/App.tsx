@@ -8,7 +8,12 @@ import {
 } from 'react'
 import { Editor, type EditorHandle, type EditorStatus } from './components/Editor'
 import { FileTree } from './components/FileTree'
-import { ConfirmModal, PromptModal, UnsavedChangesModal } from './components/Modal'
+import {
+  ConfirmModal,
+  NewFileModal,
+  PromptModal,
+  UnsavedChangesModal
+} from './components/Modal'
 import { BraidView } from './components/BraidView'
 import { CompanionPanel } from './components/CompanionPanel'
 import { InspectorPanel } from './components/InspectorPanel'
@@ -29,6 +34,7 @@ import type {
   TreeNode
 } from '@shared/types'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
+import { entityTemplate } from './lib/entity-template'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 import { entityAt } from './lib/mentions'
 
@@ -51,7 +57,7 @@ function fontStack(font: string | undefined): string {
 }
 
 type ModalState =
-  | { kind: 'newFile'; dir: string }
+  | { kind: 'newFile'; dir: string; entityType?: string }
   | { kind: 'newFolder'; dir: string }
   | { kind: 'rename'; node: TreeNode }
   | { kind: 'delete'; node: TreeNode }
@@ -486,13 +492,19 @@ export default function App() {
 
   // --- explorer file operations (M4) ---
 
-  async function createFileIn(dir: string, name: string) {
+  async function createFileIn(dir: string, name: string, entityType?: string) {
     const fileName = name.includes('.') ? name : `${name}.md`
     const path = joinPath(dir, fileName)
     const result = await window.api.createFile(path)
     if (!result.ok) {
       setNotice(`Couldn't create file: ${result.error}`)
       return
+    }
+    // Seed a chosen entity type's frontmatter skeleton (M20); blank otherwise.
+    if (entityType) {
+      const def = entityTypeMeta(entityType, entityTypes)
+      const written = await window.api.writeFile(path, entityTemplate(def, name))
+      if (!written.ok) setNotice(`Couldn't write template: ${written.error}`)
     }
     await refreshTree()
     if (fileName.endsWith('.md')) openFile(path)
@@ -722,6 +734,13 @@ export default function App() {
       title: 'New File',
       run: () => tree && setModal({ kind: 'newFile', dir: tree.path })
     },
+    // One "New <Type>" per registered entity type (M20) — opens the New-File
+    // modal with that type preselected, seeding its frontmatter skeleton.
+    ...entityTypes.map((t) => ({
+      id: `new-${t.type}`,
+      title: `New ${t.label}`,
+      run: () => tree && setModal({ kind: 'newFile', dir: tree.path, entityType: t.type })
+    })),
     {
       id: 'new-folder',
       title: 'New Folder',
@@ -1091,14 +1110,16 @@ export default function App() {
       </footer>
 
       {modal?.kind === 'newFile' && (
-        <PromptModal
-          title="New File"
-          label="File name (defaults to .md)"
-          submitLabel="Create"
+        <NewFileModal
+          options={[
+            { value: '', label: 'Blank Markdown' },
+            ...entityTypes.map((t) => ({ value: t.type, label: `${t.icon} ${t.label}` }))
+          ]}
+          initialType={modal.entityType}
           onCancel={() => setModal(null)}
-          onSubmit={(name) => {
+          onSubmit={(name, entityType) => {
             setModal(null)
-            void createFileIn(modal.dir, name)
+            void createFileIn(modal.dir, name, entityType || undefined)
           }}
         />
       )}
