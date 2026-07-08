@@ -20,6 +20,7 @@ export type IconName =
   | 'flag'
   | 'sparkles'
   | 'git-branch'
+  | 'thread'
   | 'link'
   | 'book-open'
   | 'info'
@@ -84,6 +85,13 @@ const PATHS: Record<IconName, ReactNode> = {
       <circle cx="7" cy="18" r="2.2" />
       <circle cx="17" cy="8" r="2.2" />
       <path d="M7 8.2v7.6M7 15a8 8 0 0 0 8-6.6" />
+    </>
+  ),
+  thread: (
+    <>
+      <path d="M3 13c2-4 4-4 6 0s4 4 6 0 4-4 6 0" />
+      <circle cx="3" cy="13" r="1.1" />
+      <circle cx="21" cy="13" r="1.1" />
     </>
   ),
   link: (

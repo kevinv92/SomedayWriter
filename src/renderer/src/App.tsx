@@ -1328,7 +1328,7 @@ export default function App() {
                 companionOpen,
                 () => setCompanionOpen((v) => !v)
               ],
-              ['Threads', 'git-branch', threadsOpen, () => setThreadsOpen((v) => !v)],
+              ['Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
               ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)]
             ] as [string, string, boolean, () => void][]
           ).map(([label, icon, on, toggle]) => (

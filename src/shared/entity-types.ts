@@ -84,7 +84,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'thread',
     label: 'Thread',
     icon: '🧵',
-    iconName: 'git-branch',
+    iconName: 'thread',
     color: '#db6d28',
     fields: [
       { name: 'color', label: 'Colour' },
