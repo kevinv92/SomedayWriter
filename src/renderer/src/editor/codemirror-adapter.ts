@@ -605,19 +605,28 @@ class CodeMirrorAdapter implements EditorAdapter {
  * de-emphasized asides so they don't read as prose; the export step strips them.
  * Single-line only for now.
  */
-const noteMatcher = new MatchDecorator({
-  regexp: /%%[^\n]*?%%/g,
-  decoration: Decoration.mark({ class: 'cm-note' })
-})
+// Scan the whole doc (not MatchDecorator, which is line-scoped) so a `%% note %%`
+// that wraps across lines still styles.
+const noteMark = Decoration.mark({ class: 'cm-note' })
+function noteDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  const text = view.state.doc.toString()
+  const re = /%%[\s\S]*?%%/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    builder.add(m.index, m.index + m[0].length, noteMark)
+  }
+  return builder.finish()
+}
 
 const notesPlugin = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet
     constructor(view: EditorView) {
-      this.decorations = noteMatcher.createDeco(view)
+      this.decorations = noteDecorations(view)
     }
     update(update: ViewUpdate) {
-      this.decorations = noteMatcher.updateDeco(update, this.decorations)
+      if (update.docChanged) this.decorations = noteDecorations(update.view)
     }
   },
   { decorations: (v) => v.decorations }

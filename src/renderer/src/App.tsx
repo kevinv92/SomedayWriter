@@ -1163,6 +1163,9 @@ export default function App() {
         </div>
 
         <nav className="menubar__menus">
+          <button className="menubar__item" onClick={() => void newProject()}>
+            New…
+          </button>
           <button className="menubar__item" onClick={() => void openProject()}>
             Open…
           </button>

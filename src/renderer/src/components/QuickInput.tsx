@@ -47,7 +47,19 @@ export function QuickInput({
   const fileResults = useMemo(() => {
     if (isCommand) return []
     return files
-      .map((f) => ({ item: f, score: fuzzyScore(term, f.name) }))
+      .map((f) => {
+        // Match on the file name and on its project-relative path, so you can
+        // search by folder ("manuscript"), extension, or "manuscript/betrayal".
+        const relPath = f.rel ? `${f.rel}/${f.name}` : f.name
+        const nameScore = fuzzyScore(term, f.name)
+        const pathScore = fuzzyScore(term, relPath)
+        const score =
+          nameScore === null && pathScore === null
+            ? null
+            : // Favour a name hit, but let a path-only hit through.
+              Math.max(nameScore ?? -Infinity, (pathScore ?? -Infinity) - 1)
+        return { item: f, score }
+      })
       .filter((r) => r.score !== null)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 50)
