@@ -965,6 +965,11 @@ export default function App() {
       run: () => toggleFocus()
     },
     {
+      id: 'add-comment',
+      title: 'Add Comment',
+      run: () => editorHandle.current?.format('comment')
+    },
+    {
       id: 'syntax-reference',
       title: 'Markdown & Syntax Reference',
       run: () => setHelpOpen(true)
@@ -1339,6 +1344,13 @@ export default function App() {
                     onClick={() => editorHandle.current?.format('link')}
                   >
                     <Icon name="link" size={15} />
+                  </button>
+                  <button
+                    className="fmt fmt--icon"
+                    title="Add comment (editorial note, stripped on export)"
+                    onClick={() => editorHandle.current?.format('comment')}
+                  >
+                    <Icon name="comment" size={15} />
                   </button>
                   <button
                     className="fmt fmt--help"

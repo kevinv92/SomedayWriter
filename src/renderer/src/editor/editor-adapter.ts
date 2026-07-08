@@ -27,6 +27,7 @@ export type FormatAction =
   | 'strike'
   | 'code'
   | 'link'
+  | 'comment'
   | 'h1'
   | 'h2'
   | 'quote'

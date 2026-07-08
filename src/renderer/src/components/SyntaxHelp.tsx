@@ -23,6 +23,10 @@ const WRITER: Row[] = [
   },
   { syntax: '%% note %%', desc: 'A private note — dimmed in the editor, just for you.' },
   {
+    syntax: '{>>comment<<}',
+    desc: 'An editorial comment (hover to read it). Wrap a span with {==…==} to anchor it. Stripped on export.'
+  },
+  {
     syntax: 'type: character',
     desc: 'Frontmatter (in the --- block at the top): marks a file as an entity.'
   },

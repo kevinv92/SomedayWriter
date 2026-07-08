@@ -13,6 +13,7 @@ import {
   keymap,
   drawSelection,
   lineNumbers,
+  hoverTooltip,
   type DecorationSet,
   type ViewUpdate
 } from '@codemirror/view'
@@ -182,6 +183,9 @@ class CodeMirrorAdapter implements EditorAdapter {
       case 'link':
         this.insertLink(view)
         break
+      case 'comment':
+        this.insertComment(view)
+        break
       case 'h1':
         this.linePrefix(view, '# ', /^#{1,6}\s+/)
         break
@@ -262,6 +266,24 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.dispatch({ changes })
   }
 
+  /** Attach a CriticMarkup comment (M23): `{==span==}{>>…<<}` around a selection,
+   * or a point comment `{>>…<<}`; the caret lands inside the comment. */
+  private insertComment(view: EditorView): void {
+    const { state } = view
+    view.dispatch(
+      state.changeByRange((range) => {
+        const text = state.sliceDoc(range.from, range.to)
+        const prefix = text ? `{==${text}==}{>>` : '{>>'
+        const insert = `${prefix}<<}`
+        const caret = range.from + prefix.length
+        return {
+          changes: { from: range.from, to: range.to, insert },
+          range: EditorSelection.range(caret, caret)
+        }
+      })
+    )
+  }
+
   /** Insert a `[text](url)` link around the selection and select the `url` part. */
   private insertLink(view: EditorView): void {
     const { state } = view
@@ -336,6 +358,8 @@ class CodeMirrorAdapter implements EditorAdapter {
         markdown(),
         syntaxHighlighting(proseHighlightStyle),
         notesPlugin,
+        criticPlugin,
+        criticHover,
         frontmatterPlugin,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
@@ -447,6 +471,59 @@ const notesPlugin = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations }
 )
+
+/**
+ * Editorial marks (Phase 9, M23) — CriticMarkup, in plain text so it survives
+ * anywhere: `{==span==}` highlights a span and `{>>comment<<}` anchors a comment
+ * (rendered de-emphasised; the full text hovers). Both edit in source and are
+ * stripped on export. Reuses the notes-decoration pattern.
+ */
+const criticMatcher = new MatchDecorator({
+  regexp: /\{==.*?==\}|\{>>.*?<<\}/g,
+  decoration: (match) =>
+    Decoration.mark({
+      class: match[0].startsWith('{==') ? 'cm-critic-highlight' : 'cm-critic-comment'
+    })
+})
+
+const criticPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = criticMatcher.createDeco(view)
+    }
+    update(update: ViewUpdate) {
+      this.decorations = criticMatcher.updateDeco(update, this.decorations)
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+/** Hover a `{>>comment<<}` to read the comment on its own, without the syntax. */
+const criticHover = hoverTooltip((view, pos) => {
+  const line = view.state.doc.lineAt(pos)
+  const re = /\{>>(.*?)<<\}/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(line.text)) !== null) {
+    const from = line.from + m.index
+    const to = from + m[0].length
+    if (pos >= from && pos <= to) {
+      const text = m[1].trim()
+      return {
+        pos: from,
+        end: to,
+        above: true,
+        create: () => {
+          const dom = document.createElement('div')
+          dom.className = 'cm-comment-tooltip'
+          dom.textContent = text || '(empty comment)'
+          return { dom }
+        }
+      }
+    }
+  }
+  return null
+})
 
 /**
  * A leading `---` … `---` block is YAML frontmatter, but the Markdown parser
@@ -637,6 +714,14 @@ const proseTheme = EditorView.theme({
     boxShadow: 'var(--shadow-popup)'
   },
   '.cm-tooltip.cm-tooltip-lint': { padding: '0' },
+  '.cm-comment-tooltip': {
+    maxWidth: '22rem',
+    padding: 'var(--space-3) var(--space-4)',
+    fontFamily: 'var(--font-ui)',
+    fontSize: 'var(--text-sm)',
+    lineHeight: 'var(--leading-snug)',
+    color: 'var(--fg)'
+  },
   '.cm-diagnostic': {
     color: 'var(--fg)',
     padding: 'var(--space-2) var(--space-3)',
@@ -686,6 +771,18 @@ const proseTheme = EditorView.theme({
     lineHeight: '1.35 !important',
     color: 'var(--muted) !important',
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace !important'
+  },
+  // Editorial marks (M23). Highlight span: a warm marker; comment: dimmed accent.
+  '.cm-critic-highlight': {
+    backgroundColor: 'var(--highlight)',
+    borderRadius: '2px'
+  },
+  '.cm-critic-comment': {
+    color: 'var(--accent)',
+    backgroundColor: 'var(--accent-soft)',
+    borderRadius: '3px',
+    padding: '0 2px',
+    fontSize: '0.9em'
   },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {
