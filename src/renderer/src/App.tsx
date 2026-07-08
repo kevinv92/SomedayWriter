@@ -41,7 +41,15 @@ import type {
 import { BUILTIN_THEME_OPTIONS, resolveTheme, tokenProp } from './lib/theme'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
-import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
+import {
+  basename,
+  isInsideDir,
+  joinPath,
+  parentDir,
+  posixDir,
+  posixRelativePath,
+  projectRelative
+} from './lib/paths'
 import { entityAt, mentionRangeAt } from './lib/mentions'
 import { parseEntityHead, detectRename, type EntityHead } from './lib/rename'
 
@@ -194,6 +202,41 @@ export default function App() {
   )
 
   const dirty = activePath ? dirtyPaths.has(activePath) : false
+
+  // The active file's project-relative folder — resolves `![](src)` image paths
+  // and lets us insert a file-relative path when importing.
+  const assetDir = useMemo(
+    () =>
+      project && activePath ? posixDir(projectRelative(project.root, activePath)) : '',
+    [project, activePath]
+  )
+
+  // Insert an imported image (given its project-relative path) at the cursor, as
+  // a path relative to the current file; refresh the tree so assets/ shows.
+  const insertProjectImage = useCallback(
+    (projectRelPath: string) => {
+      const src = posixRelativePath(assetDir, projectRelPath)
+      const alt = basename(projectRelPath).replace(/\.[^.]+$/, '')
+      editorHandle.current?.insertImage(alt, src)
+      void window.api.readTree().then(setTree)
+    },
+    [assetDir]
+  )
+
+  const insertImageFromPicker = useCallback(async () => {
+    const res = await window.api.pickImage()
+    if (res) insertProjectImage(res.path)
+  }, [insertProjectImage])
+
+  const onImageDropped = useCallback(
+    async (paths: string[]) => {
+      for (const p of paths) {
+        const res = await window.api.importImageFile(p)
+        if (res) insertProjectImage(res.path)
+      }
+    },
+    [insertProjectImage]
+  )
 
   // The analysis facade + its providers (Phase 4). Created once; the editor
   // talks only to this, never to a provider (SPEC seam).
@@ -1173,6 +1216,11 @@ export default function App() {
       run: () => editorHandle.current?.formatTable()
     },
     {
+      id: 'insert-image',
+      title: 'Insert Image…',
+      run: () => void insertImageFromPicker()
+    },
+    {
       id: 'syntax-reference',
       title: 'Markdown & Syntax Reference',
       run: () => setHelpOpen(true)
@@ -1615,6 +1663,8 @@ export default function App() {
                     mentionRangeAt(lineText, column, entities)
                   }
                   handleRef={editorHandle}
+                  assetDir={assetDir}
+                  onImageDropped={onImageDropped}
                 />
               ) : (
                 <div className="placeholder">Select a file to start editing.</div>

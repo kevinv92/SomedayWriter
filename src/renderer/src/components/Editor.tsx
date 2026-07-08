@@ -21,6 +21,8 @@ export interface EditorHandle {
   resolveChange(accept: boolean): void
   /** Tidy the Markdown table around the cursor. */
   formatTable(): void
+  /** Insert a Markdown image at the cursor. */
+  insertImage(alt: string, src: string): void
 }
 
 interface EditorProps {
@@ -59,6 +61,11 @@ interface EditorProps {
   /** Filled with an imperative handle so App can read the cursor for a
    * palette-triggered go-to-definition (see EditorHandle). */
   handleRef?: RefObject<EditorHandle | null>
+  /** The active file's project-relative directory (resolves image paths). */
+  assetDir?: string
+  /** Image files dropped onto the editor (absolute source paths) — App imports
+   * them into the project and inserts the Markdown. */
+  onImageDropped?: (sourcePaths: string[]) => void
 }
 
 export function Editor({
@@ -73,7 +80,9 @@ export function Editor({
   revealTarget,
   onGoToDefinition,
   onResolveMention,
-  handleRef
+  handleRef,
+  assetDir,
+  onImageDropped
 }: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<EditorAdapter | null>(null)
@@ -82,6 +91,7 @@ export function Editor({
   const onDocChangeRef = useRef(onDocChange)
   const onGoToDefinitionRef = useRef(onGoToDefinition)
   const onResolveMentionRef = useRef(onResolveMention)
+  const onImageDroppedRef = useRef(onImageDropped)
   const docUriRef = useRef(doc.uri)
 
   // Keep the latest callbacks without re-subscribing the editor.
@@ -91,7 +101,15 @@ export function Editor({
     onDocChangeRef.current = onDocChange
     onGoToDefinitionRef.current = onGoToDefinition
     onResolveMentionRef.current = onResolveMention
-  }, [onStatus, onVimMode, onDocChange, onGoToDefinition, onResolveMention])
+    onImageDroppedRef.current = onImageDropped
+  }, [
+    onStatus,
+    onVimMode,
+    onDocChange,
+    onGoToDefinition,
+    onResolveMention,
+    onImageDropped
+  ])
 
   // Word count + cursor for the status bar. Diagnostics no longer computed here —
   // they arrive from the facade.
@@ -119,7 +137,8 @@ export function Editor({
         cursorContext: () => adapter.getCursorContext(),
         format: (action) => adapter.format(action),
         resolveChange: (accept) => adapter.resolveChange(accept),
-        formatTable: () => adapter.formatTable()
+        formatTable: () => adapter.formatTable(),
+        insertImage: (alt, src) => adapter.insertImage(alt, src)
       }
     }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {
@@ -179,6 +198,40 @@ export function Editor({
   useEffect(() => {
     analysis.setDiagnosticsEnabled(diagnosticsEnabled)
   }, [diagnosticsEnabled, analysis])
+
+  // Resolve image paths relative to the active file's folder.
+  useEffect(() => {
+    adapterRef.current?.setAssetDir(assetDir ?? '')
+  }, [assetDir])
+
+  // Drag-and-drop image files → import into the project + insert Markdown.
+  useEffect(() => {
+    const host = hostRef.current
+    if (!host) return
+    const isImage = (f: File): boolean => /^image\//.test(f.type)
+    const onDrop = (e: DragEvent): void => {
+      const files = Array.from(e.dataTransfer?.files ?? []).filter(isImage)
+      if (!files.length) return
+      e.preventDefault()
+      const paths = files
+        .map((f) => (f as File & { path?: string }).path)
+        .filter((p): p is string => !!p)
+      if (paths.length) onImageDroppedRef.current?.(paths)
+    }
+    const onDragOver = (e: DragEvent): void => {
+      if (
+        Array.from(e.dataTransfer?.items ?? []).some((i) => i.type.startsWith('image/'))
+      ) {
+        e.preventDefault()
+      }
+    }
+    host.addEventListener('drop', onDrop)
+    host.addEventListener('dragover', onDragOver)
+    return () => {
+      host.removeEventListener('drop', onDrop)
+      host.removeEventListener('dragover', onDragOver)
+    }
+  }, [])
 
   return <div ref={hostRef} className="editor-host" />
 }
