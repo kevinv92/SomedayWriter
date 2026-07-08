@@ -151,6 +151,9 @@ export type AppSettings = {
   /** Focus mode (Phase 8 M22) — dims chrome to a calm reading column.
    * Applied as `data-focus` on `<html>`. Default false. */
   focusMode?: boolean
+  /** Vim keybindings on/off — a personal editing preference, persisted globally
+   * so it (and the line-number gutter) survives across sessions. Default false. */
+  vim?: boolean
 }
 
 /** A story entity from `StoryIndex` (Phase 5) — a profile file (`type` in its

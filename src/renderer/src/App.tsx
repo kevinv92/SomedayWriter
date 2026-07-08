@@ -530,6 +530,7 @@ export default function App() {
       if (settings.accent) setAccent(settings.accent)
       if (settings.focusMode) setFocusMode(settings.focusMode)
       if (settings.userThemes) setUserThemes(settings.userThemes)
+      if (settings.vim) setVim(settings.vim)
       allPinsRef.current = settings.pins ?? {}
       const last = settings.recentProjects[0]
       if (last) await openRecent(last.path)
@@ -580,6 +581,11 @@ export default function App() {
     setFocusMode(next)
     void window.api.updateSettings({ focusMode: next })
   }, [focusMode])
+  const toggleVim = useCallback(() => {
+    const next = !vim
+    setVim(next)
+    void window.api.updateSettings({ vim: next })
+  }, [vim])
 
   // --- explorer file operations (M4) ---
 
@@ -811,7 +817,9 @@ export default function App() {
         : '46rem'
   const editorStyle = {
     '--editor-measure': measureVar,
-    '--editor-font': fontStack(ed?.font),
+    // Fall back to the theme's reading font (so a theme like Terminal can retint
+    // the prose to mono); an explicit project editor.font still wins.
+    '--editor-font': ed?.font ? fontStack(ed.font) : 'var(--font-reading)',
     '--editor-font-size': ed?.fontSize ? `${ed.fontSize}px` : '16px',
     '--editor-line-height': ed?.lineHeight ? String(ed.lineHeight) : '1.7'
   } as CSSProperties
@@ -894,7 +902,7 @@ export default function App() {
     {
       id: 'toggle-vim',
       title: `Toggle Vim (${vim ? 'on' : 'off'})`,
-      run: () => setVim((v) => !v)
+      run: () => toggleVim()
     },
     {
       id: 'toggle-diagnostics',
@@ -1071,7 +1079,7 @@ export default function App() {
                   <div className="menu-pop__label">Editor</div>
                   {(
                     [
-                      ['Vim keys', vim, () => setVim((v) => !v)],
+                      ['Vim keys', vim, toggleVim],
                       ['Diagnostics', diagnostics, () => setDiagnostics((v) => !v)],
                       ['Autosave', autosave, () => setAutosave((v) => !v)]
                     ] as [string, boolean, () => void][]
