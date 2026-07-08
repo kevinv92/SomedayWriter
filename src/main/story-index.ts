@@ -62,10 +62,9 @@ export async function buildEntities(root: string, ignore: string[]): Promise<Ent
   return entities.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Every place `entity`'s surface forms (name or any alias) appear in the
- * project, as whole-word matches. Plain-name detection + `@{surface}` mentions.
- * v1 links every unambiguous surface form; genuinely ambiguous ones are left to
- * a later pass. */
+/** Every place `entity` is mentioned in the project. Mentions are explicit
+ * `@{surface}` references (a surface being the entity's name or any alias) —
+ * plain prose text is never auto-linked, so there are no false positives. */
 export async function referencesTo(
   entity: Entity,
   root: string,
@@ -73,12 +72,9 @@ export async function referencesTo(
 ): Promise<EntityRef[]> {
   const surfaces = [entity.name, ...entity.aliases].filter(Boolean)
   if (!surfaces.length) return []
-  // Longest first so "Mara Venn" wins over "Mara" at the same spot.
+  // Longest first so "@{Mara Venn}" wins over "@{Mara}" at the same spot.
   surfaces.sort((a, b) => b.length - a.length)
-  const re = new RegExp(
-    `(?<![\\w])(?:${surfaces.map(escapeRegExp).join('|')})(?![\\w])`,
-    'g'
-  )
+  const re = new RegExp(`@\\{(?:${surfaces.map(escapeRegExp).join('|')})\\}`, 'g')
 
   const files = await listMarkdownFiles(root, ignore)
   const refs: EntityRef[] = []
@@ -136,14 +132,12 @@ function detectMentions(
   }
   const surfaces = [...owner.keys()].sort((a, b) => b.length - a.length)
   if (!surfaces.length) return []
-  const re = new RegExp(
-    `(?<![\\w])(?:${surfaces.map(escapeRegExp).join('|')})(?![\\w])`,
-    'g'
-  )
+  // Explicit `@{surface}` mentions only — no bare-text auto-linking.
+  const re = new RegExp(`@\\{(${surfaces.map(escapeRegExp).join('|')})\\}`, 'g')
   const counts = new Map<string, { entity: Entity; count: number }>()
   let m: RegExpExecArray | null
   while ((m = re.exec(body)) !== null) {
-    const entity = owner.get(m[0])
+    const entity = owner.get(m[1])
     if (!entity) continue
     const seen = counts.get(entity.id)
     if (seen) seen.count++

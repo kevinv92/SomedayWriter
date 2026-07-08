@@ -19,7 +19,7 @@ const MARKDOWN: Row[] = [
 const WRITER: Row[] = [
   {
     syntax: '@{Mara}',
-    desc: 'Mention an entity (or just type its name). ⌘/Ctrl-click a mention to jump to its profile.'
+    desc: 'Mention an entity — type @ and pick from the list. ⌘/Ctrl-click a mention to jump to its profile.'
   },
   { syntax: '%% note %%', desc: 'A private note — dimmed in the editor, just for you.' },
   {
