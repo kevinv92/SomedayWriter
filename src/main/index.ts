@@ -139,7 +139,11 @@ async function offerCreateProject(
     ? await dialog.showMessageBox(win, box)
     : await dialog.showMessageBox(box)
   if (response !== 0) return { ok: false, reason: 'cancelled' }
+  return initProject(root)
+}
 
+/** Write a default `project.json` into `root` and open it. */
+async function initProject(root: string): Promise<OpenProjectResult> {
   try {
     const config = defaultProjectConfig(basename(root))
     await writeProjectConfig(root, config)
@@ -149,6 +153,26 @@ async function offerCreateProject(
   } catch (err) {
     return { ok: false, reason: 'invalid-config', root, message: messageOf(err) }
   }
+}
+
+/** Explicit "New Project": pick/create a folder, then initialise a project there
+ * (or just open it if it's already one). No extra confirm — the user chose new. */
+async function createProject(): Promise<OpenProjectResult> {
+  const win = BrowserWindow.getFocusedWindow()
+  const opts: OpenDialogOptions = {
+    properties: ['openDirectory', 'createDirectory'],
+    buttonLabel: 'Create Project'
+  }
+  const result = win
+    ? await dialog.showOpenDialog(win, opts)
+    : await dialog.showOpenDialog(opts)
+  if (result.canceled || result.filePaths.length === 0) {
+    return { ok: false, reason: 'cancelled' }
+  }
+  const root = result.filePaths[0]
+  const existing = await openProjectPath(root)
+  if (existing.ok || existing.reason === 'invalid-config') return existing
+  return initProject(root)
 }
 
 /** Open a known folder path as a project (no dialog). Used by "open recent" and
@@ -202,6 +226,8 @@ function registerIpc(): void {
   ipcMain.handle('ping', () => 'pong')
 
   ipcMain.handle('project:open', (): Promise<OpenProjectResult> => openProject())
+
+  ipcMain.handle('project:new', (): Promise<OpenProjectResult> => createProject())
 
   ipcMain.handle('project:openPath', (_e, root: string): Promise<OpenProjectResult> =>
     openProjectPath(root)

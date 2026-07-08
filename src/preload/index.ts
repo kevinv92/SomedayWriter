@@ -25,6 +25,7 @@ const api = {
 
   /** Prompt for a folder and open it as a project (reads `project.json`). */
   openProject: (): Promise<OpenProjectResult> => ipcRenderer.invoke('project:open'),
+  newProject: (): Promise<OpenProjectResult> => ipcRenderer.invoke('project:new'),
 
   /** Open a known project folder by path (recent projects). */
   openRecent: (path: string): Promise<OpenProjectResult> =>

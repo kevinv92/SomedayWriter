@@ -2,12 +2,12 @@
 order: 10
 type: character
 name: Mara
-aliases: [Mara Venn, the courier]
+aliases: [Mara Veron, the courier]
 ---
 
 # Mara
 
-A dockside courier who knows every alley in Harborwick. Sharp, guarded, and
+A dockside courier who knows every alley in @{harbor}. Sharp, guarded, and
 quietly loyal to the people the city has forgotten. Introduced in
 [Arrival](../manuscript/01-arrival.md).
 

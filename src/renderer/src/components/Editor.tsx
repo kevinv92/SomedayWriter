@@ -17,11 +17,15 @@ export interface EditorHandle {
   cursorContext(): { lineText: string; column: number } | null
   /** Apply a Markdown formatting action to the current selection (toolbar). */
   format(action: FormatAction): void
+  /** Accept/reject the tracked change under the cursor. */
+  resolveChange(accept: boolean): void
 }
 
 interface EditorProps {
   doc: EditorDoc
   vimEnabled: boolean
+  /** Vim j/k move by display line (gj/gk) — for wrapped prose. */
+  vimWrapMotion: boolean
   diagnosticsEnabled: boolean
   /** The analysis facade — supplies completions (pull) and diagnostics (push).
    * The editor never talks to a provider directly (SPEC seam). */
@@ -44,6 +48,12 @@ interface EditorProps {
   /** Go-to-definition: fired on Cmd/Ctrl+click with the clicked line's text and
    * 1-based column. App resolves the entity (StoryIndex) and opens its profile. */
   onGoToDefinition?: (lineText: string, column: number) => void
+  /** Resolve a mention's char range at (lineText, 1-based column) — drives the
+   * ⌘/Ctrl-hover "clickable" underline. */
+  onResolveMention?: (
+    lineText: string,
+    column: number
+  ) => { from: number; to: number } | null
   /** Filled with an imperative handle so App can read the cursor for a
    * palette-triggered go-to-definition (see EditorHandle). */
   handleRef?: RefObject<EditorHandle | null>
@@ -52,6 +62,7 @@ interface EditorProps {
 export function Editor({
   doc,
   vimEnabled,
+  vimWrapMotion,
   diagnosticsEnabled,
   analysis,
   onStatus,
@@ -59,6 +70,7 @@ export function Editor({
   onDocChange,
   revealTarget,
   onGoToDefinition,
+  onResolveMention,
   handleRef
 }: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -67,6 +79,7 @@ export function Editor({
   const onVimModeRef = useRef(onVimMode)
   const onDocChangeRef = useRef(onDocChange)
   const onGoToDefinitionRef = useRef(onGoToDefinition)
+  const onResolveMentionRef = useRef(onResolveMention)
   const docUriRef = useRef(doc.uri)
 
   // Keep the latest callbacks without re-subscribing the editor.
@@ -75,7 +88,8 @@ export function Editor({
     onVimModeRef.current = onVimMode
     onDocChangeRef.current = onDocChange
     onGoToDefinitionRef.current = onGoToDefinition
-  }, [onStatus, onVimMode, onDocChange, onGoToDefinition])
+    onResolveMentionRef.current = onResolveMention
+  }, [onStatus, onVimMode, onDocChange, onGoToDefinition, onResolveMention])
 
   // Word count + cursor for the status bar. Diagnostics no longer computed here —
   // they arrive from the facade.
@@ -95,10 +109,14 @@ export function Editor({
     adapter.setGoToDefinition((ctx) =>
       onGoToDefinitionRef.current?.(ctx.lineText, ctx.column)
     )
+    adapter.setMentionResolver(
+      (lineText, column) => onResolveMentionRef.current?.(lineText, column) ?? null
+    )
     if (handleRef) {
       handleRef.current = {
         cursorContext: () => adapter.getCursorContext(),
-        format: (action) => adapter.format(action)
+        format: (action) => adapter.format(action),
+        resolveChange: (accept) => adapter.resolveChange(accept)
       }
     }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {
@@ -148,6 +166,11 @@ export function Editor({
   useEffect(() => {
     adapterRef.current?.setVimMode(vimEnabled)
   }, [vimEnabled])
+
+  // Display-line motion (gj/gk) preference.
+  useEffect(() => {
+    adapterRef.current?.setVimWrapMotion(vimWrapMotion)
+  }, [vimWrapMotion])
 
   // Diagnostics on/off is owned by the facade (off by default).
   useEffect(() => {

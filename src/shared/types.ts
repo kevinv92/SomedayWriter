@@ -161,6 +161,9 @@ export type AppSettings = {
   /** Vim keybindings on/off — a personal editing preference, persisted globally
    * so it (and the line-number gutter) survives across sessions. Default false. */
   vim?: boolean
+  /** Vim `j`/`k` move by display line (gj/gk) instead of logical line — better
+   * for wrapped prose. Persisted globally. Default true. */
+  vimWrapMotion?: boolean
 }
 
 /** A story entity from `StoryIndex` (Phase 5) — a profile file (`type` in its

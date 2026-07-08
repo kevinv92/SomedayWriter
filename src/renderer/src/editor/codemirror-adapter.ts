@@ -3,6 +3,8 @@ import {
   EditorSelection,
   EditorState,
   RangeSetBuilder,
+  StateEffect,
+  StateField,
   type Extension
 } from '@codemirror/state'
 import {
@@ -13,6 +15,7 @@ import {
   keymap,
   drawSelection,
   lineNumbers,
+  hoverTooltip,
   type DecorationSet,
   type ViewUpdate
 } from '@codemirror/view'
@@ -31,7 +34,7 @@ import {
   type CompletionResult
 } from '@codemirror/autocomplete'
 import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
-import { vim, getCM } from '@replit/codemirror-vim'
+import { vim, getCM, Vim } from '@replit/codemirror-vim'
 
 import type { EditorAdapter, FormatAction } from './editor-adapter'
 import type {
@@ -41,6 +44,27 @@ import type {
   EditorDoc,
   Range
 } from './types'
+
+// ⌘/Ctrl-hover "clickable mention" underline (Phase 5 affordance). A single-range
+// decoration driven by the adapter's mousemove handler.
+const setLinkMark = StateEffect.define<{ from: number; to: number } | null>()
+const linkHoverField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes)
+    for (const e of tr.effects) {
+      if (e.is(setLinkMark)) {
+        deco = e.value
+          ? Decoration.set([
+              Decoration.mark({ class: 'cm-link-hover' }).range(e.value.from, e.value.to)
+            ])
+          : Decoration.none
+      }
+    }
+    return deco
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
 
 /**
  * The one place that knows about CodeMirror. Implements the EditorAdapter seam.
@@ -58,6 +82,11 @@ class CodeMirrorAdapter implements EditorAdapter {
   private cmVimOff: (() => void) | null = null
   private goToDefinition: ((ctx: { lineText: string; column: number }) => void) | null =
     null
+  // ⌘/Ctrl-hover mention feedback: resolver → range, and the current linked range.
+  private mentionResolver:
+    ((lineText: string, column: number) => { from: number; to: number } | null) | null =
+    null
+  private linkRange: { from: number; to: number } | null = null
 
   mount(parent: HTMLElement): void {
     this.view = new EditorView({ state: this.buildState(''), parent })
@@ -140,6 +169,24 @@ class CodeMirrorAdapter implements EditorAdapter {
     this.goToDefinition = handler
   }
 
+  /** Register the resolver that maps a line + column to a mention's char range,
+   * used to underline it as clickable while ⌘/Ctrl is held. */
+  setMentionResolver(
+    resolver:
+      ((lineText: string, column: number) => { from: number; to: number } | null) | null
+  ): void {
+    this.mentionResolver = resolver
+  }
+
+  /** Clear any ⌘/Ctrl-hover link underline. */
+  private clearLink(view: EditorView): void {
+    view.dom.classList.remove('cm-linkable')
+    if (this.linkRange) {
+      this.linkRange = null
+      view.dispatch({ effects: setLinkMark.of(null) })
+    }
+  }
+
   setVimMode(enabled: boolean): void {
     this.vimEnabled = enabled
     this.requireView().dispatch({
@@ -152,6 +199,24 @@ class CodeMirrorAdapter implements EditorAdapter {
    * line numbers ride along so `:42` / `42G` jumps have visible targets. */
   private vimBundle(): Extension {
     return this.vimEnabled ? [vim(), lineNumbers()] : []
+  }
+
+  /** Make Vim `j`/`k` (and ↓/↑) move by display line (gj/gk) rather than logical
+   * line — better for wrapped prose. Vim maps are global, so this affects the
+   * editor whenever Vim is on. */
+  setVimWrapMotion(enabled: boolean): void {
+    const pairs: [string, string][] = [
+      ['j', 'gj'],
+      ['k', 'gk'],
+      ['<Down>', 'gj'],
+      ['<Up>', 'gk']
+    ]
+    for (const [lhs, rhs] of pairs) {
+      for (const mode of ['normal', 'visual'] as const) {
+        if (enabled) Vim.map(lhs, rhs, mode)
+        else Vim.unmap(lhs, mode)
+      }
+    }
   }
 
   /** Subscribe to Vim mode changes ('normal' | 'insert' | 'visual' | 'replace',
@@ -181,6 +246,15 @@ class CodeMirrorAdapter implements EditorAdapter {
         break
       case 'link':
         this.insertLink(view)
+        break
+      case 'comment':
+        this.insertComment(view)
+        break
+      case 'suggest-insert':
+        this.wrapPair(view, '{++', '++}')
+        break
+      case 'suggest-delete':
+        this.wrapPair(view, '{--', '--}')
         break
       case 'h1':
         this.linePrefix(view, '# ', /^#{1,6}\s+/)
@@ -262,6 +336,73 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.dispatch({ changes })
   }
 
+  /** Accept or reject the CriticMarkup change under the cursor (M25). Insertion:
+   * accept keeps the text, reject drops it; deletion is the inverse; substitution
+   * `{~~old~>new~~}` keeps new/old; a highlight unwraps; a comment is stripped. */
+  resolveChange(accept: boolean): void {
+    const view = this.requireView()
+    const { state } = view
+    const pos = state.selection.main.head
+    const line = state.doc.lineAt(pos)
+    const re = /\{==.*?==\}|\{>>.*?<<\}|\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(line.text)) !== null) {
+      const from = line.from + m.index
+      const to = from + m[0].length
+      if (pos < from || pos > to) continue
+      const s = m[0]
+      const inner = s.slice(3, -3)
+      let replacement = inner
+      if (s.startsWith('{++')) replacement = accept ? inner : ''
+      else if (s.startsWith('{--')) replacement = accept ? '' : inner
+      else if (s.startsWith('{~~')) {
+        const arrow = inner.indexOf('~>')
+        replacement =
+          arrow >= 0 ? (accept ? inner.slice(arrow + 2) : inner.slice(0, arrow)) : inner
+      } else if (s.startsWith('{>>')) replacement = ''
+      // {== highlight ==} keeps its inner text (unwrap) for both accept/reject.
+      view.dispatch({ changes: { from, to, insert: replacement } })
+      view.focus()
+      return
+    }
+  }
+
+  /** Wrap the selection with a distinct open/close pair; caret between them when
+   * nothing is selected. */
+  private wrapPair(view: EditorView, open: string, close: string): void {
+    const { state } = view
+    view.dispatch(
+      state.changeByRange((range) => {
+        const text = state.sliceDoc(range.from, range.to)
+        return {
+          changes: { from: range.from, to: range.to, insert: open + text + close },
+          range: EditorSelection.range(
+            range.from + open.length,
+            range.from + open.length + text.length
+          )
+        }
+      })
+    )
+  }
+
+  /** Attach a CriticMarkup comment (M23): `{==span==}{>>…<<}` around a selection,
+   * or a point comment `{>>…<<}`; the caret lands inside the comment. */
+  private insertComment(view: EditorView): void {
+    const { state } = view
+    view.dispatch(
+      state.changeByRange((range) => {
+        const text = state.sliceDoc(range.from, range.to)
+        const prefix = text ? `{==${text}==}{>>` : '{>>'
+        const insert = `${prefix}<<}`
+        const caret = range.from + prefix.length
+        return {
+          changes: { from: range.from, to: range.to, insert },
+          range: EditorSelection.range(caret, caret)
+        }
+      })
+    )
+  }
+
   /** Insert a `[text](url)` link around the selection and select the `url` part. */
   private insertLink(view: EditorView): void {
     const { state } = view
@@ -336,6 +477,9 @@ class CodeMirrorAdapter implements EditorAdapter {
         markdown(),
         syntaxHighlighting(proseHighlightStyle),
         notesPlugin,
+        criticPlugin,
+        criticHover,
+        threadMarkerPlugin,
         frontmatterPlugin,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
@@ -360,6 +504,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         // Cmd/Ctrl+click a mention → go-to-definition (VS Code's gesture). We
         // hand the clicked line + column to the registered resolver, which owns
         // the StoryIndex lookup and opens the profile.
+        linkHoverField,
         EditorView.domEventHandlers({
           mousedown: (event, view) => {
             if (!this.goToDefinition || !(event.metaKey || event.ctrlKey)) return false
@@ -369,6 +514,36 @@ class CodeMirrorAdapter implements EditorAdapter {
             event.preventDefault()
             this.goToDefinition({ lineText: line.text, column: pos - line.from + 1 })
             return true
+          },
+          // ⌘/Ctrl-hover a mention → show it as clickable (underline + pointer).
+          mousemove: (event, view) => {
+            if (!(event.metaKey || event.ctrlKey) || !this.mentionResolver) {
+              this.clearLink(view)
+              return false
+            }
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+            if (pos == null) return false
+            const line = view.state.doc.lineAt(pos)
+            const r = this.mentionResolver(line.text, pos - line.from + 1)
+            if (!r) {
+              this.clearLink(view)
+              return false
+            }
+            const abs = { from: line.from + r.from, to: line.from + r.to }
+            if (this.linkRange?.from === abs.from && this.linkRange?.to === abs.to)
+              return false
+            this.linkRange = abs
+            view.dom.classList.add('cm-linkable')
+            view.dispatch({ effects: setLinkMark.of(abs) })
+            return false
+          },
+          keyup: (event, view) => {
+            if (!event.metaKey && !event.ctrlKey) this.clearLink(view)
+            return false
+          },
+          mouseleave: (_event, view) => {
+            this.clearLink(view)
+            return false
           }
         }),
         proseTheme
@@ -447,6 +622,88 @@ const notesPlugin = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations }
 )
+
+/**
+ * Editorial marks (Phase 9, M23) — CriticMarkup, in plain text so it survives
+ * anywhere: `{==span==}` highlights a span and `{>>comment<<}` anchors a comment
+ * (rendered de-emphasised; the full text hovers). Both edit in source and are
+ * stripped on export. Reuses the notes-decoration pattern.
+ */
+const CRITIC_CLASS: Record<string, string> = {
+  '{==': 'cm-critic-highlight',
+  '{>>': 'cm-critic-comment',
+  '{++': 'cm-critic-insert',
+  '{--': 'cm-critic-delete',
+  '{~~': 'cm-critic-subst'
+}
+
+const criticMatcher = new MatchDecorator({
+  regexp: /\{==.*?==\}|\{>>.*?<<\}|\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}/g,
+  decoration: (match) =>
+    Decoration.mark({ class: CRITIC_CLASS[match[0].slice(0, 3)] ?? 'cm-critic-comment' })
+})
+
+const criticPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = criticMatcher.createDeco(view)
+    }
+    update(update: ViewUpdate) {
+      this.decorations = criticMatcher.updateDeco(update, this.decorations)
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+/**
+ * Inline thread markers (Phase 9, M25b) — `<!-- thread:x -->…<!-- /thread -->`
+ * scope part of a scene to a thread. De-emphasised like HTML comments; the story
+ * index reads them so the scene joins that thread (see `parseInlineThreadTags`).
+ */
+const threadMarkerMatcher = new MatchDecorator({
+  regexp: /<!--\s*\/?thread(?::[\w-]+)?\s*-->/g,
+  decoration: Decoration.mark({ class: 'cm-thread-marker' })
+})
+
+const threadMarkerPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = threadMarkerMatcher.createDeco(view)
+    }
+    update(update: ViewUpdate) {
+      this.decorations = threadMarkerMatcher.updateDeco(update, this.decorations)
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+/** Hover a `{>>comment<<}` to read the comment on its own, without the syntax. */
+const criticHover = hoverTooltip((view, pos) => {
+  const line = view.state.doc.lineAt(pos)
+  const re = /\{>>(.*?)<<\}/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(line.text)) !== null) {
+    const from = line.from + m.index
+    const to = from + m[0].length
+    if (pos >= from && pos <= to) {
+      const text = m[1].trim()
+      return {
+        pos: from,
+        end: to,
+        above: true,
+        create: () => {
+          const dom = document.createElement('div')
+          dom.className = 'cm-comment-tooltip'
+          dom.textContent = text || '(empty comment)'
+          return { dom }
+        }
+      }
+    }
+  }
+  return null
+})
 
 /**
  * A leading `---` … `---` block is YAML frontmatter, but the Markdown parser
@@ -551,6 +808,9 @@ const proseTheme = EditorView.theme({
     maxWidth: 'var(--editor-measure, 46rem)',
     margin: '0 auto',
     padding: '2.5rem 1.5rem 40vh',
+    // A very subtle "sheet" tint so the reading column (line length) is visible
+    // against the pane. Derived from the text colour → works in every theme.
+    backgroundColor: 'color-mix(in oklch, var(--fg) 3%, transparent)',
     // Follow the theme so the caret is visible on both light and dark bg.
     caretColor: 'var(--fg)'
   },
@@ -637,6 +897,14 @@ const proseTheme = EditorView.theme({
     boxShadow: 'var(--shadow-popup)'
   },
   '.cm-tooltip.cm-tooltip-lint': { padding: '0' },
+  '.cm-comment-tooltip': {
+    maxWidth: '22rem',
+    padding: 'var(--space-3) var(--space-4)',
+    fontFamily: 'var(--font-ui)',
+    fontSize: 'var(--text-sm)',
+    lineHeight: 'var(--leading-snug)',
+    color: 'var(--fg)'
+  },
   '.cm-diagnostic': {
     color: 'var(--fg)',
     padding: 'var(--space-2) var(--space-3)',
@@ -686,6 +954,49 @@ const proseTheme = EditorView.theme({
     lineHeight: '1.35 !important',
     color: 'var(--muted) !important',
     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace !important'
+  },
+  // Editorial marks (M23). Highlight span: a warm marker; comment: dimmed accent.
+  '.cm-critic-highlight': {
+    backgroundColor: 'var(--highlight)',
+    borderRadius: '2px'
+  },
+  '.cm-critic-comment': {
+    color: 'var(--accent)',
+    backgroundColor: 'var(--accent-soft)',
+    borderRadius: '3px',
+    padding: '0 2px',
+    fontSize: '0.9em'
+  },
+  // Tracked changes (M25): suggested insert / delete / substitute.
+  '.cm-critic-insert': {
+    color: 'var(--success)',
+    textDecoration: 'underline',
+    textDecorationColor: 'color-mix(in oklch, var(--success) 60%, transparent)'
+  },
+  '.cm-critic-delete': {
+    color: 'var(--danger)',
+    textDecoration: 'line-through',
+    textDecorationColor: 'color-mix(in oklch, var(--danger) 60%, transparent)'
+  },
+  '.cm-critic-subst': {
+    color: 'var(--warning)',
+    backgroundColor: 'color-mix(in oklch, var(--warning) 12%, transparent)',
+    borderRadius: '3px'
+  },
+  // ⌘/Ctrl-hover a mention → it reads as a clickable link.
+  '.cm-link-hover': {
+    color: 'var(--accent)',
+    textDecoration: 'underline',
+    textDecorationColor: 'var(--accent)',
+    cursor: 'pointer'
+  },
+  '&.cm-linkable .cm-content': { cursor: 'pointer' },
+  // Inline thread markers (M25b): a quiet structural tag, not prose.
+  '.cm-thread-marker': {
+    color: 'var(--accent)',
+    opacity: '0.7',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.85em'
   },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {

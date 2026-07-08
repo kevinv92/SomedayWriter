@@ -23,6 +23,14 @@ const WRITER: Row[] = [
   },
   { syntax: '%% note %%', desc: 'A private note — dimmed in the editor, just for you.' },
   {
+    syntax: '{>>comment<<}',
+    desc: 'An editorial comment (hover to read it). Wrap a span with {==…==} to anchor it. Stripped on export.'
+  },
+  {
+    syntax: '{++insert++} {--delete--}',
+    desc: 'Suggested edits (tracked changes). {~~old~>new~~} substitutes. Accept/Reject at cursor from the palette.'
+  },
+  {
     syntax: 'type: character',
     desc: 'Frontmatter (in the --- block at the top): marks a file as an entity.'
   },
@@ -31,7 +39,11 @@ const WRITER: Row[] = [
     syntax: 'threads: [rebellion, romance]',
     desc: 'Storylines a scene belongs to (see the Threads panel).'
   },
-  { syntax: 'order: 10', desc: 'Manuscript position of a scene.' }
+  { syntax: 'order: 10', desc: 'Manuscript position of a scene.' },
+  {
+    syntax: '<!-- thread:rebellion -->',
+    desc: 'Inline marker — also joins this scene to a thread (scope a span with a matching <!-- /thread -->).'
+  }
 ]
 
 function Table({ title, rows }: { title: string; rows: Row[] }) {

@@ -15,6 +15,7 @@ import {
   UnsavedChangesModal
 } from './components/Modal'
 import { BraidView } from './components/BraidView'
+import { CommentsPanel } from './components/CommentsPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
@@ -40,7 +41,7 @@ import { BUILTIN_THEME_OPTIONS, resolveTheme, tokenProp } from './lib/theme'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
-import { entityAt } from './lib/mentions'
+import { entityAt, mentionRangeAt } from './lib/mentions'
 
 type Reveal = { line: number; column: number; endColumn?: number }
 
@@ -95,6 +96,10 @@ export default function App() {
   const [companionOpen, setCompanionOpen] = useState(false)
   const [threadsOpen, setThreadsOpen] = useState(false)
   const [braidOpen, setBraidOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  // Live text of the active file, tracked only while the Comments panel is open
+  // (so it stays live as you type) — avoids per-keystroke App renders otherwise.
+  const [docText, setDocText] = useState('')
   // Bumped after a save / entity change so the disk-based Inspector + Companion
   // re-read the active file.
   const [inspectorRefresh, setInspectorRefresh] = useState(0)
@@ -111,6 +116,8 @@ export default function App() {
     null
   )
   const [vim, setVim] = useState(false)
+  // Vim j/k move by display line (gj/gk) — better for wrapped prose. Default on.
+  const [vimWrapMotion, setVimWrapMotion] = useState(true)
   // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
   // when Vim is off) — drives the status-bar mode chip + mode-coloured cursor.
   const [vimMode, setVimMode] = useState('')
@@ -134,6 +141,8 @@ export default function App() {
   })
 
   const docsRef = useRef(new Map<string, OpenBuffer>())
+  // Whether the Comments panel is open, read inside the stable doc-change handler.
+  const commentsOpenRef = useRef(false)
   const revealNonce = useRef(0)
   const didInit = useRef(false)
   // Live handle onto the editor, for palette-driven go-to-definition (reads the
@@ -353,9 +362,19 @@ export default function App() {
       if (!buffer) return
       buffer.current = text
       markDirty(activePath, text !== buffer.saved)
+      if (commentsOpenRef.current) setDocText(text)
     },
     [activePath, markDirty]
   )
+
+  // Keep the Comments panel's text current: seed it when the panel opens or the
+  // file switches; live edits flow in via handleDocChange while it's open.
+  useEffect(() => {
+    commentsOpenRef.current = commentsOpen
+    if (commentsOpen && activePath) {
+      setDocText(docsRef.current.get(activePath)?.current ?? activeLoadText)
+    }
+  }, [commentsOpen, activePath, activeLoadText])
 
   const saveTab = useCallback(
     async (path: string): Promise<boolean> => {
@@ -488,6 +507,10 @@ export default function App() {
     await applyOpenResult(await window.api.openProject())
   }, [applyOpenResult])
 
+  const newProject = useCallback(async () => {
+    await applyOpenResult(await window.api.newProject())
+  }, [applyOpenResult])
+
   const openRecent = useCallback(
     async (path: string) => {
       await applyOpenResult(await window.api.openRecent(path))
@@ -555,6 +578,7 @@ export default function App() {
       if (settings.focusMode) setFocusMode(settings.focusMode)
       if (settings.userThemes) setUserThemes(settings.userThemes)
       if (settings.vim) setVim(settings.vim)
+      if (settings.vimWrapMotion !== undefined) setVimWrapMotion(settings.vimWrapMotion)
       allPinsRef.current = settings.pins ?? {}
       allExplorerPinsRef.current = settings.explorerPins ?? {}
       const last = settings.recentProjects[0]
@@ -611,6 +635,11 @@ export default function App() {
     setVim(next)
     void window.api.updateSettings({ vim: next })
   }, [vim])
+  const toggleVimWrapMotion = useCallback(() => {
+    const next = !vimWrapMotion
+    setVimWrapMotion(next)
+    void window.api.updateSettings({ vimWrapMotion: next })
+  }, [vimWrapMotion])
 
   // --- explorer file operations (M4) ---
 
@@ -807,10 +836,18 @@ export default function App() {
     return (
       <div className="welcome">
         <h1>writer-gui</h1>
-        <p>Open a folder with a project.json — or any folder to start a new project.</p>
-        <button className="welcome__open" onClick={() => void openProject()}>
-          Open Project…
-        </button>
+        <p>Start a new project, or open an existing folder.</p>
+        <div className="welcome__actions">
+          <button className="welcome__open" onClick={() => void newProject()}>
+            New Project…
+          </button>
+          <button
+            className="welcome__open welcome__open--ghost"
+            onClick={() => void openProject()}
+          >
+            Open Project…
+          </button>
+        </div>
         {recents.length > 0 && (
           <div className="welcome__recents">
             <div className="welcome__recents-title">Recent projects</div>
@@ -852,7 +889,26 @@ export default function App() {
   // Command registry (SPEC → command palette). Declared once here; the palette,
   // and later menus/keybindings, draw from it.
   const commands: QuickCommand[] = [
+    { id: 'new-project', title: 'New Project…', run: () => void newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
+    {
+      id: 'format-bold',
+      title: 'Bold',
+      hint: '⌘B',
+      run: () => editorHandle.current?.format('bold')
+    },
+    {
+      id: 'format-italic',
+      title: 'Italic',
+      hint: '⌘I',
+      run: () => editorHandle.current?.format('italic')
+    },
+    {
+      id: 'format-link',
+      title: 'Insert Link',
+      hint: '⌘K',
+      run: () => editorHandle.current?.format('link')
+    },
     {
       id: 'new-file',
       title: 'New File',
@@ -965,6 +1021,31 @@ export default function App() {
       run: () => toggleFocus()
     },
     {
+      id: 'add-comment',
+      title: 'Add Comment',
+      run: () => editorHandle.current?.format('comment')
+    },
+    {
+      id: 'suggest-delete',
+      title: 'Suggest Deletion (track change)',
+      run: () => editorHandle.current?.format('suggest-delete')
+    },
+    {
+      id: 'suggest-insert',
+      title: 'Suggest Insertion (track change)',
+      run: () => editorHandle.current?.format('suggest-insert')
+    },
+    {
+      id: 'accept-change',
+      title: 'Accept Change at Cursor',
+      run: () => editorHandle.current?.resolveChange(true)
+    },
+    {
+      id: 'reject-change',
+      title: 'Reject Change at Cursor',
+      run: () => editorHandle.current?.resolveChange(false)
+    },
+    {
       id: 'syntax-reference',
       title: 'Markdown & Syntax Reference',
       run: () => setHelpOpen(true)
@@ -1039,6 +1120,7 @@ export default function App() {
                       ['Companion', companionOpen, () => setCompanionOpen((v) => !v)],
                       ['Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
                       ['Thread braid', braidOpen, () => setBraidOpen((v) => !v)],
+                      ['Comments', commentsOpen, () => setCommentsOpen((v) => !v)],
                       ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) => (
@@ -1128,6 +1210,20 @@ export default function App() {
                       {label}
                     </button>
                   ))}
+                  {vim && (
+                    <button
+                      className="menu-pop__row"
+                      role="menuitemcheckbox"
+                      aria-checked={vimWrapMotion}
+                      onClick={() => {
+                        toggleVimWrapMotion()
+                        setMenuOpen(null)
+                      }}
+                    >
+                      <span className="menu-pop__check">{vimWrapMotion ? '✓' : ''}</span>
+                      Wrapped-line motion (j/k)
+                    </button>
+                  )}
 
                   <div className="menu-pop__sep" />
                   <button
@@ -1341,6 +1437,13 @@ export default function App() {
                     <Icon name="link" size={15} />
                   </button>
                   <button
+                    className="fmt fmt--icon"
+                    title="Add comment (editorial note, stripped on export)"
+                    onClick={() => editorHandle.current?.format('comment')}
+                  >
+                    <Icon name="comment" size={15} />
+                  </button>
+                  <button
                     className="fmt fmt--help"
                     title="Markdown & syntax reference"
                     onClick={() => setHelpOpen(true)}
@@ -1353,6 +1456,7 @@ export default function App() {
                 <Editor
                   doc={doc}
                   vimEnabled={vim}
+                  vimWrapMotion={vimWrapMotion}
                   diagnosticsEnabled={diagnostics}
                   analysis={analysis}
                   onStatus={setStatus}
@@ -1360,6 +1464,9 @@ export default function App() {
                   onDocChange={handleDocChange}
                   revealTarget={revealTarget}
                   onGoToDefinition={goToDefinition}
+                  onResolveMention={(lineText, column) =>
+                    mentionRangeAt(lineText, column, entities)
+                  }
                   handleRef={editorHandle}
                 />
               ) : (
@@ -1427,6 +1534,14 @@ export default function App() {
           />
         )}
 
+        {commentsOpen && (
+          <CommentsPanel
+            text={docText}
+            onJump={(line, column) => fireReveal({ line, column })}
+            onClose={() => setCommentsOpen(false)}
+          />
+        )}
+
         {/* Panel rail — switch the right-pane panels from the pane itself. */}
         <nav className="rail" aria-label="Panels">
           {(
@@ -1439,6 +1554,7 @@ export default function App() {
                 () => setCompanionOpen((v) => !v)
               ],
               ['Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
+              ['Comments', 'comment', commentsOpen, () => setCommentsOpen((v) => !v)],
               ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)]
             ] as [string, string, boolean, () => void][]
           ).map(([label, icon, on, toggle]) => (

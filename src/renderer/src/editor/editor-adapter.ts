@@ -27,6 +27,9 @@ export type FormatAction =
   | 'strike'
   | 'code'
   | 'link'
+  | 'comment'
+  | 'suggest-insert'
+  | 'suggest-delete'
   | 'h1'
   | 'h2'
   | 'quote'
@@ -78,7 +81,18 @@ export interface EditorAdapter {
     handler: ((ctx: { lineText: string; column: number }) => void) | null
   ): void
 
+  /** Register a resolver mapping (lineText, 1-based column) → the mention's char
+   * range, used to underline it as clickable while ⌘/Ctrl is held. Pass null to
+   * clear. */
+  setMentionResolver(
+    resolver:
+      ((lineText: string, column: number) => { from: number; to: number } | null) | null
+  ): void
+
   setVimMode(enabled: boolean): void
+
+  /** Vim `j`/`k` move by display line (gj/gk) instead of logical line. */
+  setVimWrapMotion(enabled: boolean): void
 
   /** Subscribe to Vim mode changes: 'normal' | 'insert' | 'visual' | 'replace',
    * or '' when Vim is off. Returns an unsubscribe fn. */
@@ -86,6 +100,9 @@ export interface EditorAdapter {
 
   /** Apply a Markdown formatting action to the current selection. */
   format(action: FormatAction): void
+
+  /** Accept (true) or reject (false) the tracked change under the cursor. */
+  resolveChange(accept: boolean): void
 
   dispose(): void
 }

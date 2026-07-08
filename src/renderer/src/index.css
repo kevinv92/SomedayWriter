@@ -838,6 +838,11 @@ body {
   margin: 0;
 }
 
+.welcome__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
 .welcome__open {
   font: inherit;
   padding: 0.5rem 1rem;
@@ -846,6 +851,16 @@ body {
   background: var(--accent);
   color: var(--accent-fg);
   cursor: pointer;
+}
+
+.welcome__open--ghost {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.welcome__open--ghost:hover {
+  border-color: var(--accent);
 }
 
 .welcome__notice {
@@ -914,6 +929,61 @@ body {
 }
 
 /* --- editor --- */
+/* Comments panel (M24) — editorial comments in the current file. */
+.comment-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-bottom: 1px solid var(--divider);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.comment-item:hover {
+  background: var(--bg-2);
+}
+
+.comment-item__icon {
+  color: var(--accent);
+  flex: none;
+  margin-top: 1px;
+}
+
+.comment-item__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.comment-item__text {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+}
+
+.comment-item__span {
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.comment-item__line {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-4);
+}
+
 /* Markdown & syntax reference (cheat sheet). */
 .syntax-help {
   width: min(680px, calc(100vw - 2rem));
