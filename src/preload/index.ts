@@ -102,6 +102,14 @@ const api = {
   /** The project-wide thread model — membership + per-thread order (M9). */
   storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads'),
   storyHealth: (): Promise<EntityRef[]> => ipcRenderer.invoke('story:health'),
+  countMentions: (surface: string): Promise<{ count: number; files: number }> =>
+    ipcRenderer.invoke('story:countMentions', surface),
+  renameMentions: (
+    from: string,
+    to: string,
+    skip: string[]
+  ): Promise<{ changed: string[]; skipped: string[]; count: number }> =>
+    ipcRenderer.invoke('story:renameMentions', from, to, skip),
 
   /** Drop the cached story index so external file changes are re-read. */
   refreshIndex: (): Promise<void> => ipcRenderer.invoke('story:refresh')

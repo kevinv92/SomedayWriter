@@ -148,6 +148,70 @@ export async function deadReferences(
   return out
 }
 
+/** Count `@{surface}` mentions across the project (for the rename-refactor
+ * preview): total occurrences and how many files contain them. */
+export async function countMentions(
+  root: string,
+  ignore: string[],
+  surface: string
+): Promise<{ count: number; files: number }> {
+  const re = new RegExp(`@\\{${escapeRegExp(surface)}\\}`, 'g')
+  const files = await listMarkdownFiles(root, ignore)
+  let count = 0
+  let fileCount = 0
+  for (const path of files) {
+    let text: string
+    try {
+      text = await fs.readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const matches = text.match(re)
+    if (matches) {
+      count += matches.length
+      fileCount++
+    }
+  }
+  return { count, files: fileCount }
+}
+
+/** Rewrite every `@{from}` mention to `@{to}` across the project (the alias
+ * rename refactor). `skip` paths (open + unsaved) are reported, not written, so
+ * the caller can handle them without clobbering unsaved edits. */
+export async function renameMentions(
+  root: string,
+  ignore: string[],
+  from: string,
+  to: string,
+  skip: string[]
+): Promise<{ changed: string[]; skipped: string[]; count: number }> {
+  const re = new RegExp(`@\\{${escapeRegExp(from)}\\}`, 'g')
+  const replacement = `@{${to}}`
+  const skipSet = new Set(skip)
+  const files = await listMarkdownFiles(root, ignore)
+  const changed: string[] = []
+  const skipped: string[] = []
+  let count = 0
+  for (const path of files) {
+    let text: string
+    try {
+      text = await fs.readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const matches = text.match(re)
+    if (!matches) continue
+    if (skipSet.has(path)) {
+      skipped.push(path)
+      continue
+    }
+    await fs.writeFile(path, text.replace(re, replacement), 'utf8')
+    changed.push(path)
+    count += matches.length
+  }
+  return { changed, skipped, count }
+}
+
 function stringListWarnings(data: Record<string, unknown>, key: string): string[] {
   const value = data[key]
   if (value === undefined) return []

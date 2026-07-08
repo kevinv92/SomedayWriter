@@ -43,6 +43,7 @@ import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
 import { entityAt, mentionRangeAt } from './lib/mentions'
+import { parseEntityHead, detectRename, type EntityHead } from './lib/rename'
 
 type Reveal = { line: number; column: number; endColumn?: number }
 
@@ -99,6 +100,13 @@ export default function App() {
   const [braidOpen, setBraidOpen] = useState(false)
   const [commentsOpen, setCommentsOpen] = useState(false)
   const [healthOpen, setHealthOpen] = useState(false)
+  // Pending alias-rename offer (a debounced frontmatter edit renamed a surface).
+  const [renamePrompt, setRenamePrompt] = useState<{
+    from: string
+    to: string
+    count: number
+    files: number
+  } | null>(null)
   // Live text of the active file, tracked only while the Comments panel is open
   // (so it stays live as you type) — avoids per-keystroke App renders otherwise.
   const [docText, setDocText] = useState('')
@@ -145,6 +153,11 @@ export default function App() {
   const docsRef = useRef(new Map<string, OpenBuffer>())
   // Whether the Comments panel is open, read inside the stable doc-change handler.
   const commentsOpenRef = useRef(false)
+  // Alias-rename detection: baseline heads per entity path (saved state), a debounce
+  // timer, and renames the user has skipped this session.
+  const entityHeadBaseline = useRef(new Map<string, EntityHead>())
+  const renameTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dismissedRenames = useRef(new Set<string>())
   const revealNonce = useRef(0)
   const didInit = useRef(false)
   // Live handle onto the editor, for palette-driven go-to-definition (reads the
@@ -357,6 +370,29 @@ export default function App() {
     })
   }, [])
 
+  // Baseline of each entity's identity surfaces (saved state), for detecting an
+  // in-place alias/name rename as you edit the frontmatter.
+  useEffect(() => {
+    const map = new Map<string, EntityHead>()
+    for (const e of entities) map.set(e.path, { name: e.name, aliases: e.aliases })
+    entityHeadBaseline.current = map
+    dismissedRenames.current.clear()
+  }, [entities])
+
+  // Debounced: when an entity file's frontmatter renames a surface, offer to
+  // update its `@{…}` mentions across the manuscript (Phase 9 rename refactor).
+  const detectAndOfferRename = useCallback((path: string, text: string) => {
+    const base = entityHeadBaseline.current.get(path)
+    if (!base) return // not an entity file
+    const cur = parseEntityHead(text)
+    if (!cur) return
+    const rename = detectRename(base, cur)
+    if (!rename || dismissedRenames.current.has(`${rename.from}=>${rename.to}`)) return
+    void window.api.countMentions(rename.from).then(({ count, files }) => {
+      if (count > 0) setRenamePrompt({ from: rename.from, to: rename.to, count, files })
+    })
+  }, [])
+
   const handleDocChange = useCallback(
     (text: string) => {
       if (!activePath) return
@@ -365,8 +401,14 @@ export default function App() {
       buffer.current = text
       markDirty(activePath, text !== buffer.saved)
       if (commentsOpenRef.current) setDocText(text)
+      // Watch entity-file frontmatter for a rename (debounced ~1s).
+      if (entityHeadBaseline.current.has(activePath)) {
+        if (renameTimer.current) clearTimeout(renameTimer.current)
+        const path = activePath
+        renameTimer.current = setTimeout(() => detectAndOfferRename(path, text), 1000)
+      }
     },
-    [activePath, markDirty]
+    [activePath, markDirty, detectAndOfferRename]
   )
 
   // Keep the Comments panel's text current: seed it when the panel opens or the
@@ -377,6 +419,35 @@ export default function App() {
       setDocText(docsRef.current.get(activePath)?.current ?? activeLoadText)
     }
   }, [commentsOpen, activePath, activeLoadText])
+
+  // Apply the pending rename: rewrite @{from}→@{to} across files (skipping any
+  // open with unsaved edits), reload the touched buffers, and refresh the index.
+  const applyRename = useCallback(async () => {
+    const p = renamePrompt
+    setRenamePrompt(null)
+    if (!p) return
+    const dirtyOpen = openPaths.filter((path) => dirtyPaths.has(path))
+    const result = await window.api.renameMentions(p.from, p.to, dirtyOpen)
+    for (const path of result.changed) {
+      if (!docsRef.current.has(path)) continue
+      const r = await window.api.readFile(path)
+      if (!r.ok) continue
+      docsRef.current.set(path, { saved: r.text, current: r.text })
+      setDirtyPaths((prev) => {
+        const next = new Set(prev)
+        next.delete(path)
+        return next
+      })
+      if (path === activePath) setActiveLoadText(r.text)
+    }
+    refreshEntities()
+    setInspectorRefresh((n) => n + 1)
+    setNotice(
+      result.skipped.length
+        ? `Renamed ${result.count} mention(s). Skipped ${result.skipped.length} file(s) with unsaved edits — update those from Project Health.`
+        : `Renamed ${result.count} mention(s) to @{${p.to}}.`
+    )
+  }, [renamePrompt, openPaths, dirtyPaths, activePath, refreshEntities])
 
   const saveTab = useCallback(
     async (path: string): Promise<boolean> => {
@@ -1688,6 +1759,21 @@ export default function App() {
       )}
 
       {helpOpen && <SyntaxHelp onClose={() => setHelpOpen(false)} />}
+
+      {renamePrompt && (
+        <ConfirmModal
+          title="Update mentions?"
+          message={`You renamed @{${renamePrompt.from}} → @{${renamePrompt.to}}. Update ${renamePrompt.count} mention${
+            renamePrompt.count === 1 ? '' : 's'
+          } across ${renamePrompt.files} file${renamePrompt.files === 1 ? '' : 's'}?`}
+          confirmLabel="Update"
+          onConfirm={() => void applyRename()}
+          onCancel={() => {
+            dismissedRenames.current.add(`${renamePrompt.from}=>${renamePrompt.to}`)
+            setRenamePrompt(null)
+          }}
+        />
+      )}
     </div>
   )
 }
