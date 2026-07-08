@@ -19,6 +19,12 @@ export interface QuickFile {
 interface QuickInputProps {
   files: QuickFile[]
   commands: QuickCommand[]
+  /** Recently opened file paths (most-recent first) — ordered atop an empty query. */
+  recentFiles?: string[]
+  /** Recently run command ids (most-recent first) — ordered atop an empty query. */
+  recentCommands?: string[]
+  /** Fires with a command's id when it's run, so the caller can track recency. */
+  onRunCommand?: (id: string) => void
   /** Initial query — `''` for file (Quick Open) mode, `'>'` for command mode. */
   initialQuery?: string
   onClose: () => void
@@ -34,6 +40,9 @@ interface QuickInputProps {
 export function QuickInput({
   files,
   commands,
+  recentFiles,
+  recentCommands,
+  onRunCommand,
   initialQuery = '',
   onClose,
   onOpenFile
@@ -46,22 +55,54 @@ export function QuickInput({
 
   const fileResults = useMemo(() => {
     if (isCommand) return []
+    // Empty query → most-recently-opened first, then the rest in tree order.
+    if (!term) {
+      const order = new Map((recentFiles ?? []).map((p, i) => [p, i]))
+      return [...files]
+        .sort((a, b) => {
+          const ai = order.get(a.path) ?? Infinity
+          const bi = order.get(b.path) ?? Infinity
+          return ai === bi ? 0 : ai - bi
+        })
+        .slice(0, 50)
+    }
     return files
-      .map((f) => ({ item: f, score: fuzzyScore(term, f.name) }))
+      .map((f) => {
+        // Match on the file name and on its project-relative path, so you can
+        // search by folder ("manuscript"), extension, or "manuscript/betrayal".
+        const relPath = f.rel ? `${f.rel}/${f.name}` : f.name
+        const nameScore = fuzzyScore(term, f.name)
+        const pathScore = fuzzyScore(term, relPath)
+        const score =
+          nameScore === null && pathScore === null
+            ? null
+            : // Favour a name hit, but let a path-only hit through.
+              Math.max(nameScore ?? -Infinity, (pathScore ?? -Infinity) - 1)
+        return { item: f, score }
+      })
       .filter((r) => r.score !== null)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .slice(0, 50)
       .map((r) => r.item)
-  }, [term, isCommand, files])
+  }, [term, isCommand, files, recentFiles])
 
   const commandResults = useMemo(() => {
     if (!isCommand) return []
+    // Empty command query → recently-run commands first, then the rest.
+    if (!term) {
+      const order = new Map((recentCommands ?? []).map((id, i) => [id, i]))
+      return [...commands].sort((a, b) => {
+        const ai = order.get(a.id) ?? Infinity
+        const bi = order.get(b.id) ?? Infinity
+        return ai === bi ? 0 : ai - bi
+      })
+    }
     return commands
       .map((c) => ({ item: c, score: fuzzyScore(term, c.title) }))
       .filter((r) => r.score !== null)
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
       .map((r) => r.item)
-  }, [term, isCommand, commands])
+  }, [term, isCommand, commands, recentCommands])
 
   const count = isCommand ? commandResults.length : fileResults.length
 
@@ -70,6 +111,7 @@ export function QuickInput({
       const cmd = commandResults[i]
       if (!cmd) return
       onClose()
+      onRunCommand?.(cmd.id)
       cmd.run()
     } else {
       const file = fileResults[i]

@@ -153,6 +153,14 @@ export default function App() {
   const docsRef = useRef(new Map<string, OpenBuffer>())
   // Whether the Comments panel is open, read inside the stable doc-change handler.
   const commentsOpenRef = useRef(false)
+  // Navigation history (back/forward through visited files) + button enabled state.
+  const navStack = useRef<string[]>([])
+  const navIndex = useRef(-1)
+  const navigating = useRef(false)
+  const [navState, setNavState] = useState({ back: false, forward: false })
+  // Session recency for Quick Open (files) + command palette (command ids).
+  const [recentFiles, setRecentFiles] = useState<string[]>([])
+  const [recentCommands, setRecentCommands] = useState<string[]>([])
   // Alias-rename detection: baseline heads per entity path (saved state), a debounce
   // timer, and renames the user has skipped this session.
   const entityHeadBaseline = useRef(new Map<string, EntityHead>())
@@ -313,6 +321,20 @@ export default function App() {
   const switchTo = useCallback((path: string) => {
     setActivePath(path)
     setActiveLoadText(docsRef.current.get(path)?.current ?? '')
+    // Recency (MRU, for Quick Open) + back/forward history. A back/forward jump
+    // sets `navigating` so the target isn't re-pushed onto the stack.
+    setRecentFiles((prev) => [path, ...prev.filter((p) => p !== path)].slice(0, 20))
+    if (navigating.current) {
+      navigating.current = false
+    } else if (navStack.current[navIndex.current] !== path) {
+      navStack.current.splice(navIndex.current + 1)
+      navStack.current.push(path)
+      navIndex.current = navStack.current.length - 1
+    }
+    setNavState({
+      back: navIndex.current > 0,
+      forward: navIndex.current < navStack.current.length - 1
+    })
   }, [])
 
   const clearActive = useCallback(() => {
@@ -344,6 +366,19 @@ export default function App() {
     },
     [fireReveal, switchTo]
   )
+
+  const goBack = useCallback(() => {
+    if (navIndex.current <= 0) return
+    navIndex.current--
+    navigating.current = true
+    openFile(navStack.current[navIndex.current])
+  }, [openFile])
+  const goForward = useCallback(() => {
+    if (navIndex.current >= navStack.current.length - 1) return
+    navIndex.current++
+    navigating.current = true
+    openFile(navStack.current[navIndex.current])
+  }, [openFile])
 
   // Go-to-definition: resolve the entity under a cursor position (a Cmd/Ctrl+click
   // in the editor, or the palette command reading the cursor) and open its profile.
@@ -846,7 +881,9 @@ export default function App() {
   const navRef = useRef({
     cycleTab: (_dir: 1 | -1) => {},
     jumpTab: (_n: number) => {},
-    focusExplorer: () => {}
+    focusExplorer: () => {},
+    back: () => {},
+    forward: () => {}
   })
   useEffect(() => {
     saveRef.current = () => {
@@ -866,7 +903,9 @@ export default function App() {
         const path = openPaths[num - 1]
         if (path) switchTo(path)
       },
-      focusExplorer: () => document.querySelector<HTMLElement>('.tree')?.focus()
+      focusExplorer: () => document.querySelector<HTMLElement>('.tree')?.focus(),
+      back: goBack,
+      forward: goForward
     }
   })
   useEffect(() => {
@@ -876,6 +915,14 @@ export default function App() {
       if (e.ctrlKey && e.key === 'Tab') {
         e.preventDefault()
         navRef.current.cycleTab(e.shiftKey ? -1 : 1)
+        return
+      }
+      // Back / forward through visited files (⌃− / ⌃⇧−; Ctrl, not Cmd, to dodge
+      // the OS zoom shortcut).
+      if (e.ctrlKey && !e.metaKey && (e.key === '-' || e.key === '_')) {
+        e.preventDefault()
+        if (e.shiftKey) navRef.current.forward()
+        else navRef.current.back()
         return
       }
       const mod = e.metaKey || e.ctrlKey
@@ -962,6 +1009,8 @@ export default function App() {
   // Command registry (SPEC → command palette). Declared once here; the palette,
   // and later menus/keybindings, draw from it.
   const commands: QuickCommand[] = [
+    { id: 'nav-back', title: 'Go Back', hint: '⌃−', run: () => goBack() },
+    { id: 'nav-forward', title: 'Go Forward', hint: '⌃⇧−', run: () => goForward() },
     { id: 'new-project', title: 'New Project…', run: () => void newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
     {
@@ -1163,6 +1212,25 @@ export default function App() {
         </div>
 
         <nav className="menubar__menus">
+          <button
+            className="menubar__nav"
+            title="Back (⌃−)"
+            disabled={!navState.back}
+            onClick={goBack}
+          >
+            ‹
+          </button>
+          <button
+            className="menubar__nav"
+            title="Forward (⌃⇧−)"
+            disabled={!navState.forward}
+            onClick={goForward}
+          >
+            ›
+          </button>
+          <button className="menubar__item" onClick={() => void newProject()}>
+            New…
+          </button>
           <button className="menubar__item" onClick={() => void openProject()}>
             Open…
           </button>
@@ -1751,6 +1819,13 @@ export default function App() {
           files={projectFiles}
           commands={commands}
           initialQuery={quickInput}
+          recentFiles={recentFiles}
+          recentCommands={recentCommands}
+          onRunCommand={(id) =>
+            setRecentCommands((prev) =>
+              [id, ...prev.filter((x) => x !== id)].slice(0, 20)
+            )
+          }
           onClose={() => setQuickInput(null)}
           // Reveal line 1 so the editor takes focus — land in the file ready to
           // type, not back in the quick-input.

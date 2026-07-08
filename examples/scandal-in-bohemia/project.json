@@ -1,0 +1,67 @@
+{
+  "project": {
+    "name": "A Scandal in Bohemia",
+    "version": "1"
+  },
+  "editor": {
+    "defaultExtension": "md",
+    "wordWrap": true,
+    "diagnostics": false
+  },
+  "explorer": {
+    "ignore": [".git", "node_modules"]
+  },
+  "themes": [
+    {
+      "id": "gaslight",
+      "name": "Gaslight",
+      "base": "dark",
+      "tokens": {
+        "bg": "#161310",
+        "bg-1": "#1d1913",
+        "bg-2": "#241f17",
+        "bg-3": "#2f271b",
+        "fg": "#e8dcc4",
+        "fg-2": "#c9b891",
+        "fg-3": "#9a8763",
+        "border": "#3a3124",
+        "accent": "#c9962f",
+        "accent-soft": "rgba(201, 150, 47, 0.16)",
+        "accent-fg": "#161310",
+        "popup-bg": "#1d1913",
+        "popup-border": "#3a3124",
+        "font-reading": "Georgia, \"Iowan Old Style\", serif"
+      }
+    },
+    {
+      "id": "foolscap",
+      "name": "Foolscap",
+      "base": "light",
+      "tokens": {
+        "bg": "#f4efe3",
+        "bg-1": "#efe8d7",
+        "bg-2": "#e7ddc7",
+        "bg-3": "#dccfb2",
+        "fg": "#2c2418",
+        "fg-2": "#4d4030",
+        "fg-3": "#6f5f47",
+        "border": "#d3c3a1",
+        "accent": "#8a5a1e",
+        "accent-soft": "rgba(138, 90, 30, 0.14)",
+        "accent-fg": "#f4efe3",
+        "popup-bg": "#f8f2e6",
+        "popup-border": "#d3c3a1",
+        "font-reading": "Georgia, \"Iowan Old Style\", serif"
+      }
+    }
+  ],
+  "entityTypes": [
+    {
+      "type": "location",
+      "fields": [
+        { "name": "region", "label": "Region" },
+        { "name": "first-appearance", "label": "First appearance" }
+      ]
+    }
+  ]
+}
