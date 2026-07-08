@@ -445,6 +445,14 @@ body {
   border-left: 1px solid var(--border);
 }
 
+/* Separates the file-specific rail icons from the project-wide ones. */
+.rail__divider {
+  width: 18px;
+  height: 1px;
+  margin: var(--space-1) 0;
+  background: var(--border);
+}
+
 .rail__btn {
   position: relative;
   width: 34px;

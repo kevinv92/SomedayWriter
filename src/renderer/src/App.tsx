@@ -1342,32 +1342,39 @@ export default function App() {
               <>
                 <div className="menu__backdrop" onClick={() => setMenuOpen(null)} />
                 <div className="menu-pop" role="menu">
-                  <div className="menu-pop__label">Panels</div>
+                  <div className="menu-pop__label">This file</div>
                   {(
                     [
-                      ['References', refsOpen, () => setRefsOpen((v) => !v)],
                       ['Companion', companionOpen, () => setCompanionOpen((v) => !v)],
-                      ['Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
-                      ['Thread braid', braidOpen, () => setBraidOpen((v) => !v)],
                       ['Comments', commentsOpen, () => setCommentsOpen((v) => !v)],
                       ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)],
+                      ['__label__', false, () => {}],
+                      ['Project References', refsOpen, () => setRefsOpen((v) => !v)],
+                      ['Project Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
+                      ['Project Thread Braid', braidOpen, () => setBraidOpen((v) => !v)],
                       ['Project Health', healthOpen, () => setHealthOpen((v) => !v)]
                     ] as [string, boolean, () => void][]
-                  ).map(([label, on, toggle]) => (
-                    <button
-                      key={label}
-                      className="menu-pop__row"
-                      role="menuitemcheckbox"
-                      aria-checked={on}
-                      onClick={() => {
-                        toggle()
-                        setMenuOpen(null)
-                      }}
-                    >
-                      <span className="menu-pop__check">{on ? '✓' : ''}</span>
-                      {label}
-                    </button>
-                  ))}
+                  ).map(([label, on, toggle]) =>
+                    label === '__label__' ? (
+                      <div key="proj-label" className="menu-pop__label">
+                        Project
+                      </div>
+                    ) : (
+                      <button
+                        key={label}
+                        className="menu-pop__row"
+                        role="menuitemcheckbox"
+                        aria-checked={on}
+                        onClick={() => {
+                          toggle()
+                          setMenuOpen(null)
+                        }}
+                      >
+                        <span className="menu-pop__check">{on ? '✓' : ''}</span>
+                        {label}
+                      </button>
+                    )
+                  )}
 
                   <div className="menu-pop__sep" />
                   <div className="menu-pop__label">Theme</div>
@@ -1786,34 +1793,42 @@ export default function App() {
           />
         )}
 
-        {/* Panel rail — switch the right-pane panels from the pane itself. */}
+        {/* Panel rail — file-specific panels up top, then a divider, then the
+            project-wide ("Project …") panels. */}
         <nav className="rail" aria-label="Panels">
           {(
             [
-              ['References', 'link', refsOpen, () => setRefsOpen((v) => !v)],
               [
                 'Companion',
                 'book-open',
                 companionOpen,
                 () => setCompanionOpen((v) => !v)
               ],
-              ['Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
               ['Comments', 'comment', commentsOpen, () => setCommentsOpen((v) => !v)],
               ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)],
+              null,
+              ['Project References', 'link', refsOpen, () => setRefsOpen((v) => !v)],
+              ['Project Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
               ['Project Health', 'activity', healthOpen, () => setHealthOpen((v) => !v)]
-            ] as [string, string, boolean, () => void][]
-          ).map(([label, icon, on, toggle]) => (
-            <button
-              key={label}
-              className={`rail__btn${on ? ' rail__btn--active' : ''}`}
-              aria-label={label}
-              aria-pressed={on}
-              onClick={toggle}
-            >
-              <Icon name={icon} size={18} />
-              <span className="rail__tip">{label}</span>
-            </button>
-          ))}
+            ] as ([string, string, boolean, () => void] | null)[]
+          ).map((item, i) =>
+            item === null ? (
+              <div key={`rail-div-${i}`} className="rail__divider" role="separator" />
+            ) : (
+              (([label, icon, on, toggle]) => (
+                <button
+                  key={label}
+                  className={`rail__btn${on ? ' rail__btn--active' : ''}`}
+                  aria-label={label}
+                  aria-pressed={on}
+                  onClick={toggle}
+                >
+                  <Icon name={icon} size={18} />
+                  <span className="rail__tip">{label}</span>
+                </button>
+              ))(item)
+            )
+          )}
         </nav>
       </div>
 
