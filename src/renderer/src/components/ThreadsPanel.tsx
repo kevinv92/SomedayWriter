@@ -81,7 +81,7 @@ export function ThreadsPanel({ onOpenBeat, refreshKey, onClose }: ThreadsPanelPr
                 />
                 <span className="thread__name">{thread.name}</span>
                 <span className="thread__count">
-                  {thread.beats.length} beat{thread.beats.length === 1 ? '' : 's'}
+                  {thread.beats.length} scene{thread.beats.length === 1 ? '' : 's'}
                 </span>
               </button>
 
