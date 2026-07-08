@@ -55,7 +55,7 @@ export function ThreadsPanel({ onOpenBeat, refreshKey, onClose }: ThreadsPanelPr
   return (
     <div className="search-panel">
       <div className="search-panel__header">
-        <span className="search-panel__title">Threads</span>
+        <span className="search-panel__title">Project Threads</span>
         <button className="icon-btn" title="Close (Esc)" onClick={onClose}>
           ✕
         </button>

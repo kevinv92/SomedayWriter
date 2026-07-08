@@ -90,7 +90,7 @@ export function ReferencesPanel({
   return (
     <div className="search-panel">
       <div className="search-panel__header">
-        <span className="search-panel__title">Find References</span>
+        <span className="search-panel__title">Project References</span>
         <button className="icon-btn" title="Close (Esc)" onClick={onClose}>
           ✕
         </button>
