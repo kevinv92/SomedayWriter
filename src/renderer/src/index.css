@@ -722,6 +722,71 @@ body {
   cursor: pointer;
 }
 
+/* Explorer quick-access pins (top of the tree). */
+.tree-pins {
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--divider);
+}
+
+.tree-pins__label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--weight-medium);
+  padding: var(--space-2) var(--space-3) var(--space-1);
+}
+
+.tree-pin {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+}
+
+.tree-pin--active {
+  background: var(--accent-soft);
+}
+
+.tree-pin__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-pin__open:hover {
+  background: var(--bg-2);
+}
+
+.tree-pin__unpin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.tree-pin__unpin:hover {
+  color: var(--fg);
+}
+
 .tree-dir__label:hover,
 .tree-file:not(:disabled):hover {
   background: var(--border);

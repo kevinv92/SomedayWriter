@@ -140,6 +140,9 @@ export type AppSettings = {
    * Personal workspace state (per SPEC → Reference companion pane), not shared
    * in `project.json`. */
   pins?: Record<string, string[]>
+  /** Explorer-pinned files (quick access), keyed by project root → file paths.
+   * Shown in a "Pinned" section atop the file tree. Personal, per-project. */
+  explorerPins?: Record<string, string[]>
   /** Visual theme id (Phase 8). Built-ins: 'auto' (follows OS), 'light' (warm
    * paper), 'dark' (warm dusk). May also be a custom theme's id from
    * `userThemes` or a project's `themes`. Applied as `data-theme` (+ token

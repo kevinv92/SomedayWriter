@@ -101,6 +101,8 @@ export default function App() {
   // Companion pins for the current project (paths); the full per-project map lives
   // in allPinsRef so persisting one project never clobbers another's.
   const [pinnedPaths, setPinnedPaths] = useState<string[]>([])
+  // Explorer-pinned files for the current project (quick access, top of the tree).
+  const [explorerPins, setExplorerPins] = useState<string[]>([])
   // Story entities (StoryIndex), for the references panel + go-to-definition.
   const [entities, setEntities] = useState<Entity[]>([])
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
@@ -139,6 +141,8 @@ export default function App() {
   const editorHandle = useRef<EditorHandle | null>(null)
   // The whole Companion pins map (project root → paths), loaded from settings.
   const allPinsRef = useRef<Record<string, string[]>>({})
+  // The whole explorer-pins map (project root → paths), loaded from settings.
+  const allExplorerPinsRef = useRef<Record<string, string[]>>({})
   // Custom-theme token props currently set inline on <html>, so we can clear them
   // when switching themes (Phase 8).
   const appliedThemeTokens = useRef<string[]>([])
@@ -197,6 +201,21 @@ export default function App() {
       allPinsRef.current = { ...allPinsRef.current, [project.root]: next }
       setPinnedPaths(next)
       void window.api.updateSettings({ pins: allPinsRef.current })
+    },
+    [project]
+  )
+
+  // Pin/unpin a file to the explorer's quick-access section (per project).
+  const toggleExplorerPin = useCallback(
+    (path: string) => {
+      if (!project) return
+      const current = allExplorerPinsRef.current[project.root] ?? []
+      const next = current.includes(path)
+        ? current.filter((p) => p !== path)
+        : [...current, path]
+      allExplorerPinsRef.current = { ...allExplorerPinsRef.current, [project.root]: next }
+      setExplorerPins(next)
+      void window.api.updateSettings({ explorerPins: allExplorerPinsRef.current })
     },
     [project]
   )
@@ -459,6 +478,7 @@ export default function App() {
       // session without persisting to the global setting — the picker still wins.
       if (result.project.config.theme) setTheme(result.project.config.theme)
       setPinnedPaths(allPinsRef.current[result.project.root] ?? [])
+      setExplorerPins(allExplorerPinsRef.current[result.project.root] ?? [])
       refreshEntities()
     },
     [refreshEntities]
@@ -536,6 +556,7 @@ export default function App() {
       if (settings.userThemes) setUserThemes(settings.userThemes)
       if (settings.vim) setVim(settings.vim)
       allPinsRef.current = settings.pins ?? {}
+      allExplorerPinsRef.current = settings.explorerPins ?? {}
       const last = settings.recentProjects[0]
       if (last) await openRecent(last.path)
     })()
@@ -1197,6 +1218,8 @@ export default function App() {
                   root={tree}
                   activePath={activePath}
                   entityIcons={entityIcons}
+                  pinned={explorerPins}
+                  onTogglePin={toggleExplorerPin}
                   onSelect={(path) => openFile(path)}
                   onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
                   onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
