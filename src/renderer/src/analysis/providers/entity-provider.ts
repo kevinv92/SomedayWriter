@@ -26,7 +26,14 @@ export function createEntityProvider(): {
         [entity.name, ...entity.aliases].map((surface) => ({
           label: `@${surface}`,
           apply: `@{${surface}}`,
-          detail: surface === entity.name ? entity.type : `→ ${entity.name}`,
+          // Canonical entry lists its aliases (so you can see what else it's known
+          // as); an alias entry points back to the canonical name.
+          detail:
+            surface === entity.name
+              ? entity.aliases.length
+                ? `${entity.type} · aka ${entity.aliases.join(', ')}`
+                : entity.type
+              : `→ ${entity.name}`,
           type: entity.type
         }))
       )

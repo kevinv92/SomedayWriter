@@ -1,4 +1,9 @@
-import { Compartment, EditorState, RangeSetBuilder } from '@codemirror/state'
+import {
+  Compartment,
+  EditorState,
+  RangeSetBuilder,
+  type Extension
+} from '@codemirror/state'
 import {
   Decoration,
   EditorView,
@@ -6,6 +11,7 @@ import {
   ViewPlugin,
   keymap,
   drawSelection,
+  lineNumbers,
   type DecorationSet,
   type ViewUpdate
 } from '@codemirror/view'
@@ -24,7 +30,7 @@ import {
   type CompletionResult
 } from '@codemirror/autocomplete'
 import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
-import { vim } from '@replit/codemirror-vim'
+import { vim, getCM } from '@replit/codemirror-vim'
 
 import type { EditorAdapter } from './editor-adapter'
 import type {
@@ -47,6 +53,8 @@ class CodeMirrorAdapter implements EditorAdapter {
   private completionSource: CompletionSource | null = null
   private currentUri = ''
   private readonly changeCbs = new Set<(text: string) => void>()
+  private readonly vimModeCbs = new Set<(mode: string) => void>()
+  private cmVimOff: (() => void) | null = null
   private goToDefinition: ((ctx: { lineText: string; column: number }) => void) | null =
     null
 
@@ -58,6 +66,8 @@ class CodeMirrorAdapter implements EditorAdapter {
     this.currentUri = doc.uri
     // Rebuild state so a new document starts with a clean undo history.
     this.requireView().setState(this.buildState(doc.text))
+    // setState mints a fresh CM instance, so re-bind the vim mode listener.
+    if (this.vimEnabled) this.syncVimListener()
   }
 
   getText(): string {
@@ -132,14 +142,67 @@ class CodeMirrorAdapter implements EditorAdapter {
   setVimMode(enabled: boolean): void {
     this.vimEnabled = enabled
     this.requireView().dispatch({
-      effects: this.vimCompartment.reconfigure(enabled ? vim() : [])
+      effects: this.vimCompartment.reconfigure(this.vimBundle())
     })
+    this.syncVimListener()
+  }
+
+  /** Vim-mode editor extensions. Vim keys must sit first so its keymap wins;
+   * line numbers ride along so `:42` / `42G` jumps have visible targets. */
+  private vimBundle(): Extension {
+    return this.vimEnabled ? [vim(), lineNumbers()] : []
+  }
+
+  /** Subscribe to Vim mode changes ('normal' | 'insert' | 'visual' | 'replace',
+   * or '' when Vim is off). Returns an unsubscribe fn. Drives the status-bar
+   * mode chip and the mode-coloured cursor. */
+  onVimModeChange(cb: (mode: string) => void): () => void {
+    this.vimModeCbs.add(cb)
+    return () => this.vimModeCbs.delete(cb)
   }
 
   dispose(): void {
+    this.cmVimOff?.()
+    this.cmVimOff = null
     this.changeCbs.clear()
+    this.vimModeCbs.clear()
     this.view?.destroy()
     this.view = null
+  }
+
+  /** (Re)bind the Vim mode-change listener to the current CM instance and push
+   * the current mode. Safe to call repeatedly — it detaches the previous one. */
+  private syncVimListener(): void {
+    this.cmVimOff?.()
+    this.cmVimOff = null
+    const view = this.view
+    if (!view) return
+    if (!this.vimEnabled) {
+      this.emitVimMode('')
+      return
+    }
+    // getCM's typings don't describe the CM5-compat event bus; treat it loosely.
+    const cm = getCM(view) as unknown as {
+      on(e: string, fn: (ev: { mode?: string }) => void): void
+      off(e: string, fn: (ev: { mode?: string }) => void): void
+    } | null
+    if (!cm) return
+    const handler = (ev: { mode?: string }): void =>
+      this.emitVimMode(ev?.mode ?? 'normal')
+    cm.on('vim-mode-change', handler)
+    this.cmVimOff = () => cm.off('vim-mode-change', handler)
+    this.emitVimMode('normal')
+  }
+
+  /** Reflect the mode onto the editor DOM (for the mode-coloured cursor) and
+   * notify subscribers (the status-bar chip). */
+  private emitVimMode(mode: string): void {
+    const dom = this.view?.dom
+    if (dom) {
+      if (mode) dom.setAttribute('data-vim-mode', mode)
+      else dom.removeAttribute('data-vim-mode')
+    }
+    this.vimModeCbs.forEach((cb) => cb(mode))
   }
 
   // --- internals ---
@@ -148,8 +211,8 @@ class CodeMirrorAdapter implements EditorAdapter {
     return EditorState.create({
       doc: text,
       extensions: [
-        // Vim must sit first so its keymap wins when active.
-        this.vimCompartment.of(this.vimEnabled ? vim() : []),
+        // Vim keys (+ line numbers) must sit first so the keymap wins when active.
+        this.vimCompartment.of(this.vimBundle()),
         history(),
         drawSelection(),
         indentOnInput(),
@@ -375,6 +438,25 @@ const proseTheme = EditorView.theme({
   '&.cm-focused .cm-selectionBackground': {
     backgroundColor: 'rgba(37, 99, 235, 0.35)'
   },
+  // Line-number gutter (only present in Vim mode) — quiet, mono, no chrome so it
+  // doesn't fight the prose.
+  '.cm-gutters': {
+    backgroundColor: 'transparent',
+    color: 'var(--fg-4)',
+    border: 'none'
+  },
+  '.cm-lineNumbers .cm-gutterElement': {
+    fontFamily: 'var(--font-mono)',
+    fontSize: 'var(--text-xs)',
+    padding: '0 0.5rem 0 0.75rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end'
+  },
+  '.cm-activeLineGutter': {
+    backgroundColor: 'transparent',
+    color: 'var(--fg-2)'
+  },
   // In-file find panel (Cmd/Ctrl+F) — styled to match the app's inputs/buttons
   // (the project-search panel, modals, quick-input) so the two find surfaces read
   // as one visual language (M16). Full design-system unification is Phase 11.
@@ -421,30 +503,55 @@ const proseTheme = EditorView.theme({
     backgroundColor: 'var(--accent)',
     color: 'var(--accent-fg)'
   },
-  // Autocomplete popup (@-mentions) — theme it so it's legible in light + dark
-  // (CM's defaults render faint on our white background).
-  '.cm-tooltip.cm-tooltip-autocomplete': {
-    background: 'var(--panel)',
-    border: '1px solid var(--border)',
-    borderRadius: '6px',
+  // Base tooltip (diagnostics/lint hover, hover previews) — themed to the design
+  // popup tokens so the diagnostic pop-out is readable on any theme.
+  '.cm-tooltip': {
+    background: 'var(--popup-bg)',
+    border: '1px solid var(--popup-border)',
+    borderRadius: 'var(--radius-md)',
     color: 'var(--fg)',
-    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.22)'
+    boxShadow: 'var(--shadow-popup)'
+  },
+  '.cm-tooltip.cm-tooltip-lint': { padding: '0' },
+  '.cm-diagnostic': {
+    color: 'var(--fg)',
+    padding: 'var(--space-2) var(--space-3)',
+    borderLeftWidth: '3px'
+  },
+  '.cm-diagnostic-error': { borderLeftColor: 'var(--danger)' },
+  '.cm-diagnostic-warning': { borderLeftColor: 'var(--warning)' },
+  '.cm-diagnostic-info': { borderLeftColor: 'var(--accent)' },
+  '.cm-tooltip .cm-completionInfo': {
+    background: 'var(--popup-bg)',
+    border: '1px solid var(--popup-border)',
+    color: 'var(--fg)'
+  },
+  // Autocomplete popup (@-mentions) — floats on the design's popup tokens so it
+  // matches the command palette and the View menu (Phase 8).
+  '.cm-tooltip.cm-tooltip-autocomplete': {
+    background: 'var(--popup-bg)',
+    border: '1px solid var(--popup-border)',
+    borderRadius: 'var(--radius-md)',
+    color: 'var(--fg)',
+    padding: 'var(--space-2)',
+    boxShadow: 'var(--shadow-popup)'
   },
   '.cm-tooltip-autocomplete > ul': {
-    fontFamily: 'inherit',
-    fontSize: '0.9rem'
+    fontFamily: 'var(--font-ui)',
+    fontSize: 'var(--text-base)'
   },
   '.cm-tooltip-autocomplete > ul > li': {
-    padding: '0.15rem 0.5rem',
+    padding: 'var(--space-2) var(--space-3)',
+    borderRadius: 'var(--radius-sm)',
     color: 'var(--fg)'
   },
   '.cm-tooltip-autocomplete > ul > li[aria-selected]': {
-    background: 'var(--accent)',
-    color: 'var(--accent-fg)'
+    background: 'var(--popup-active)',
+    color: 'var(--fg)'
   },
   '.cm-completionLabel': { color: 'inherit' },
-  '.cm-completionDetail': { color: 'var(--muted)', fontStyle: 'italic' },
-  'li[aria-selected] .cm-completionDetail': { color: 'var(--accent-fg)' },
+  '.cm-completionDetail': { color: 'var(--fg-3)', fontStyle: 'italic' },
+  'li[aria-selected] .cm-completionDetail': { color: 'var(--accent)' },
   // Frontmatter block: compact, dimmed metadata. `!important` + the descendant
   // selector override the setext-heading styling the parser applies to the last
   // line before the closing `---`.

@@ -25,6 +25,9 @@ interface EditorProps {
    * The editor never talks to a provider directly (SPEC seam). */
   analysis: AnalysisService
   onStatus?: (status: EditorStatus) => void
+  /** Fires the current Vim mode ('normal' | 'insert' | 'visual' | 'replace', or
+   * '' when Vim is off) — drives the status-bar mode chip. */
+  onVimMode?: (mode: string) => void
   /** Fires the full document text on every edit (drives dirty/save in App). */
   onDocChange?: (text: string) => void
   /** When set, scroll to this 1-based line/column (jump to a search match or a
@@ -50,6 +53,7 @@ export function Editor({
   diagnosticsEnabled,
   analysis,
   onStatus,
+  onVimMode,
   onDocChange,
   revealTarget,
   onGoToDefinition,
@@ -58,6 +62,7 @@ export function Editor({
   const hostRef = useRef<HTMLDivElement>(null)
   const adapterRef = useRef<EditorAdapter | null>(null)
   const onStatusRef = useRef(onStatus)
+  const onVimModeRef = useRef(onVimMode)
   const onDocChangeRef = useRef(onDocChange)
   const onGoToDefinitionRef = useRef(onGoToDefinition)
   const docUriRef = useRef(doc.uri)
@@ -65,9 +70,10 @@ export function Editor({
   // Keep the latest callbacks without re-subscribing the editor.
   useEffect(() => {
     onStatusRef.current = onStatus
+    onVimModeRef.current = onVimMode
     onDocChangeRef.current = onDocChange
     onGoToDefinitionRef.current = onGoToDefinition
-  }, [onStatus, onDocChange, onGoToDefinition])
+  }, [onStatus, onVimMode, onDocChange, onGoToDefinition])
 
   // Word count + cursor for the status bar. Diagnostics no longer computed here —
   // they arrive from the facade.
@@ -98,8 +104,10 @@ export function Editor({
       analysis.update({ uri: docUriRef.current, text })
       emitStatus(text)
     })
+    const offVimMode = adapter.onVimModeChange((mode) => onVimModeRef.current?.(mode))
     return () => {
       offChange()
+      offVimMode()
       offDiagnostics()
       adapter.dispose()
       adapterRef.current = null

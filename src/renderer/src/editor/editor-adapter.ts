@@ -66,5 +66,9 @@ export interface EditorAdapter {
 
   setVimMode(enabled: boolean): void
 
+  /** Subscribe to Vim mode changes: 'normal' | 'insert' | 'visual' | 'replace',
+   * or '' when Vim is off. Returns an unsubscribe fn. */
+  onVimModeChange(cb: (mode: string) => void): () => void
+
   dispose(): void
 }

@@ -8,8 +8,28 @@
 /** Parsed `project.json`. Only the fields the app reads are typed; unknown keys
  * are ignored on read and (later) preserved on write. `project.name` is the one
  * required field. */
+/** A theme = a set of design-token overrides applied on `<html>` (Phase 8). Ships
+ * both from app-settings (`userThemes`) and per-project (`project.json` `themes`).
+ * `base` picks which built-in theme fills in any tokens the theme doesn't set. */
+export type ThemeDef = {
+  /** Stable id used to select the theme (`data`/settings value). */
+  id: string
+  /** Human label shown in the picker. */
+  name: string
+  /** Built-in theme to inherit unset tokens from. Default 'dark'. */
+  base?: 'light' | 'dark'
+  /** Token overrides — keys are token names (`bg`, `--bg`, `accent`, `font-mono`,
+   * …); values are any CSS value. Applied as custom properties on `<html>`. */
+  tokens: Record<string, string>
+}
+
 export type ProjectConfig = {
   project: { name: string; version?: string }
+  /** Default theme id for this project (built-in `auto`/`light`/`dark`, a user
+   * theme, or one of this project's own `themes`). Phase 8. */
+  theme?: string
+  /** Themes this project ships (appear in the picker while it's open). */
+  themes?: ThemeDef[]
   editor?: {
     defaultExtension?: string
     wordWrap?: boolean
@@ -116,6 +136,21 @@ export type AppSettings = {
    * Personal workspace state (per SPEC → Reference companion pane), not shared
    * in `project.json`. */
   pins?: Record<string, string[]>
+  /** Visual theme id (Phase 8). Built-ins: 'auto' (follows OS), 'light' (warm
+   * paper), 'dark' (warm dusk). May also be a custom theme's id from
+   * `userThemes` or a project's `themes`. Applied as `data-theme` (+ token
+   * overrides) on `<html>`. Default 'auto'. */
+  theme?: string
+  /** Accent hue (Phase 8) — one of the design system's accent options
+   * (ink · sage · clay · plum · gold · slate). Applied as `data-accent`.
+   * Default 'ink'. */
+  accent?: string
+  /** User-defined themes (Phase 8) — hand-authored token maps that appear in the
+   * theme picker. Edit `settings.json` to add your own. */
+  userThemes?: ThemeDef[]
+  /** Focus mode (Phase 8 M22) — dims chrome to a calm reading column.
+   * Applied as `data-focus` on `<html>`. Default false. */
+  focusMode?: boolean
 }
 
 /** A story entity from `StoryIndex` (Phase 5) — a profile file (`type` in its

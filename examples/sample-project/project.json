@@ -11,6 +11,50 @@
   "explorer": {
     "ignore": [".git", "node_modules"]
   },
+  "themes": [
+    {
+      "id": "sepia",
+      "name": "Sepia",
+      "base": "light",
+      "tokens": {
+        "bg": "#f3ead6",
+        "bg-1": "#efe4cd",
+        "bg-2": "#e7d9bd",
+        "bg-3": "#dccba8",
+        "fg": "#3f3222",
+        "fg-2": "#5b4a34",
+        "fg-3": "#7c6a4f",
+        "border": "#d8c5a0",
+        "accent": "#9a6b34",
+        "accent-soft": "rgba(154, 107, 52, 0.14)",
+        "accent-fg": "#f3ead6",
+        "popup-bg": "#f7f0df",
+        "popup-border": "#d8c5a0"
+      }
+    },
+    {
+      "id": "terminal",
+      "name": "Terminal (green)",
+      "base": "dark",
+      "tokens": {
+        "bg": "#000000",
+        "bg-1": "#0a0f0a",
+        "bg-2": "#0d1a0d",
+        "bg-3": "#123212",
+        "fg": "#33ff33",
+        "fg-2": "#28cc28",
+        "fg-3": "#1c9e1c",
+        "border": "#0f6f0f",
+        "accent": "#39ff14",
+        "accent-soft": "rgba(57, 255, 20, 0.15)",
+        "accent-fg": "#000000",
+        "popup-bg": "#0a1a0a",
+        "popup-border": "#0f6f0f",
+        "font-reading": "\"Cascadia Code\", ui-monospace, monospace",
+        "font-ui": "ui-monospace, monospace"
+      }
+    }
+  ],
   "entityTypes": [
     {
       "type": "location",
