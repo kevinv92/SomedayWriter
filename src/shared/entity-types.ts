@@ -84,7 +84,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'thread',
     label: 'Thread',
     icon: '🧵',
-    iconName: 'thread',
+    iconName: 'spool',
     color: '#db6d28',
     fields: [
       { name: 'color', label: 'Colour' },

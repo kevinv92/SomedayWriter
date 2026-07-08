@@ -31,9 +31,19 @@ export type IconName =
   | 'tag'
   | 'comment'
   | 'activity'
+  | 'spool'
 
-/** Filled ("solid") icons get the glossy 3D treatment. Value = the silhouette
- * path(s); `evenodd` cuts interior holes (the map-pin dot, the info "i"). */
+/**
+ * ICON RULE (keep it consistent): **dimensional/glossy = domain content**
+ * (story entities — character, location, item, faction, magic-system, thread),
+ * **flat line = UI chrome** (rail, menus, chevrons, close, reload…). Content
+ * pops, controls recede. When adding an icon, put an *entity* here (SOLID) and a
+ * *control* in LINE. Note a glyph may exist in both sets under different names
+ * (e.g. `spool` = the glossy thread entity vs `thread` = the flat rail control).
+ *
+ * Filled ("solid") icons get the glossy 3D treatment. Value = the silhouette
+ * path(s); `evenodd` cuts interior holes (the map-pin dot, the info "i").
+ */
 type Solid = { d: string; evenodd?: boolean; badge?: 'plus' }
 
 const SOLID: Partial<Record<IconName, Solid>> = {
@@ -78,6 +88,11 @@ const SOLID: Partial<Record<IconName, Solid>> = {
   tag: {
     d: 'M3.6 12V5.2c0-.9.7-1.6 1.6-1.6H12c.4 0 .8.2 1.1.5l8.4 8.4c.6.6.6 1.6 0 2.2l-5.4 5.4c-.6.6-1.6.6-2.2 0L4.1 13.1c-.3-.3-.5-.7-.5-1.1zm3.9-5.6a1.3 1.3 0 1 0 0 2.6 1.3 1.3 0 0 0 0-2.6z',
     evenodd: true
+  },
+  // Thread entity badge — a spool of thread (bobbin), the glossy content twin of
+  // the flat `thread` wave used for the rail control.
+  spool: {
+    d: 'M5.5 3.6h13v3h-4v10.8h4v3h-13v-3h4V6.6h-4z'
   }
 }
 
