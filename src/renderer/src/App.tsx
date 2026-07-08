@@ -1351,7 +1351,11 @@ export default function App() {
                       ['__label__', false, () => {}],
                       ['Project References', refsOpen, () => setRefsOpen((v) => !v)],
                       ['Project Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
-                      ['Project Thread Braid', braidOpen, () => setBraidOpen((v) => !v)],
+                      [
+                        'Project Threads Overview',
+                        braidOpen,
+                        () => setBraidOpen((v) => !v)
+                      ],
                       ['Project Health', healthOpen, () => setHealthOpen((v) => !v)]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) =>
@@ -1425,7 +1429,34 @@ export default function App() {
                   </button>
 
                   <div className="menu-pop__sep" />
-                  <div className="menu-pop__label">Editor</div>
+                  <button
+                    className="menu-pop__row"
+                    onClick={() => {
+                      void forceRefresh()
+                      setMenuOpen(null)
+                    }}
+                  >
+                    <span className="menu-pop__check" />
+                    Reload from disk
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="menu">
+            <button
+              className={`menubar__item${menuOpen === 'editor' ? ' menubar__item--open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen === 'editor'}
+              onClick={() => setMenuOpen((m) => (m === 'editor' ? null : 'editor'))}
+            >
+              Editor ▾
+            </button>
+            {menuOpen === 'editor' && (
+              <>
+                <div className="menu__backdrop" onClick={() => setMenuOpen(null)} />
+                <div className="menu-pop" role="menu">
                   {(
                     [
                       ['Vim keys', vim, toggleVim],
@@ -1463,16 +1494,6 @@ export default function App() {
                   )}
 
                   <div className="menu-pop__sep" />
-                  <button
-                    className="menu-pop__row"
-                    onClick={() => {
-                      void forceRefresh()
-                      setMenuOpen(null)
-                    }}
-                  >
-                    <span className="menu-pop__check" />
-                    Reload from disk
-                  </button>
                   <button
                     className="menu-pop__row"
                     onClick={() => {
