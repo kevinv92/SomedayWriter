@@ -104,5 +104,8 @@ export interface EditorAdapter {
   /** Accept (true) or reject (false) the tracked change under the cursor. */
   resolveChange(accept: boolean): void
 
+  /** Tidy the Markdown table around the cursor: align its columns. */
+  formatTable(): void
+
   dispose(): void
 }

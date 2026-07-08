@@ -1168,6 +1168,11 @@ export default function App() {
       run: () => editorHandle.current?.resolveChange(false)
     },
     {
+      id: 'format-table',
+      title: 'Format Table (align columns)',
+      run: () => editorHandle.current?.formatTable()
+    },
+    {
       id: 'syntax-reference',
       title: 'Markdown & Syntax Reference',
       run: () => setHelpOpen(true)

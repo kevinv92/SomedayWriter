@@ -19,6 +19,8 @@ export interface EditorHandle {
   format(action: FormatAction): void
   /** Accept/reject the tracked change under the cursor. */
   resolveChange(accept: boolean): void
+  /** Tidy the Markdown table around the cursor. */
+  formatTable(): void
 }
 
 interface EditorProps {
@@ -116,7 +118,8 @@ export function Editor({
       handleRef.current = {
         cursorContext: () => adapter.getCursorContext(),
         format: (action) => adapter.format(action),
-        resolveChange: (accept) => adapter.resolveChange(accept)
+        resolveChange: (accept) => adapter.resolveChange(accept),
+        formatTable: () => adapter.formatTable()
       }
     }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {
