@@ -41,7 +41,7 @@ import { BUILTIN_THEME_OPTIONS, resolveTheme, tokenProp } from './lib/theme'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
-import { entityAt } from './lib/mentions'
+import { entityAt, mentionRangeAt } from './lib/mentions'
 
 type Reveal = { line: number; column: number; endColumn?: number }
 
@@ -1464,6 +1464,9 @@ export default function App() {
                   onDocChange={handleDocChange}
                   revealTarget={revealTarget}
                   onGoToDefinition={goToDefinition}
+                  onResolveMention={(lineText, column) =>
+                    mentionRangeAt(lineText, column, entities)
+                  }
                   handleRef={editorHandle}
                 />
               ) : (

@@ -13,6 +13,33 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+/** Like `entityAt`, but returns the 0-based char range of the mention under the
+ * cursor within the line (for the ⌘/Ctrl-hover "clickable" affordance), or null. */
+export function mentionRangeAt(
+  lineText: string,
+  column: number,
+  entities: Entity[]
+): { from: number; to: number } | null {
+  const cursor = column - 1
+  const surfaces: { text: string; entity: Entity }[] = []
+  for (const entity of entities) {
+    for (const surface of [entity.name, ...entity.aliases]) {
+      if (surface) surfaces.push({ text: surface, entity })
+    }
+  }
+  surfaces.sort((a, b) => b.text.length - a.text.length)
+  for (const { text } of surfaces) {
+    const re = new RegExp(`(?<![\\w])${escapeRegExp(text)}(?![\\w])`, 'g')
+    let m: RegExpExecArray | null
+    while ((m = re.exec(lineText)) !== null) {
+      if (cursor >= m.index && cursor <= m.index + text.length) {
+        return { from: m.index, to: m.index + text.length }
+      }
+    }
+  }
+  return null
+}
+
 /**
  * The entity whose surface form sits under a cursor, or `null` if none does.
  * `lineText` is the full line; `column` is 1-based (as reported by the editor).

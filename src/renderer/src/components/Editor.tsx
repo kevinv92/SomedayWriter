@@ -48,6 +48,12 @@ interface EditorProps {
   /** Go-to-definition: fired on Cmd/Ctrl+click with the clicked line's text and
    * 1-based column. App resolves the entity (StoryIndex) and opens its profile. */
   onGoToDefinition?: (lineText: string, column: number) => void
+  /** Resolve a mention's char range at (lineText, 1-based column) — drives the
+   * ⌘/Ctrl-hover "clickable" underline. */
+  onResolveMention?: (
+    lineText: string,
+    column: number
+  ) => { from: number; to: number } | null
   /** Filled with an imperative handle so App can read the cursor for a
    * palette-triggered go-to-definition (see EditorHandle). */
   handleRef?: RefObject<EditorHandle | null>
@@ -64,6 +70,7 @@ export function Editor({
   onDocChange,
   revealTarget,
   onGoToDefinition,
+  onResolveMention,
   handleRef
 }: EditorProps) {
   const hostRef = useRef<HTMLDivElement>(null)
@@ -72,6 +79,7 @@ export function Editor({
   const onVimModeRef = useRef(onVimMode)
   const onDocChangeRef = useRef(onDocChange)
   const onGoToDefinitionRef = useRef(onGoToDefinition)
+  const onResolveMentionRef = useRef(onResolveMention)
   const docUriRef = useRef(doc.uri)
 
   // Keep the latest callbacks without re-subscribing the editor.
@@ -80,7 +88,8 @@ export function Editor({
     onVimModeRef.current = onVimMode
     onDocChangeRef.current = onDocChange
     onGoToDefinitionRef.current = onGoToDefinition
-  }, [onStatus, onVimMode, onDocChange, onGoToDefinition])
+    onResolveMentionRef.current = onResolveMention
+  }, [onStatus, onVimMode, onDocChange, onGoToDefinition, onResolveMention])
 
   // Word count + cursor for the status bar. Diagnostics no longer computed here —
   // they arrive from the facade.
@@ -99,6 +108,9 @@ export function Editor({
     adapter.setCompletionSource(analysis.completionSource)
     adapter.setGoToDefinition((ctx) =>
       onGoToDefinitionRef.current?.(ctx.lineText, ctx.column)
+    )
+    adapter.setMentionResolver(
+      (lineText, column) => onResolveMentionRef.current?.(lineText, column) ?? null
     )
     if (handleRef) {
       handleRef.current = {

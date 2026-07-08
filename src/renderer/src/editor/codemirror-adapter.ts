@@ -3,6 +3,8 @@ import {
   EditorSelection,
   EditorState,
   RangeSetBuilder,
+  StateEffect,
+  StateField,
   type Extension
 } from '@codemirror/state'
 import {
@@ -43,6 +45,27 @@ import type {
   Range
 } from './types'
 
+// ⌘/Ctrl-hover "clickable mention" underline (Phase 5 affordance). A single-range
+// decoration driven by the adapter's mousemove handler.
+const setLinkMark = StateEffect.define<{ from: number; to: number } | null>()
+const linkHoverField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(deco, tr) {
+    deco = deco.map(tr.changes)
+    for (const e of tr.effects) {
+      if (e.is(setLinkMark)) {
+        deco = e.value
+          ? Decoration.set([
+              Decoration.mark({ class: 'cm-link-hover' }).range(e.value.from, e.value.to)
+            ])
+          : Decoration.none
+      }
+    }
+    return deco
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
+
 /**
  * The one place that knows about CodeMirror. Implements the EditorAdapter seam.
  * Tuned for prose: soft wrap, centered measure, serif typography, and no line
@@ -59,6 +82,11 @@ class CodeMirrorAdapter implements EditorAdapter {
   private cmVimOff: (() => void) | null = null
   private goToDefinition: ((ctx: { lineText: string; column: number }) => void) | null =
     null
+  // ⌘/Ctrl-hover mention feedback: resolver → range, and the current linked range.
+  private mentionResolver:
+    ((lineText: string, column: number) => { from: number; to: number } | null) | null =
+    null
+  private linkRange: { from: number; to: number } | null = null
 
   mount(parent: HTMLElement): void {
     this.view = new EditorView({ state: this.buildState(''), parent })
@@ -139,6 +167,24 @@ class CodeMirrorAdapter implements EditorAdapter {
     handler: ((ctx: { lineText: string; column: number }) => void) | null
   ): void {
     this.goToDefinition = handler
+  }
+
+  /** Register the resolver that maps a line + column to a mention's char range,
+   * used to underline it as clickable while ⌘/Ctrl is held. */
+  setMentionResolver(
+    resolver:
+      ((lineText: string, column: number) => { from: number; to: number } | null) | null
+  ): void {
+    this.mentionResolver = resolver
+  }
+
+  /** Clear any ⌘/Ctrl-hover link underline. */
+  private clearLink(view: EditorView): void {
+    view.dom.classList.remove('cm-linkable')
+    if (this.linkRange) {
+      this.linkRange = null
+      view.dispatch({ effects: setLinkMark.of(null) })
+    }
   }
 
   setVimMode(enabled: boolean): void {
@@ -458,6 +504,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         // Cmd/Ctrl+click a mention → go-to-definition (VS Code's gesture). We
         // hand the clicked line + column to the registered resolver, which owns
         // the StoryIndex lookup and opens the profile.
+        linkHoverField,
         EditorView.domEventHandlers({
           mousedown: (event, view) => {
             if (!this.goToDefinition || !(event.metaKey || event.ctrlKey)) return false
@@ -467,6 +514,36 @@ class CodeMirrorAdapter implements EditorAdapter {
             event.preventDefault()
             this.goToDefinition({ lineText: line.text, column: pos - line.from + 1 })
             return true
+          },
+          // ⌘/Ctrl-hover a mention → show it as clickable (underline + pointer).
+          mousemove: (event, view) => {
+            if (!(event.metaKey || event.ctrlKey) || !this.mentionResolver) {
+              this.clearLink(view)
+              return false
+            }
+            const pos = view.posAtCoords({ x: event.clientX, y: event.clientY })
+            if (pos == null) return false
+            const line = view.state.doc.lineAt(pos)
+            const r = this.mentionResolver(line.text, pos - line.from + 1)
+            if (!r) {
+              this.clearLink(view)
+              return false
+            }
+            const abs = { from: line.from + r.from, to: line.from + r.to }
+            if (this.linkRange?.from === abs.from && this.linkRange?.to === abs.to)
+              return false
+            this.linkRange = abs
+            view.dom.classList.add('cm-linkable')
+            view.dispatch({ effects: setLinkMark.of(abs) })
+            return false
+          },
+          keyup: (event, view) => {
+            if (!event.metaKey && !event.ctrlKey) this.clearLink(view)
+            return false
+          },
+          mouseleave: (_event, view) => {
+            this.clearLink(view)
+            return false
           }
         }),
         proseTheme
@@ -731,6 +808,9 @@ const proseTheme = EditorView.theme({
     maxWidth: 'var(--editor-measure, 46rem)',
     margin: '0 auto',
     padding: '2.5rem 1.5rem 40vh',
+    // A very subtle "sheet" tint so the reading column (line length) is visible
+    // against the pane. Derived from the text colour → works in every theme.
+    backgroundColor: 'color-mix(in oklch, var(--fg) 3%, transparent)',
     // Follow the theme so the caret is visible on both light and dark bg.
     caretColor: 'var(--fg)'
   },
@@ -903,6 +983,14 @@ const proseTheme = EditorView.theme({
     backgroundColor: 'color-mix(in oklch, var(--warning) 12%, transparent)',
     borderRadius: '3px'
   },
+  // ⌘/Ctrl-hover a mention → it reads as a clickable link.
+  '.cm-link-hover': {
+    color: 'var(--accent)',
+    textDecoration: 'underline',
+    textDecorationColor: 'var(--accent)',
+    cursor: 'pointer'
+  },
+  '&.cm-linkable .cm-content': { cursor: 'pointer' },
   // Inline thread markers (M25b): a quiet structural tag, not prose.
   '.cm-thread-marker': {
     color: 'var(--accent)',

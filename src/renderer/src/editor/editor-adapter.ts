@@ -81,6 +81,14 @@ export interface EditorAdapter {
     handler: ((ctx: { lineText: string; column: number }) => void) | null
   ): void
 
+  /** Register a resolver mapping (lineText, 1-based column) → the mention's char
+   * range, used to underline it as clickable while ⌘/Ctrl is held. Pass null to
+   * clear. */
+  setMentionResolver(
+    resolver:
+      ((lineText: string, column: number) => { from: number; to: number } | null) | null
+  ): void
+
   setVimMode(enabled: boolean): void
 
   /** Vim `j`/`k` move by display line (gj/gk) instead of logical line. */
