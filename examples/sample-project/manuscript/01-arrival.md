@@ -16,4 +16,8 @@ her.
 
 "You shouldn't be here," Corvin said, to no one, to the rain.
 
-Mara stayed exactly where she was.
+<!-- thread:romance -->
+
+Mara stayed exactly where she was. She would not give him the satisfaction of
+leaving, nor the truth of why she stayed.
+<!-- /thread -->

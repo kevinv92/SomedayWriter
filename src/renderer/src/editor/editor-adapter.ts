@@ -28,6 +28,8 @@ export type FormatAction =
   | 'code'
   | 'link'
   | 'comment'
+  | 'suggest-insert'
+  | 'suggest-delete'
   | 'h1'
   | 'h2'
   | 'quote'
@@ -87,6 +89,9 @@ export interface EditorAdapter {
 
   /** Apply a Markdown formatting action to the current selection. */
   format(action: FormatAction): void
+
+  /** Accept (true) or reject (false) the tracked change under the cursor. */
+  resolveChange(accept: boolean): void
 
   dispose(): void
 }

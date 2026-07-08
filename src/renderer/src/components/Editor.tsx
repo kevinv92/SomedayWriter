@@ -17,6 +17,8 @@ export interface EditorHandle {
   cursorContext(): { lineText: string; column: number } | null
   /** Apply a Markdown formatting action to the current selection (toolbar). */
   format(action: FormatAction): void
+  /** Accept/reject the tracked change under the cursor. */
+  resolveChange(accept: boolean): void
 }
 
 interface EditorProps {
@@ -98,7 +100,8 @@ export function Editor({
     if (handleRef) {
       handleRef.current = {
         cursorContext: () => adapter.getCursorContext(),
-        format: (action) => adapter.format(action)
+        format: (action) => adapter.format(action),
+        resolveChange: (accept) => adapter.resolveChange(accept)
       }
     }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {

@@ -294,6 +294,25 @@ function parseThreadTags(value: unknown): { tag: string; order: number | null }[
   return out
 }
 
+/** Inline thread markers (Phase 9, M25b): an `<!-- thread:x -->` opening tag in a
+ * scene body scopes part of the scene to thread `x`. Here they add the scene to
+ * thread `x`'s membership (deduped, unordered); splitting into sub-scene beats at
+ * the marker offsets is future work. */
+function parseInlineThreadTags(text: string): { tag: string; order: number | null }[] {
+  const re = /<!--\s*thread:([\w-]+)\s*-->/g
+  const seen = new Set<string>()
+  const out: { tag: string; order: number | null }[] = []
+  let m: RegExpExecArray | null
+  while ((m = re.exec(text)) !== null) {
+    const key = m[1].toLowerCase()
+    if (!seen.has(key)) {
+      seen.add(key)
+      out.push({ tag: m[1], order: null })
+    }
+  }
+  return out
+}
+
 /** Beat ordering within a thread: explicit per-thread order first (nulls last),
  * then manuscript order (nulls last), then title. */
 function compareBeats(a: ThreadBeat, b: ThreadBeat): number {
@@ -339,7 +358,12 @@ export async function buildThreads(
       continue
     }
     const { data } = parseFrontmatter(text)
-    const tags = parseThreadTags(data.threads)
+    // Frontmatter `threads:` + inline `<!-- thread:x -->` markers (M25b), deduped.
+    const byKey = new Map<string, { tag: string; order: number | null }>()
+    for (const t of [...parseThreadTags(data.threads), ...parseInlineThreadTags(text)]) {
+      if (!byKey.has(t.tag.toLowerCase())) byKey.set(t.tag.toLowerCase(), t)
+    }
+    const tags = [...byKey.values()]
     if (!tags.length) continue
     const title = deriveTitle(text, path)
     const manuscriptOrder = readOrder(text)

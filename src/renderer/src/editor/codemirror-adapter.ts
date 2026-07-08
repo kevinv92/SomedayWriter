@@ -186,6 +186,12 @@ class CodeMirrorAdapter implements EditorAdapter {
       case 'comment':
         this.insertComment(view)
         break
+      case 'suggest-insert':
+        this.wrapPair(view, '{++', '++}')
+        break
+      case 'suggest-delete':
+        this.wrapPair(view, '{--', '--}')
+        break
       case 'h1':
         this.linePrefix(view, '# ', /^#{1,6}\s+/)
         break
@@ -264,6 +270,55 @@ class CodeMirrorAdapter implements EditorAdapter {
       }
     }
     view.dispatch({ changes })
+  }
+
+  /** Accept or reject the CriticMarkup change under the cursor (M25). Insertion:
+   * accept keeps the text, reject drops it; deletion is the inverse; substitution
+   * `{~~old~>new~~}` keeps new/old; a highlight unwraps; a comment is stripped. */
+  resolveChange(accept: boolean): void {
+    const view = this.requireView()
+    const { state } = view
+    const pos = state.selection.main.head
+    const line = state.doc.lineAt(pos)
+    const re = /\{==.*?==\}|\{>>.*?<<\}|\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}/g
+    let m: RegExpExecArray | null
+    while ((m = re.exec(line.text)) !== null) {
+      const from = line.from + m.index
+      const to = from + m[0].length
+      if (pos < from || pos > to) continue
+      const s = m[0]
+      const inner = s.slice(3, -3)
+      let replacement = inner
+      if (s.startsWith('{++')) replacement = accept ? inner : ''
+      else if (s.startsWith('{--')) replacement = accept ? '' : inner
+      else if (s.startsWith('{~~')) {
+        const arrow = inner.indexOf('~>')
+        replacement =
+          arrow >= 0 ? (accept ? inner.slice(arrow + 2) : inner.slice(0, arrow)) : inner
+      } else if (s.startsWith('{>>')) replacement = ''
+      // {== highlight ==} keeps its inner text (unwrap) for both accept/reject.
+      view.dispatch({ changes: { from, to, insert: replacement } })
+      view.focus()
+      return
+    }
+  }
+
+  /** Wrap the selection with a distinct open/close pair; caret between them when
+   * nothing is selected. */
+  private wrapPair(view: EditorView, open: string, close: string): void {
+    const { state } = view
+    view.dispatch(
+      state.changeByRange((range) => {
+        const text = state.sliceDoc(range.from, range.to)
+        return {
+          changes: { from: range.from, to: range.to, insert: open + text + close },
+          range: EditorSelection.range(
+            range.from + open.length,
+            range.from + open.length + text.length
+          )
+        }
+      })
+    )
   }
 
   /** Attach a CriticMarkup comment (M23): `{==span==}{>>…<<}` around a selection,
@@ -360,6 +415,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         notesPlugin,
         criticPlugin,
         criticHover,
+        threadMarkerPlugin,
         frontmatterPlugin,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
@@ -478,12 +534,18 @@ const notesPlugin = ViewPlugin.fromClass(
  * (rendered de-emphasised; the full text hovers). Both edit in source and are
  * stripped on export. Reuses the notes-decoration pattern.
  */
+const CRITIC_CLASS: Record<string, string> = {
+  '{==': 'cm-critic-highlight',
+  '{>>': 'cm-critic-comment',
+  '{++': 'cm-critic-insert',
+  '{--': 'cm-critic-delete',
+  '{~~': 'cm-critic-subst'
+}
+
 const criticMatcher = new MatchDecorator({
-  regexp: /\{==.*?==\}|\{>>.*?<<\}/g,
+  regexp: /\{==.*?==\}|\{>>.*?<<\}|\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}/g,
   decoration: (match) =>
-    Decoration.mark({
-      class: match[0].startsWith('{==') ? 'cm-critic-highlight' : 'cm-critic-comment'
-    })
+    Decoration.mark({ class: CRITIC_CLASS[match[0].slice(0, 3)] ?? 'cm-critic-comment' })
 })
 
 const criticPlugin = ViewPlugin.fromClass(
@@ -494,6 +556,29 @@ const criticPlugin = ViewPlugin.fromClass(
     }
     update(update: ViewUpdate) {
       this.decorations = criticMatcher.updateDeco(update, this.decorations)
+    }
+  },
+  { decorations: (v) => v.decorations }
+)
+
+/**
+ * Inline thread markers (Phase 9, M25b) — `<!-- thread:x -->…<!-- /thread -->`
+ * scope part of a scene to a thread. De-emphasised like HTML comments; the story
+ * index reads them so the scene joins that thread (see `parseInlineThreadTags`).
+ */
+const threadMarkerMatcher = new MatchDecorator({
+  regexp: /<!--\s*\/?thread(?::[\w-]+)?\s*-->/g,
+  decoration: Decoration.mark({ class: 'cm-thread-marker' })
+})
+
+const threadMarkerPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet
+    constructor(view: EditorView) {
+      this.decorations = threadMarkerMatcher.createDeco(view)
+    }
+    update(update: ViewUpdate) {
+      this.decorations = threadMarkerMatcher.updateDeco(update, this.decorations)
     }
   },
   { decorations: (v) => v.decorations }
@@ -783,6 +868,29 @@ const proseTheme = EditorView.theme({
     borderRadius: '3px',
     padding: '0 2px',
     fontSize: '0.9em'
+  },
+  // Tracked changes (M25): suggested insert / delete / substitute.
+  '.cm-critic-insert': {
+    color: 'var(--success)',
+    textDecoration: 'underline',
+    textDecorationColor: 'color-mix(in oklch, var(--success) 60%, transparent)'
+  },
+  '.cm-critic-delete': {
+    color: 'var(--danger)',
+    textDecoration: 'line-through',
+    textDecorationColor: 'color-mix(in oklch, var(--danger) 60%, transparent)'
+  },
+  '.cm-critic-subst': {
+    color: 'var(--warning)',
+    backgroundColor: 'color-mix(in oklch, var(--warning) 12%, transparent)',
+    borderRadius: '3px'
+  },
+  // Inline thread markers (M25b): a quiet structural tag, not prose.
+  '.cm-thread-marker': {
+    color: 'var(--accent)',
+    opacity: '0.7',
+    fontFamily: 'var(--font-mono)',
+    fontSize: '0.85em'
   },
   // Inline `%% note %%` comments: a quiet aside, not prose.
   '.cm-note': {

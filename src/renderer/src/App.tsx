@@ -987,6 +987,26 @@ export default function App() {
       run: () => editorHandle.current?.format('comment')
     },
     {
+      id: 'suggest-delete',
+      title: 'Suggest Deletion (track change)',
+      run: () => editorHandle.current?.format('suggest-delete')
+    },
+    {
+      id: 'suggest-insert',
+      title: 'Suggest Insertion (track change)',
+      run: () => editorHandle.current?.format('suggest-insert')
+    },
+    {
+      id: 'accept-change',
+      title: 'Accept Change at Cursor',
+      run: () => editorHandle.current?.resolveChange(true)
+    },
+    {
+      id: 'reject-change',
+      title: 'Reject Change at Cursor',
+      run: () => editorHandle.current?.resolveChange(false)
+    },
+    {
       id: 'syntax-reference',
       title: 'Markdown & Syntax Reference',
       run: () => setHelpOpen(true)
