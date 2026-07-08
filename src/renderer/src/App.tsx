@@ -1239,6 +1239,69 @@ export default function App() {
                   ))}
                 </div>
               )}
+              {doc && !vim && (
+                <div className="formatbar" role="toolbar" aria-label="Formatting">
+                  <button
+                    className="fmt fmt--bold"
+                    title="Bold (⌘/Ctrl+B)"
+                    onClick={() => editorHandle.current?.format('bold')}
+                  >
+                    B
+                  </button>
+                  <button
+                    className="fmt fmt--italic"
+                    title="Italic (⌘/Ctrl+I)"
+                    onClick={() => editorHandle.current?.format('italic')}
+                  >
+                    I
+                  </button>
+                  <span className="fmt-sep" />
+                  <button
+                    className="fmt"
+                    title="Heading 1"
+                    onClick={() => editorHandle.current?.format('h1')}
+                  >
+                    H1
+                  </button>
+                  <button
+                    className="fmt"
+                    title="Heading 2"
+                    onClick={() => editorHandle.current?.format('h2')}
+                  >
+                    H2
+                  </button>
+                  <span className="fmt-sep" />
+                  <button
+                    className="fmt"
+                    title="Bullet list"
+                    onClick={() => editorHandle.current?.format('bullet')}
+                  >
+                    •
+                  </button>
+                  <button
+                    className="fmt"
+                    title="Numbered list"
+                    onClick={() => editorHandle.current?.format('ordered')}
+                  >
+                    1.
+                  </button>
+                  <button
+                    className="fmt fmt--quote"
+                    title="Quote"
+                    onClick={() => editorHandle.current?.format('quote')}
+                  >
+                    &rdquo;
+                  </button>
+                  <span className="fmt-sep" />
+                  <button
+                    className="fmt fmt--icon"
+                    title="Link (⌘/Ctrl+K)"
+                    onClick={() => editorHandle.current?.format('link')}
+                  >
+                    <Icon name="link" size={15} />
+                  </button>
+                </div>
+              )}
               {doc ? (
                 <Editor
                   doc={doc}

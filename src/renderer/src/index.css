@@ -849,6 +849,65 @@ body {
 }
 
 /* --- editor --- */
+/* Formatting toolbar — writer-friendly Markdown affordances above the editor. */
+.formatbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
+.fmt {
+  min-width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.fmt:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+.fmt--bold {
+  font-weight: var(--weight-semibold);
+}
+.fmt--italic {
+  font-style: italic;
+  font-family: var(--font-reading);
+}
+.fmt--quote {
+  font-family: var(--font-reading);
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+.fmt--icon {
+  color: var(--fg-3);
+}
+
+.fmt-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 var(--space-2);
+  background: var(--divider);
+}
+
+/* Focus mode keeps the writing surface calm — hide the formatting chrome. */
+[data-focus] .formatbar {
+  display: none;
+}
+
 .editor-host {
   flex: 1;
   min-height: 0;

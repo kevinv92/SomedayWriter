@@ -1,5 +1,6 @@
 import {
   Compartment,
+  EditorSelection,
   EditorState,
   RangeSetBuilder,
   type Extension
@@ -32,7 +33,7 @@ import {
 import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import { vim, getCM } from '@replit/codemirror-vim'
 
-import type { EditorAdapter } from './editor-adapter'
+import type { EditorAdapter, FormatAction } from './editor-adapter'
 import type {
   CompletionSource,
   CursorPosition,
@@ -161,6 +162,122 @@ class CodeMirrorAdapter implements EditorAdapter {
     return () => this.vimModeCbs.delete(cb)
   }
 
+  /** Apply a Markdown formatting action to the current selection (writer-friendly
+   * formatting for people who don't know the syntax — see the toolbar + ⌘B/⌘I/⌘K). */
+  format(action: FormatAction): void {
+    const view = this.requireView()
+    switch (action) {
+      case 'bold':
+        this.wrapInline(view, '**')
+        break
+      case 'italic':
+        this.wrapInline(view, '_')
+        break
+      case 'strike':
+        this.wrapInline(view, '~~')
+        break
+      case 'code':
+        this.wrapInline(view, '`')
+        break
+      case 'link':
+        this.insertLink(view)
+        break
+      case 'h1':
+        this.linePrefix(view, '# ', /^#{1,6}\s+/)
+        break
+      case 'h2':
+        this.linePrefix(view, '## ', /^#{1,6}\s+/)
+        break
+      case 'quote':
+        this.linePrefix(view, '> ')
+        break
+      case 'bullet':
+        this.linePrefix(view, '- ')
+        break
+      case 'ordered':
+        this.linePrefix(view, '1. ')
+        break
+    }
+    view.focus()
+  }
+
+  /** Wrap (or unwrap) each selection with an inline marker (`**`, `_`, …). A
+   * collapsed selection inserts the pair and drops the caret between them. */
+  private wrapInline(view: EditorView, marker: string): void {
+    const { state } = view
+    const m = marker.length
+    view.dispatch(
+      state.changeByRange((range) => {
+        const text = state.sliceDoc(range.from, range.to)
+        const before = state.sliceDoc(Math.max(0, range.from - m), range.from)
+        const after = state.sliceDoc(range.to, Math.min(state.doc.length, range.to + m))
+        // Already wrapped just outside the selection → unwrap.
+        if (before === marker && after === marker) {
+          return {
+            changes: [
+              { from: range.from - m, to: range.from },
+              { from: range.to, to: range.to + m }
+            ],
+            range: EditorSelection.range(range.from - m, range.to - m)
+          }
+        }
+        // Selection itself includes the markers → strip them.
+        if (text.length >= 2 * m && text.startsWith(marker) && text.endsWith(marker)) {
+          const inner = text.slice(m, text.length - m)
+          return {
+            changes: { from: range.from, to: range.to, insert: inner },
+            range: EditorSelection.range(range.from, range.from + inner.length)
+          }
+        }
+        return {
+          changes: { from: range.from, to: range.to, insert: marker + text + marker },
+          range: EditorSelection.range(range.from + m, range.to + m)
+        }
+      })
+    )
+  }
+
+  /** Toggle a line prefix (`# `, `- `, `> `, `1. `) on every line the selection
+   * touches. `strip` (headings) removes a competing prefix before adding. */
+  private linePrefix(view: EditorView, prefix: string, strip?: RegExp): void {
+    const { state } = view
+    const changes: { from: number; to?: number; insert?: string }[] = []
+    const done = new Set<number>()
+    for (const range of state.selection.ranges) {
+      const first = state.doc.lineAt(range.from).number
+      const last = state.doc.lineAt(range.to).number
+      for (let n = first; n <= last; n++) {
+        if (done.has(n)) continue
+        done.add(n)
+        const line = state.doc.line(n)
+        if (line.text.startsWith(prefix)) {
+          changes.push({ from: line.from, to: line.from + prefix.length, insert: '' })
+        } else {
+          const existing = strip ? line.text.match(strip) : null
+          const removeLen = existing ? existing[0].length : 0
+          changes.push({ from: line.from, to: line.from + removeLen, insert: prefix })
+        }
+      }
+    }
+    view.dispatch({ changes })
+  }
+
+  /** Insert a `[text](url)` link around the selection and select the `url` part. */
+  private insertLink(view: EditorView): void {
+    const { state } = view
+    view.dispatch(
+      state.changeByRange((range) => {
+        const text = state.sliceDoc(range.from, range.to) || 'text'
+        const insert = `[${text}](url)`
+        const urlFrom = range.from + 1 + text.length + 2
+        return {
+          changes: { from: range.from, to: range.to, insert },
+          range: EditorSelection.range(urlFrom, urlFrom + 3)
+        }
+      })
+    )
+  }
+
   dispose(): void {
     this.cmVimOff?.()
     this.cmVimOff = null
@@ -226,6 +343,13 @@ class CodeMirrorAdapter implements EditorAdapter {
         search({ top: true }),
         highlightSelectionMatches(),
         autocompletion({ override: [this.completionDelegate], activateOnTyping: true }),
+        // Writer-friendly formatting shortcuts (sit first so they win). They
+        // insert the Markdown so writers needn't know the syntax.
+        keymap.of([
+          { key: 'Mod-b', run: () => (this.format('bold'), true) },
+          { key: 'Mod-i', run: () => (this.format('italic'), true) },
+          { key: 'Mod-k', run: () => (this.format('link'), true) }
+        ]),
         keymap.of([
           ...defaultKeymap,
           ...historyKeymap,

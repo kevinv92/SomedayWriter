@@ -19,6 +19,20 @@ import type {
  * registered *source* (pull) rather than a pushed list, matching how editors
  * and the future AnalysisService actually work; `onChange` yields the new text.
  */
+/** Writer-friendly Markdown formatting actions (toolbar + ⌘B/⌘I/⌘K). Inline
+ * wraps: bold/italic/strike/code + link. Line prefixes: headings/quote/lists. */
+export type FormatAction =
+  | 'bold'
+  | 'italic'
+  | 'strike'
+  | 'code'
+  | 'link'
+  | 'h1'
+  | 'h2'
+  | 'quote'
+  | 'bullet'
+  | 'ordered'
+
 export interface EditorAdapter {
   /** Attach the editor to a host element. Call once. */
   mount(parent: HTMLElement): void
@@ -69,6 +83,9 @@ export interface EditorAdapter {
   /** Subscribe to Vim mode changes: 'normal' | 'insert' | 'visual' | 'replace',
    * or '' when Vim is off. Returns an unsubscribe fn. */
   onVimModeChange(cb: (mode: string) => void): () => void
+
+  /** Apply a Markdown formatting action to the current selection. */
+  format(action: FormatAction): void
 
   dispose(): void
 }

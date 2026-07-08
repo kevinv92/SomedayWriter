@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from 'react'
 import { createCodeMirrorAdapter } from '../editor/codemirror-adapter'
-import type { EditorAdapter } from '../editor/editor-adapter'
+import type { EditorAdapter, FormatAction } from '../editor/editor-adapter'
 import type { EditorDoc } from '../editor/types'
 import type { AnalysisService } from '../analysis/analysis-service'
 import { countWords } from '../lib/text'
@@ -15,6 +15,8 @@ export interface EditorStatus {
 export interface EditorHandle {
   /** The cursor line's text + 1-based column, or null before mount. */
   cursorContext(): { lineText: string; column: number } | null
+  /** Apply a Markdown formatting action to the current selection (toolbar). */
+  format(action: FormatAction): void
 }
 
 interface EditorProps {
@@ -94,7 +96,10 @@ export function Editor({
       onGoToDefinitionRef.current?.(ctx.lineText, ctx.column)
     )
     if (handleRef) {
-      handleRef.current = { cursorContext: () => adapter.getCursorContext() }
+      handleRef.current = {
+        cursorContext: () => adapter.getCursorContext(),
+        format: (action) => adapter.format(action)
+      }
     }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {
       if (uri === docUriRef.current) adapter.setDiagnostics(diags)
