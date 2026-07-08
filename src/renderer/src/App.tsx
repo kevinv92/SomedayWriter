@@ -15,6 +15,7 @@ import {
   UnsavedChangesModal
 } from './components/Modal'
 import { BraidView } from './components/BraidView'
+import { CommentsPanel } from './components/CommentsPanel'
 import { CompanionPanel } from './components/CompanionPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
@@ -95,6 +96,10 @@ export default function App() {
   const [companionOpen, setCompanionOpen] = useState(false)
   const [threadsOpen, setThreadsOpen] = useState(false)
   const [braidOpen, setBraidOpen] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  // Live text of the active file, tracked only while the Comments panel is open
+  // (so it stays live as you type) — avoids per-keystroke App renders otherwise.
+  const [docText, setDocText] = useState('')
   // Bumped after a save / entity change so the disk-based Inspector + Companion
   // re-read the active file.
   const [inspectorRefresh, setInspectorRefresh] = useState(0)
@@ -134,6 +139,8 @@ export default function App() {
   })
 
   const docsRef = useRef(new Map<string, OpenBuffer>())
+  // Whether the Comments panel is open, read inside the stable doc-change handler.
+  const commentsOpenRef = useRef(false)
   const revealNonce = useRef(0)
   const didInit = useRef(false)
   // Live handle onto the editor, for palette-driven go-to-definition (reads the
@@ -353,9 +360,19 @@ export default function App() {
       if (!buffer) return
       buffer.current = text
       markDirty(activePath, text !== buffer.saved)
+      if (commentsOpenRef.current) setDocText(text)
     },
     [activePath, markDirty]
   )
+
+  // Keep the Comments panel's text current: seed it when the panel opens or the
+  // file switches; live edits flow in via handleDocChange while it's open.
+  useEffect(() => {
+    commentsOpenRef.current = commentsOpen
+    if (commentsOpen && activePath) {
+      setDocText(docsRef.current.get(activePath)?.current ?? activeLoadText)
+    }
+  }, [commentsOpen, activePath, activeLoadText])
 
   const saveTab = useCallback(
     async (path: string): Promise<boolean> => {
@@ -1044,6 +1061,7 @@ export default function App() {
                       ['Companion', companionOpen, () => setCompanionOpen((v) => !v)],
                       ['Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
                       ['Thread braid', braidOpen, () => setBraidOpen((v) => !v)],
+                      ['Comments', commentsOpen, () => setCommentsOpen((v) => !v)],
                       ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) => (
@@ -1439,6 +1457,14 @@ export default function App() {
           />
         )}
 
+        {commentsOpen && (
+          <CommentsPanel
+            text={docText}
+            onJump={(line, column) => fireReveal({ line, column })}
+            onClose={() => setCommentsOpen(false)}
+          />
+        )}
+
         {/* Panel rail — switch the right-pane panels from the pane itself. */}
         <nav className="rail" aria-label="Panels">
           {(
@@ -1451,6 +1477,7 @@ export default function App() {
                 () => setCompanionOpen((v) => !v)
               ],
               ['Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
+              ['Comments', 'comment', commentsOpen, () => setCommentsOpen((v) => !v)],
               ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)]
             ] as [string, string, boolean, () => void][]
           ).map(([label, icon, on, toggle]) => (
