@@ -17,6 +17,7 @@ import {
 import { BraidView } from './components/BraidView'
 import { CommentsPanel } from './components/CommentsPanel'
 import { CompanionPanel } from './components/CompanionPanel'
+import { HealthPanel } from './components/HealthPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
@@ -97,6 +98,7 @@ export default function App() {
   const [threadsOpen, setThreadsOpen] = useState(false)
   const [braidOpen, setBraidOpen] = useState(false)
   const [commentsOpen, setCommentsOpen] = useState(false)
+  const [healthOpen, setHealthOpen] = useState(false)
   // Live text of the active file, tracked only while the Comments panel is open
   // (so it stays live as you type) — avoids per-keystroke App renders otherwise.
   const [docText, setDocText] = useState('')
@@ -1121,7 +1123,8 @@ export default function App() {
                       ['Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
                       ['Thread braid', braidOpen, () => setBraidOpen((v) => !v)],
                       ['Comments', commentsOpen, () => setCommentsOpen((v) => !v)],
-                      ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)]
+                      ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)],
+                      ['Project Health', healthOpen, () => setHealthOpen((v) => !v)]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) => (
                     <button
@@ -1542,6 +1545,16 @@ export default function App() {
           />
         )}
 
+        {healthOpen && (
+          <HealthPanel
+            refreshKey={inspectorRefresh}
+            onOpen={(path, line, column, length) =>
+              openFile(path, { line, column, endColumn: column + length })
+            }
+            onClose={() => setHealthOpen(false)}
+          />
+        )}
+
         {/* Panel rail — switch the right-pane panels from the pane itself. */}
         <nav className="rail" aria-label="Panels">
           {(
@@ -1555,7 +1568,8 @@ export default function App() {
               ],
               ['Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
               ['Comments', 'comment', commentsOpen, () => setCommentsOpen((v) => !v)],
-              ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)]
+              ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)],
+              ['Project Health', 'activity', healthOpen, () => setHealthOpen((v) => !v)]
             ] as [string, string, boolean, () => void][]
           ).map(([label, icon, on, toggle]) => (
             <button

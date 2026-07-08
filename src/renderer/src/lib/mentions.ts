@@ -2,68 +2,56 @@ import type { Entity } from '@shared/types'
 
 /**
  * Renderer-side mention resolution (Phase 5, M8c) — the go-to-definition lookup.
- * Mirrors `referencesTo`'s matching rules in the main process (`story-index.ts`)
- * so the same surface forms that get *found* also *resolve*: whole-word matches
- * on an entity's canonical name or any alias, longest surface winning at a spot
- * ("Mara Venn" over "Mara"), covering both bare mentions and the braced
- * `@{surface}` insert form (the braces are non-word, so the boundaries still hold).
+ * Mentions are **explicit** `@{surface}` references (a surface being an entity's
+ * canonical name or any alias); plain prose text is never auto-linked, so there
+ * are no false positives and a rename is an exact find-replace. Mirrors
+ * `referencesTo`'s matching in the main process (`story-index.ts`).
  */
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+const MENTION_RE = /@\{([^}]*)\}/g
 
-/** Like `entityAt`, but returns the 0-based char range of the mention under the
- * cursor within the line (for the ⌘/Ctrl-hover "clickable" affordance), or null. */
-export function mentionRangeAt(
-  lineText: string,
-  column: number,
-  entities: Entity[]
-): { from: number; to: number } | null {
-  const cursor = column - 1
-  const surfaces: { text: string; entity: Entity }[] = []
-  for (const entity of entities) {
-    for (const surface of [entity.name, ...entity.aliases]) {
-      if (surface) surfaces.push({ text: surface, entity })
-    }
-  }
-  surfaces.sort((a, b) => b.text.length - a.text.length)
-  for (const { text } of surfaces) {
-    const re = new RegExp(`(?<![\\w])${escapeRegExp(text)}(?![\\w])`, 'g')
-    let m: RegExpExecArray | null
-    while ((m = re.exec(lineText)) !== null) {
-      if (cursor >= m.index && cursor <= m.index + text.length) {
-        return { from: m.index, to: m.index + text.length }
-      }
-    }
-  }
-  return null
-}
-
-/**
- * The entity whose surface form sits under a cursor, or `null` if none does.
- * `lineText` is the full line; `column` is 1-based (as reported by the editor).
- */
+/** The entity whose `@{surface}` mention sits under the cursor, or null. */
 export function entityAt(
   lineText: string,
   column: number,
   entities: Entity[]
 ): Entity | null {
-  const cursor = column - 1 // 0-based offset into the line
-  const surfaces: { text: string; entity: Entity }[] = []
-  for (const entity of entities) {
-    for (const surface of [entity.name, ...entity.aliases]) {
-      if (surface) surfaces.push({ text: surface, entity })
-    }
-  }
-  // Longest first so a multi-word name wins over a substring alias at the same spot.
-  surfaces.sort((a, b) => b.text.length - a.text.length)
-  for (const { text, entity } of surfaces) {
-    const re = new RegExp(`(?<![\\w])${escapeRegExp(text)}(?![\\w])`, 'g')
-    let m: RegExpExecArray | null
-    while ((m = re.exec(lineText)) !== null) {
-      // Inclusive of the trailing edge so a caret just after the word still resolves.
-      if (cursor >= m.index && cursor <= m.index + text.length) return entity
+  const range = mentionUnder(lineText, column)
+  if (!range) return null
+  return (
+    entities.find((e) => e.name === range.surface || e.aliases.includes(range.surface)) ??
+    null
+  )
+}
+
+/** The 0-based char range of the `@{…}` mention under the cursor (for the
+ * ⌘/Ctrl-hover "clickable" underline), if its surface resolves to an entity. */
+export function mentionRangeAt(
+  lineText: string,
+  column: number,
+  entities: Entity[]
+): { from: number; to: number } | null {
+  const range = mentionUnder(lineText, column)
+  if (!range) return null
+  const ok = entities.some(
+    (e) => e.name === range.surface || e.aliases.includes(range.surface)
+  )
+  return ok ? { from: range.from, to: range.to } : null
+}
+
+/** The `@{…}` token spanning the 1-based `column`, with its inner surface. */
+function mentionUnder(
+  lineText: string,
+  column: number
+): { surface: string; from: number; to: number } | null {
+  const cursor = column - 1
+  MENTION_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = MENTION_RE.exec(lineText)) !== null) {
+    const from = m.index
+    const to = m.index + m[0].length
+    if (cursor >= from && cursor <= to) {
+      return { surface: m[1].trim(), from, to }
     }
   }
   return null

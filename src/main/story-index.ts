@@ -62,10 +62,9 @@ export async function buildEntities(root: string, ignore: string[]): Promise<Ent
   return entities.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** Every place `entity`'s surface forms (name or any alias) appear in the
- * project, as whole-word matches. Plain-name detection + `@{surface}` mentions.
- * v1 links every unambiguous surface form; genuinely ambiguous ones are left to
- * a later pass. */
+/** Every place `entity` is mentioned in the project. Mentions are explicit
+ * `@{surface}` references (a surface being the entity's name or any alias) —
+ * plain prose text is never auto-linked, so there are no false positives. */
 export async function referencesTo(
   entity: Entity,
   root: string,
@@ -73,12 +72,9 @@ export async function referencesTo(
 ): Promise<EntityRef[]> {
   const surfaces = [entity.name, ...entity.aliases].filter(Boolean)
   if (!surfaces.length) return []
-  // Longest first so "Mara Venn" wins over "Mara" at the same spot.
+  // Longest first so "@{Mara Venn}" wins over "@{Mara}" at the same spot.
   surfaces.sort((a, b) => b.length - a.length)
-  const re = new RegExp(
-    `(?<![\\w])(?:${surfaces.map(escapeRegExp).join('|')})(?![\\w])`,
-    'g'
-  )
+  const re = new RegExp(`@\\{(?:${surfaces.map(escapeRegExp).join('|')})\\}`, 'g')
 
   const files = await listMarkdownFiles(root, ignore)
   const refs: EntityRef[] = []
@@ -106,6 +102,50 @@ export async function referencesTo(
     }
   }
   return refs
+}
+
+/** Project-health check (Phase 9): every `@{surface}` mention whose surface no
+ * longer resolves to an entity's name or alias — dead references left by a
+ * renamed/removed alias or a typo. Reuses the EntityRef shape. */
+export async function deadReferences(
+  root: string,
+  ignore: string[],
+  entities: Entity[]
+): Promise<EntityRef[]> {
+  const valid = new Set<string>()
+  for (const e of entities) {
+    valid.add(e.name)
+    for (const a of e.aliases) valid.add(a)
+  }
+  const files = await listMarkdownFiles(root, ignore)
+  const out: EntityRef[] = []
+  const re = /@\{([^}]*)\}/g
+  for (const path of files) {
+    let text: string
+    try {
+      text = await fs.readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const lines = text.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      re.lastIndex = 0
+      let m: RegExpExecArray | null
+      while ((m = re.exec(lines[i])) !== null) {
+        const surface = m[1].trim()
+        if (surface && !valid.has(surface)) {
+          out.push({
+            path,
+            line: i + 1,
+            column: m.index + 1,
+            surface,
+            preview: lines[i].trim()
+          })
+        }
+      }
+    }
+  }
+  return out
 }
 
 function stringListWarnings(data: Record<string, unknown>, key: string): string[] {
@@ -136,14 +176,12 @@ function detectMentions(
   }
   const surfaces = [...owner.keys()].sort((a, b) => b.length - a.length)
   if (!surfaces.length) return []
-  const re = new RegExp(
-    `(?<![\\w])(?:${surfaces.map(escapeRegExp).join('|')})(?![\\w])`,
-    'g'
-  )
+  // Explicit `@{surface}` mentions only — no bare-text auto-linking.
+  const re = new RegExp(`@\\{(${surfaces.map(escapeRegExp).join('|')})\\}`, 'g')
   const counts = new Map<string, { entity: Entity; count: number }>()
   let m: RegExpExecArray | null
   while ((m = re.exec(body)) !== null) {
-    const entity = owner.get(m[0])
+    const entity = owner.get(m[1])
     if (!entity) continue
     const seen = counts.get(entity.id)
     if (seen) seen.count++

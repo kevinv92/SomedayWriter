@@ -929,6 +929,24 @@ body {
 }
 
 /* --- editor --- */
+/* Project Health panel — section label + dead-reference rows (danger icon). */
+.health-section {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--weight-medium);
+  padding: var(--space-3) var(--space-4) var(--space-1);
+}
+
+.comment-item--dead .comment-item__icon {
+  color: var(--danger);
+}
+.comment-item--dead .comment-item__text {
+  font-family: var(--font-mono);
+  color: var(--danger);
+}
+
 /* Comments panel (M24) — editorial comments in the current file. */
 .comment-item {
   display: flex;

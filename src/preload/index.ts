@@ -101,6 +101,7 @@ const api = {
 
   /** The project-wide thread model — membership + per-thread order (M9). */
   storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads'),
+  storyHealth: (): Promise<EntityRef[]> => ipcRenderer.invoke('story:health'),
 
   /** Drop the cached story index so external file changes are re-read. */
   refreshIndex: (): Promise<void> => ipcRenderer.invoke('story:refresh')
