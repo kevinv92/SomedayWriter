@@ -1344,6 +1344,26 @@ Plain-language definitions of terms used above.
   across ~two dozen components, plus plurals/interpolation. RTL _UI_ layout
   mirroring is the one genuinely hard piece. (Also: per-language spellcheck
   dictionaries and CJK-aware word count.)
+- **Real Neovim integration** — a "proper" Neovim like `vscode-neovim`: spawn a
+  headless `nvim --embed` in the main process and talk msgpack-RPC, so the user's
+  real config/plugins/registers/macros/ex-commands all work (vs. today's
+  self-contained `@replit/codemirror-vim` _emulation_). The RPC transport is easy
+  from Electron; the integration is not. **Heavy cons — assume a major refactor
+  and dropping features:**
+  - **External dependency** — requires Neovim installed on the user's machine.
+  - **Approach A (embed the full nvim UI, Firenvim-style):** render nvim's grid
+    directly → **CodeMirror is dropped for that buffer, and with it every prose
+    decoration** — `@{mentions}`, `%% notes %%`, inline images, CriticMarkup,
+    thread markers, the reading column. Guts the app's whole value for prose.
+  - **Approach B (nvim engine + CM renderer, vscode-neovim-style):** keeps the
+    decorations but means **rebuilding vscode-neovim's bidirectional buffer/mode
+    sync from scratch** (no CM↔nvim library exists) — a multi-week/month effort
+    with a long tail of subtle sync races (edit ownership, dot-repeat, macros
+    mutating text, undo, mode transitions) and ongoing maintenance.
+  - Either way it's a **major refactor of the editor layer**, not an add-on. Most
+    realistic shape if pursued: an optional "raw Neovim mode" (A) a power user
+    toggles, explicitly trading away the prose decorations — not the default
+    writing surface.
 
 ## Deferred decisions (revisit later)
 
