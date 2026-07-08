@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TreeNode } from '@shared/types'
 import { parentDir } from '../lib/paths'
+import { Icon } from './Icon'
 
 interface FileTreeProps {
   /** The project root node; its children are rendered (the root itself is the
@@ -193,7 +194,10 @@ export function FileTree({
                 }}
               >
                 <span className="tree-dir__caret">
-                  {collapsed.has(node.path) ? '▸' : '▾'}
+                  <Icon
+                    name={collapsed.has(node.path) ? 'chevron-right' : 'chevron-down'}
+                    size={13}
+                  />
                 </span>
                 {node.name}
               </button>
@@ -229,7 +233,11 @@ export function FileTree({
                 onDropNode(node)
               }}
             >
-              {icon && <span className="tree-file__icon">{icon} </span>}
+              {icon && (
+                <span className="tree-file__icon">
+                  <Icon name={icon} size={14} />
+                </span>
+              )}
               {node.name}
             </button>
           )

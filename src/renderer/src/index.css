@@ -238,6 +238,20 @@
   box-sizing: border-box;
 }
 
+/* Writer icon-set SVGs (Icon.tsx) — align with adjacent text; never shrink. */
+.icon {
+  flex: none;
+  vertical-align: -0.15em;
+}
+/* Type badges pair an icon with a label — lay them out inline-centred. */
+.companion-entry__type,
+.inspector-mention__type,
+.refs-entity__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
 html,
 body,
 #root {
@@ -992,25 +1006,11 @@ body {
   font-size: 1rem;
 }
 
-.icon-btn__glyph {
-  line-height: 1;
+.icon-btn--action {
+  color: var(--fg-2);
 }
-
-.icon-btn--action::after {
-  content: '+';
-  position: absolute;
-  top: -3px;
-  right: -3px;
-  width: 12px;
-  height: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-full);
-  background: var(--accent);
-  color: var(--accent-fg);
-  font-size: 0.62rem;
-  line-height: 1;
+.icon-btn--action:hover {
+  color: var(--fg);
 }
 
 .icon-btn__tip {

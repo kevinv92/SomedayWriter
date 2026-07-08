@@ -21,6 +21,7 @@ import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
+import { Icon } from './components/Icon'
 import { AnalysisService } from './analysis/analysis-service'
 import { createEntityProvider } from './analysis/providers/entity-provider'
 import { createFrontmatterProvider } from './analysis/providers/frontmatter-provider'
@@ -236,7 +237,8 @@ export default function App() {
   // path off the entity list (only files with a `type:` appear).
   const entityIcons = useMemo(() => {
     const map = new Map<string, string>()
-    for (const e of entities) map.set(e.path, entityTypeMeta(e.type, entityTypes).icon)
+    for (const e of entities)
+      map.set(e.path, entityTypeMeta(e.type, entityTypes).iconName)
     return map
   }, [entities, entityTypes])
 
@@ -1158,9 +1160,7 @@ export default function App() {
                     aria-label="New file"
                     onClick={() => tree && setModal({ kind: 'newFile', dir: tree.path })}
                   >
-                    <span className="icon-btn__glyph" aria-hidden="true">
-                      📄
-                    </span>
+                    <Icon name="file-plus" size={17} />
                     <span className="icon-btn__tip">New file</span>
                   </button>
                   <button
@@ -1170,9 +1170,7 @@ export default function App() {
                       tree && setModal({ kind: 'newFolder', dir: tree.path })
                     }
                   >
-                    <span className="icon-btn__glyph" aria-hidden="true">
-                      📁
-                    </span>
+                    <Icon name="folder-plus" size={17} />
                     <span className="icon-btn__tip">New folder</span>
                   </button>
                 </div>
@@ -1323,10 +1321,15 @@ export default function App() {
         <nav className="rail" aria-label="Panels">
           {(
             [
-              ['References', '🔗', refsOpen, () => setRefsOpen((v) => !v)],
-              ['Companion', '👤', companionOpen, () => setCompanionOpen((v) => !v)],
-              ['Threads', '🧵', threadsOpen, () => setThreadsOpen((v) => !v)],
-              ['Inspector', 'ⓘ', inspectorOpen, () => setInspectorOpen((v) => !v)]
+              ['References', 'link', refsOpen, () => setRefsOpen((v) => !v)],
+              [
+                'Companion',
+                'book-open',
+                companionOpen,
+                () => setCompanionOpen((v) => !v)
+              ],
+              ['Threads', 'git-branch', threadsOpen, () => setThreadsOpen((v) => !v)],
+              ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)]
             ] as [string, string, boolean, () => void][]
           ).map(([label, icon, on, toggle]) => (
             <button
@@ -1336,7 +1339,7 @@ export default function App() {
               aria-pressed={on}
               onClick={toggle}
             >
-              <span className="rail__icon">{icon}</span>
+              <Icon name={icon} size={18} />
               <span className="rail__tip">{label}</span>
             </button>
           ))}

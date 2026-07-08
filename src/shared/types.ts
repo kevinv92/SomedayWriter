@@ -77,8 +77,12 @@ export type EntityTypeDef = {
   type: string
   /** Display name, e.g. "Location". Defaults to a title-cased `type`. */
   label?: string
-  /** Short glyph (emoji) shown in the tree + type badges. */
+  /** Short glyph (emoji) shown in the tree + type badges. Legacy fallback; the
+   * app now prefers `iconName` (a Writer icon-set SVG). */
   icon?: string
+  /** Name of a Writer icon-set icon (see `Icon.tsx`) for the badge — themes with
+   * `currentColor`. Falls back to `icon` (emoji) for custom types that omit it. */
+  iconName?: string
   /** Badge accent colour (kept light until the Phase 8 design system). */
   color?: string
   /** The fields this type declares, in template/intellisense order. */

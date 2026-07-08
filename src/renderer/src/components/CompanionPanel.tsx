@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Icon } from './Icon'
 import type { CompanionEntry } from '@shared/types'
 import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 
@@ -94,10 +95,13 @@ export function CompanionPanel({
             onClick={() => toggleExpand(entry.path)}
             title={isOpen ? 'Collapse' : 'Expand'}
           >
-            <span className="companion-entry__caret">{isOpen ? '▾' : '▸'}</span>
+            <span className="companion-entry__caret">
+              <Icon name={isOpen ? 'chevron-down' : 'chevron-right'} size={12} />
+            </span>
             <span className="companion-entry__title">{entry.title}</span>
             <span className="companion-entry__type">
-              {entityTypeMeta(entry.type, entityTypes).icon} {entry.type}
+              <Icon name={entityTypeMeta(entry.type, entityTypes).iconName} size={13} />{' '}
+              {entry.type}
             </span>
             {entry.count != null && (
               <span className="companion-entry__count">×{entry.count}</span>
@@ -108,7 +112,7 @@ export function CompanionPanel({
             title={isPinned ? 'Unpin' : 'Pin'}
             onClick={() => onTogglePin(entry.path)}
           >
-            📌
+            <Icon name="pin" size={14} />
           </button>
           <button
             className="companion-open"
@@ -147,7 +151,9 @@ export function CompanionPanel({
       </div>
 
       <div className="search-panel__results">
-        <div className="companion-zone">📌 Pinned</div>
+        <div className="companion-zone">
+          <Icon name="pin" size={12} /> Pinned
+        </div>
         {pinned.length === 0 ? (
           <div className="companion-hint">
             Pin an entity or a note to keep it here across scenes.

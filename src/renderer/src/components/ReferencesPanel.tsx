@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { Icon } from './Icon'
 import type { Entity, EntityRef } from '@shared/types'
 import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 import { basename } from '../lib/paths'
@@ -139,7 +140,11 @@ export function ReferencesPanel({
               >
                 <span className="refs-entity__name">{entity.name}</span>
                 <span className="refs-entity__type">
-                  {entityTypeMeta(entity.type, entityTypes).icon} {entity.type}
+                  <Icon
+                    name={entityTypeMeta(entity.type, entityTypes).iconName}
+                    size={13}
+                  />{' '}
+                  {entity.type}
                 </span>
               </button>
             ))
