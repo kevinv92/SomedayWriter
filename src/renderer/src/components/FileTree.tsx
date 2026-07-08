@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TreeNode } from '@shared/types'
-import { basename, parentDir } from '../lib/paths'
+import { basename, isImageFile, parentDir } from '../lib/paths'
 import { Icon } from './Icon'
 
 interface FileTreeProps {
@@ -25,10 +25,16 @@ interface FileTreeProps {
   onDrop: (draggedPath: string, target: TreeNode) => void
 }
 
-/** v1 edits Markdown only; other files show greyed and aren't selectable. Only
- * Markdown files are draggable (they're the scenes that carry `order`). */
+/** v1 edits Markdown only; only Markdown files are draggable (they're the scenes
+ * that carry `order`). */
 function isEditable(node: TreeNode): boolean {
   return node.type === 'file' && node.name.endsWith('.md')
+}
+
+/** Files that open when clicked: Markdown (edit) + images (read-only viewer).
+ * Everything else is greyed and inert. */
+function isOpenable(node: TreeNode): boolean {
+  return node.type === 'file' && (node.name.endsWith('.md') || isImageFile(node.name))
 }
 
 /** Where a new file/folder created "on" this node should land. */
@@ -112,7 +118,7 @@ export function FileTree({
 
   const activate = (node: TreeNode) => {
     if (node.type === 'directory') toggle(node.path)
-    else if (isEditable(node)) onSelect(node.path)
+    else if (isOpenable(node)) onSelect(node.path)
   }
 
   // Arrow-key navigation over the flattened rows (M12).
@@ -240,19 +246,20 @@ export function FileTree({
             )
           }
           const editable = isEditable(node)
+          const openable = isOpenable(node)
           const icon = entityIcons?.get(node.path)
           return (
             <button
               key={node.path}
               data-path={node.path}
               className={`tree-file${node.path === activePath ? ' tree-file--active' : ''}${
-                editable ? '' : ' tree-file--disabled'
+                openable ? '' : ' tree-file--disabled'
               }${focusCls}${dropCls}`}
               style={{ paddingLeft: `${depth * 0.85 + 1.3}rem` }}
-              disabled={!editable}
+              disabled={!openable}
               draggable={editable}
               title={
-                editable ? node.name : 'Only Markdown (.md) files are editable in v1'
+                openable ? node.name : 'Only Markdown (.md) files and images open in v1'
               }
               onClick={() => {
                 onSelect(node.path)

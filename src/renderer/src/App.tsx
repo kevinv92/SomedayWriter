@@ -43,6 +43,7 @@ import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import {
   basename,
+  isImageFile,
   isInsideDir,
   joinPath,
   parentDir,
@@ -50,6 +51,7 @@ import {
   posixRelativePath,
   projectRelative
 } from './lib/paths'
+import { ImageView } from './components/ImageView'
 import { entityAt, mentionRangeAt } from './lib/mentions'
 import { parseEntityHead, detectRename, type EntityHead } from './lib/rename'
 
@@ -197,9 +199,19 @@ export default function App() {
   // mutates the buffer in the ref) never re-loads the editor. Switching tabs
   // recomputes and loads that tab's live buffer.
   const doc = useMemo<EditorDoc | null>(
-    () => (activePath ? { uri: activePath, text: activeLoadText } : null),
+    () =>
+      activePath && !isImageFile(activePath)
+        ? { uri: activePath, text: activeLoadText }
+        : null,
     [activePath, activeLoadText]
   )
+
+  // A writer-asset:// URL when the active file is an image (shown in ImageView).
+  const activeImageUrl = useMemo(() => {
+    if (!project || !activePath || !isImageFile(activePath)) return null
+    const rel = projectRelative(project.root, activePath)
+    return `writer-asset://asset/${rel.split('/').map(encodeURIComponent).join('/')}`
+  }, [project, activePath])
 
   const dirty = activePath ? dirtyPaths.has(activePath) : false
 
@@ -394,6 +406,13 @@ export default function App() {
         if (reveal) fireReveal(reveal)
         return
       }
+      // Images open in the read-only viewer, not the text editor — no text read.
+      if (isImageFile(path)) {
+        docsRef.current.set(path, { saved: '', current: '' })
+        setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
+        switchTo(path)
+        return
+      }
       void (async () => {
         const result = await window.api.readFile(path)
         if (!result.ok) {
@@ -529,6 +548,7 @@ export default function App() {
 
   const saveTab = useCallback(
     async (path: string): Promise<boolean> => {
+      if (isImageFile(path)) return true // read-only; never write over the binary
       const buffer = docsRef.current.get(path)
       if (!buffer) return true
       const result = await window.api.writeFile(path, buffer.current)
@@ -991,8 +1011,23 @@ export default function App() {
         navRef.current.jumpTab(Number(e.key))
       }
     }
+    // ⌘[ / ⌘] back-forward (the Mac convention). CodeMirror binds these to
+    // outdent/indent, so intercept in the capture phase — before the editor sees
+    // them — and stop propagation so it never runs.
+    const onNavKeys = (e: KeyboardEvent) => {
+      if (e.metaKey && !e.ctrlKey && !e.altKey && (e.key === '[' || e.key === ']')) {
+        e.preventDefault()
+        e.stopPropagation()
+        if (e.key === '[') navRef.current.back()
+        else navRef.current.forward()
+      }
+    }
     window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    window.addEventListener('keydown', onNavKeys, true)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown)
+      window.removeEventListener('keydown', onNavKeys, true)
+    }
   }, [])
 
   if (!project) {
@@ -1052,8 +1087,8 @@ export default function App() {
   // Command registry (SPEC → command palette). Declared once here; the palette,
   // and later menus/keybindings, draw from it.
   const commands: QuickCommand[] = [
-    { id: 'nav-back', title: 'Go Back', hint: '⌃−', run: () => goBack() },
-    { id: 'nav-forward', title: 'Go Forward', hint: '⌃⇧−', run: () => goForward() },
+    { id: 'nav-back', title: 'Go Back', hint: '⌘[', run: () => goBack() },
+    { id: 'nav-forward', title: 'Go Forward', hint: '⌘]', run: () => goForward() },
     { id: 'new-project', title: 'New Project…', run: () => void newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
     {
@@ -1267,7 +1302,7 @@ export default function App() {
         <nav className="menubar__menus">
           <button
             className="menubar__nav"
-            title="Back (⌃−)"
+            title="Back (⌘[)"
             disabled={!navState.back}
             onClick={goBack}
           >
@@ -1275,7 +1310,7 @@ export default function App() {
           </button>
           <button
             className="menubar__nav"
-            title="Forward (⌃⇧−)"
+            title="Forward (⌘])"
             disabled={!navState.forward}
             onClick={goForward}
           >
@@ -1647,7 +1682,9 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {doc ? (
+              {activeImageUrl ? (
+                <ImageView url={activeImageUrl} name={basename(activePath ?? '')} />
+              ) : doc ? (
                 <Editor
                   doc={doc}
                   vimEnabled={vim}

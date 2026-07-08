@@ -25,6 +25,13 @@ export function isInsideDir(path: string, dir: string): boolean {
   return path === dir || path.startsWith(`${dir}/`) || path.startsWith(`${dir}\\`)
 }
 
+const IMAGE_EXT_RE = /\.(png|jpe?g|gif|webp|svg|avif|bmp)$/i
+
+/** True if the path names an image file (opens in the viewer, not the editor). */
+export function isImageFile(path: string): boolean {
+  return IMAGE_EXT_RE.test(path)
+}
+
 /** `absPath` as a project-relative POSIX path (for image asset resolution). */
 export function projectRelative(root: string, absPath: string): string {
   const rel = isInsideDir(absPath, root) ? absPath.slice(root.length + 1) : absPath
