@@ -104,6 +104,50 @@ export async function referencesTo(
   return refs
 }
 
+/** Project-health check (Phase 9): every `@{surface}` mention whose surface no
+ * longer resolves to an entity's name or alias — dead references left by a
+ * renamed/removed alias or a typo. Reuses the EntityRef shape. */
+export async function deadReferences(
+  root: string,
+  ignore: string[],
+  entities: Entity[]
+): Promise<EntityRef[]> {
+  const valid = new Set<string>()
+  for (const e of entities) {
+    valid.add(e.name)
+    for (const a of e.aliases) valid.add(a)
+  }
+  const files = await listMarkdownFiles(root, ignore)
+  const out: EntityRef[] = []
+  const re = /@\{([^}]*)\}/g
+  for (const path of files) {
+    let text: string
+    try {
+      text = await fs.readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const lines = text.split('\n')
+    for (let i = 0; i < lines.length; i++) {
+      re.lastIndex = 0
+      let m: RegExpExecArray | null
+      while ((m = re.exec(lines[i])) !== null) {
+        const surface = m[1].trim()
+        if (surface && !valid.has(surface)) {
+          out.push({
+            path,
+            line: i + 1,
+            column: m.index + 1,
+            surface,
+            preview: lines[i].trim()
+          })
+        }
+      }
+    }
+  }
+  return out
+}
+
 function stringListWarnings(data: Record<string, unknown>, key: string): string[] {
   const value = data[key]
   if (value === undefined) return []

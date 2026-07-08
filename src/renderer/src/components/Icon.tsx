@@ -30,6 +30,7 @@ export type IconName =
   | 'reload'
   | 'tag'
   | 'comment'
+  | 'activity'
 
 /** Filled ("solid") icons get the glossy 3D treatment. Value = the silhouette
  * path(s); `evenodd` cuts interior holes (the map-pin dot, the info "i"). */
@@ -109,6 +110,7 @@ const LINE: Partial<Record<IconName, ReactNode>> = {
   comment: (
     <path d="M4.5 5.5a1.5 1.5 0 0 1 1.5-1.5h12a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H10l-4 3.5V15H6a1.5 1.5 0 0 1-1.5-1.5z" />
   ),
+  activity: <path d="M3 12h3.5l2.5-7 4 14 2.5-7H21" />,
   x: <path d="M6 6l12 12M18 6L6 18" />,
   reload: (
     <>

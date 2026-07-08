@@ -21,6 +21,7 @@ import type {
 import {
   buildEntities,
   buildThreads,
+  deadReferences,
   inspectFile,
   loadCompanionEntry,
   referencesTo,
@@ -271,6 +272,12 @@ function registerIpc(): void {
   )
 
   ipcMain.handle('story:threads', (): Promise<Thread[]> => getThreads())
+
+  ipcMain.handle('story:health', async (): Promise<EntityRef[]> => {
+    if (!currentProject) return []
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    return deadReferences(currentProject.root, ignore, await getEntities())
+  })
 
   // Manual "Reload from Disk": drop the cache so external edits (another editor,
   // a git checkout) are picked up on the next fetch.
