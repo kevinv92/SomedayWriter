@@ -37,6 +37,7 @@ import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/sea
 import { vim, getCM, Vim } from '@replit/codemirror-vim'
 
 import type { EditorAdapter, FormatAction } from './editor-adapter'
+import { tidyTableBlock } from '../lib/table'
 import type {
   CompletionSource,
   CursorPosition,
@@ -365,6 +366,26 @@ class CodeMirrorAdapter implements EditorAdapter {
       view.focus()
       return
     }
+  }
+
+  /** Tidy the Markdown table around the cursor: pad cells so columns align. */
+  formatTable(): void {
+    const view = this.requireView()
+    const { doc } = view.state
+    const cur = doc.lineAt(view.state.selection.main.head).number
+    const hasPipe = (n: number): boolean => doc.line(n).text.includes('|')
+    if (!hasPipe(cur)) return
+    let start = cur
+    let end = cur
+    while (start > 1 && hasPipe(start - 1)) start--
+    while (end < doc.lines && hasPipe(end + 1)) end++
+    const from = doc.line(start).from
+    const to = doc.line(end).to
+    const block = doc.sliceString(from, to)
+    const tidy = tidyTableBlock(block)
+    if (!tidy || tidy === block) return
+    view.dispatch({ changes: { from, to, insert: tidy } })
+    view.focus()
   }
 
   /** Wrap the selection with a distinct open/close pair; caret between them when
