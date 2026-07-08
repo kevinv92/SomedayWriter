@@ -849,6 +849,88 @@ body {
 }
 
 /* --- editor --- */
+/* Markdown & syntax reference (cheat sheet). */
+.syntax-help {
+  width: min(680px, calc(100vw - 2rem));
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--popup-bg);
+  border: 1px solid var(--popup-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popup);
+  overflow: hidden;
+}
+
+.syntax-help__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--divider);
+}
+
+.syntax-help__heading {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.syntax-help__body {
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-7);
+}
+
+.syntax-help__title {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--weight-medium);
+  margin: 0 0 var(--space-4);
+}
+
+.syntax-help__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.syntax-help__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.syntax-help__row dt {
+  margin: 0;
+}
+
+.syntax-help__row dt code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+}
+
+.syntax-help__row dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+  line-height: var(--leading-snug);
+}
+
+.fmt--help {
+  margin-left: auto;
+  color: var(--fg-3);
+}
+
 /* Formatting toolbar — writer-friendly Markdown affordances above the editor. */
 .formatbar {
   display: flex;

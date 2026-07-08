@@ -22,6 +22,7 @@ import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
 import { Icon } from './components/Icon'
+import { SyntaxHelp } from './components/SyntaxHelp'
 import { AnalysisService } from './analysis/analysis-service'
 import { createEntityProvider } from './analysis/providers/entity-provider'
 import { createFrontmatterProvider } from './analysis/providers/frontmatter-provider'
@@ -124,6 +125,7 @@ export default function App() {
   // Menubar: which dropdown is open (null = none); explorer visibility.
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
     words: 0,
     cursor: { line: 1, column: 1 }
@@ -942,6 +944,11 @@ export default function App() {
       run: () => toggleFocus()
     },
     {
+      id: 'syntax-reference',
+      title: 'Markdown & Syntax Reference',
+      run: () => setHelpOpen(true)
+    },
+    {
       id: 'save',
       title: 'Save',
       hint: '⌘S',
@@ -1111,6 +1118,16 @@ export default function App() {
                   >
                     <span className="menu-pop__check" />
                     Reload from disk
+                  </button>
+                  <button
+                    className="menu-pop__row"
+                    onClick={() => {
+                      setHelpOpen(true)
+                      setMenuOpen(null)
+                    }}
+                  >
+                    <span className="menu-pop__check" />
+                    Markdown &amp; syntax reference
                   </button>
                 </div>
               </>
@@ -1299,6 +1316,13 @@ export default function App() {
                     onClick={() => editorHandle.current?.format('link')}
                   >
                     <Icon name="link" size={15} />
+                  </button>
+                  <button
+                    className="fmt fmt--help"
+                    title="Markdown & syntax reference"
+                    onClick={() => setHelpOpen(true)}
+                  >
+                    ?
                   </button>
                 </div>
               )}
@@ -1509,6 +1533,8 @@ export default function App() {
           onOpenFile={(path) => openFile(path, { line: 1, column: 1 })}
         />
       )}
+
+      {helpOpen && <SyntaxHelp onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }
