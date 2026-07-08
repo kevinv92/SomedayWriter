@@ -1,6 +1,6 @@
 import { promises as fs } from 'fs'
-import { basename, join, resolve } from 'path'
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
+import { basename, extname, join, resolve, sep } from 'path'
+import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
   AppSettings,
@@ -45,6 +45,77 @@ import { findMatches, replaceAll } from './search'
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
 let currentProject: ProjectMeta | null = null
+
+// A privileged scheme so the sandboxed renderer can display project images
+// without file:// access. `writer-asset://asset/<project-relative path>` serves
+// files from the open project only (path-traversal guarded). Must be registered
+// before the app is ready.
+const ASSET_SCHEME = 'writer-asset'
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: ASSET_SCHEME,
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true }
+  }
+])
+
+const IMAGE_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.avif': 'image/avif',
+  '.bmp': 'image/bmp'
+}
+const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'avif', 'bmp']
+
+function registerAssetProtocol(): void {
+  protocol.handle(ASSET_SCHEME, async (request) => {
+    if (!currentProject) return new Response('No project', { status: 404 })
+    try {
+      const rel = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '')
+      const abs = resolve(currentProject.root, rel)
+      if (abs !== currentProject.root && !abs.startsWith(currentProject.root + sep)) {
+        return new Response('Forbidden', { status: 403 })
+      }
+      const data = await fs.readFile(abs)
+      return new Response(new Uint8Array(data), {
+        headers: {
+          'content-type':
+            IMAGE_MIME[extname(abs).toLowerCase()] ?? 'application/octet-stream'
+        }
+      })
+    } catch {
+      return new Response('Not found', { status: 404 })
+    }
+  })
+}
+
+/** Copy an image into the project's `assets/` folder (deduping the name) and
+ * return its project-relative POSIX path. */
+async function importImage(source: string): Promise<string> {
+  const root = currentProject!.root
+  const assetsDir = join(root, 'assets')
+  await fs.mkdir(assetsDir, { recursive: true })
+  const base = basename(source)
+  const dot = base.lastIndexOf('.')
+  const stem = dot > 0 ? base.slice(0, dot) : base
+  const ext = dot > 0 ? base.slice(dot) : ''
+  let name = base
+  let i = 1
+  for (;;) {
+    try {
+      await fs.access(join(assetsDir, name))
+      name = `${stem}-${i}${ext}`
+      i++
+    } catch {
+      break
+    }
+  }
+  await fs.copyFile(source, join(assetsDir, name))
+  return `assets/${name}`
+}
 
 // Cached story index: `buildEntities`/`buildThreads` each scan the whole project,
 // and several IPC handlers need them per panel refresh. Cache both and invalidate
@@ -275,6 +346,34 @@ function registerIpc(): void {
 
   ipcMain.handle('story:threads', (): Promise<Thread[]> => getThreads())
 
+  // Pick an image via a dialog and import it into the project's assets/ folder.
+  ipcMain.handle('image:pick', async (): Promise<{ path: string } | null> => {
+    if (!currentProject) return null
+    const win = BrowserWindow.getFocusedWindow()
+    const opts: OpenDialogOptions = {
+      properties: ['openFile'],
+      filters: [{ name: 'Images', extensions: IMAGE_EXTS }]
+    }
+    const res = win
+      ? await dialog.showOpenDialog(win, opts)
+      : await dialog.showOpenDialog(opts)
+    if (res.canceled || !res.filePaths[0]) return null
+    return { path: await importImage(res.filePaths[0]) }
+  })
+
+  // Import an already-known image file (e.g. dragged onto the editor).
+  ipcMain.handle(
+    'image:importFile',
+    async (_e, sourcePath: string): Promise<{ path: string } | null> => {
+      if (!currentProject) return null
+      try {
+        return { path: await importImage(sourcePath) }
+      } catch {
+        return null
+      }
+    }
+  )
+
   ipcMain.handle('story:health', async (): Promise<EntityRef[]> => {
     if (!currentProject) return []
     const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
@@ -472,6 +571,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  registerAssetProtocol()
   registerIpc()
   createWindow()
 

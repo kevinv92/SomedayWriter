@@ -12,6 +12,7 @@ import {
   EditorView,
   MatchDecorator,
   ViewPlugin,
+  WidgetType,
   keymap,
   drawSelection,
   lineNumbers,
@@ -38,6 +39,7 @@ import { vim, getCM, Vim } from '@replit/codemirror-vim'
 
 import type { EditorAdapter, FormatAction } from './editor-adapter'
 import { tidyTableBlock } from '../lib/table'
+import { posixResolve } from '../lib/paths'
 import type {
   CompletionSource,
   CursorPosition,
@@ -388,6 +390,24 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.focus()
   }
 
+  /** The current file's project-relative directory, so `![](src)` image paths
+   * (relative to the file) resolve to loadable `writer-asset://` URLs. */
+  setAssetDir(dir: string): void {
+    this.view?.dispatch({ effects: setAssetDirEffect.of(dir) })
+  }
+
+  /** Insert a Markdown image at the cursor. */
+  insertImage(alt: string, src: string): void {
+    const view = this.requireView()
+    const md = `![${alt}](${src})`
+    const pos = view.state.selection.main.head
+    view.dispatch({
+      changes: { from: pos, insert: md },
+      selection: { anchor: pos + md.length }
+    })
+    view.focus()
+  }
+
   /** Wrap the selection with a distinct open/close pair; caret between them when
    * nothing is selected. */
   private wrapPair(view: EditorView, open: string, close: string): void {
@@ -502,6 +522,8 @@ class CodeMirrorAdapter implements EditorAdapter {
         criticHover,
         threadMarkerPlugin,
         frontmatterPlugin,
+        assetDirField,
+        imageField,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
         // the text rather than at the bottom, which reads better for prose.
@@ -652,6 +674,91 @@ const notesPlugin = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations }
 )
+
+// Inline image preview. `assetDirField` holds the current file's project-relative
+// directory (set by the adapter on file load) so `![alt](src)` paths — which are
+// relative to the file — resolve to a `writer-asset://` URL the sandbox can load.
+const setAssetDirEffect = StateEffect.define<string>()
+const assetDirField = StateField.define<string>({
+  create: () => '',
+  update(value, tr) {
+    for (const e of tr.effects) if (e.is(setAssetDirEffect)) return e.value
+    return value
+  }
+})
+
+const IMAGE_RE = /!\[([^\]]*)\]\(([^)\s]+)\)/g
+
+class ImageWidget extends WidgetType {
+  constructor(
+    readonly url: string,
+    readonly alt: string
+  ) {
+    super()
+  }
+  eq(other: ImageWidget): boolean {
+    return other.url === this.url && other.alt === this.alt
+  }
+  toDOM(): HTMLElement {
+    const wrap = document.createElement('div')
+    wrap.className = 'cm-image'
+    const img = document.createElement('img')
+    img.src = this.url
+    img.alt = this.alt
+    img.loading = 'lazy'
+    wrap.appendChild(img)
+    return wrap
+  }
+  ignoreEvent(): boolean {
+    return false
+  }
+}
+
+function buildImageDecos(state: EditorState): DecorationSet {
+  const assetDir = state.field(assetDirField, false) ?? ''
+  const builder = new RangeSetBuilder<Decoration>()
+  const doc = state.doc
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n)
+    if (!line.text.includes('![')) continue
+    IMAGE_RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    let last: { url: string; alt: string } | null = null
+    while ((m = IMAGE_RE.exec(line.text)) !== null) {
+      const src = m[2]
+      // Only local project paths — CSP blocks http(s)/data image sources here.
+      if (/^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith('//')) continue
+      const rel = posixResolve(assetDir, decodeURIComponent(src))
+      const url = `writer-asset://asset/${rel.split('/').map(encodeURIComponent).join('/')}`
+      last = { url, alt: m[1] }
+    }
+    if (last) {
+      builder.add(
+        line.to,
+        line.to,
+        Decoration.widget({
+          widget: new ImageWidget(last.url, last.alt),
+          block: true,
+          side: 1
+        })
+      )
+    }
+  }
+  return builder.finish()
+}
+
+// Block widgets must come from a state field (a view plugin's decorations can't
+// carry block widgets), recomputed on edits or when the file's asset dir changes.
+const imageField = StateField.define<DecorationSet>({
+  create: (state) => buildImageDecos(state),
+  update(deco, tr) {
+    if (tr.docChanged || tr.effects.some((e) => e.is(setAssetDirEffect))) {
+      return buildImageDecos(tr.state)
+    }
+    return deco.map(tr.changes)
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
 
 /**
  * Editorial marks (Phase 9, M23) — CriticMarkup, in plain text so it survives

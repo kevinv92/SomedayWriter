@@ -107,5 +107,11 @@ export interface EditorAdapter {
   /** Tidy the Markdown table around the cursor: align its columns. */
   formatTable(): void
 
+  /** Set the active file's project-relative dir (resolves image paths). */
+  setAssetDir(dir: string): void
+
+  /** Insert a Markdown image `![alt](src)` at the cursor. */
+  insertImage(alt: string, src: string): void
+
   dispose(): void
 }

@@ -955,6 +955,20 @@ body {
 }
 
 /* --- editor --- */
+/* Inline image preview — rendered under the `![alt](src)` source line. */
+.cm-image {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+.cm-image img {
+  max-width: min(100%, var(--editor-measure, 40rem));
+  max-height: 60vh;
+  height: auto;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
 /* Project Health panel — section label + dead-reference rows (danger icon). */
 .health-section {
   font-size: var(--text-xs);

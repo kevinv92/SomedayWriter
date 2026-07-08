@@ -112,7 +112,15 @@ const api = {
     ipcRenderer.invoke('story:renameMentions', from, to, skip),
 
   /** Drop the cached story index so external file changes are re-read. */
-  refreshIndex: (): Promise<void> => ipcRenderer.invoke('story:refresh')
+  refreshIndex: (): Promise<void> => ipcRenderer.invoke('story:refresh'),
+
+  /** Pick an image via a dialog; copies it into the project's assets/ folder and
+   * returns its project-relative path (or null if cancelled). */
+  pickImage: (): Promise<{ path: string } | null> => ipcRenderer.invoke('image:pick'),
+
+  /** Import a known image file (e.g. dragged in) into assets/; returns its path. */
+  importImageFile: (sourcePath: string): Promise<{ path: string } | null> =>
+    ipcRenderer.invoke('image:importFile', sourcePath)
 }
 
 export type Api = typeof api
