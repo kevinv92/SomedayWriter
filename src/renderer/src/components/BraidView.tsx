@@ -129,7 +129,7 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
   return (
     <div className="braid">
       <div className="braid__header">
-        <span className="braid__title">Project Threads Overview</span>
+        <span className="braid__title">Project Threads · Timeline</span>
         <div className="braid__order">
           <span className="braid__order-label">Order:</span>
           <button
