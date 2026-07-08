@@ -21,10 +21,12 @@ import type {
 import {
   buildEntities,
   buildThreads,
+  countMentions,
   deadReferences,
   inspectFile,
   loadCompanionEntry,
   referencesTo,
+  renameMentions,
   sceneEntities
 } from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
@@ -278,6 +280,31 @@ function registerIpc(): void {
     const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
     return deadReferences(currentProject.root, ignore, await getEntities())
   })
+
+  ipcMain.handle(
+    'story:countMentions',
+    (_e, surface: string): Promise<{ count: number; files: number }> => {
+      if (!currentProject) return Promise.resolve({ count: 0, files: 0 })
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      return countMentions(currentProject.root, ignore, surface)
+    }
+  )
+
+  ipcMain.handle(
+    'story:renameMentions',
+    (
+      _e,
+      from: string,
+      to: string,
+      skip: string[]
+    ): Promise<{ changed: string[]; skipped: string[]; count: number }> => {
+      if (!currentProject) {
+        return Promise.resolve({ changed: [], skipped: [], count: 0 })
+      }
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+      return renameMentions(currentProject.root, ignore, from, to, skip)
+    }
+  )
 
   // Manual "Reload from Disk": drop the cache so external edits (another editor,
   // a git checkout) are picked up on the next fetch.
