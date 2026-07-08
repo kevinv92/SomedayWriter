@@ -838,6 +838,11 @@ body {
   margin: 0;
 }
 
+.welcome__actions {
+  display: flex;
+  gap: var(--space-3);
+}
+
 .welcome__open {
   font: inherit;
   padding: 0.5rem 1rem;
@@ -846,6 +851,16 @@ body {
   background: var(--accent);
   color: var(--accent-fg);
   cursor: pointer;
+}
+
+.welcome__open--ghost {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+.welcome__open--ghost:hover {
+  border-color: var(--accent);
 }
 
 .welcome__notice {

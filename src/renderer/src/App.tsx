@@ -116,6 +116,8 @@ export default function App() {
     null
   )
   const [vim, setVim] = useState(false)
+  // Vim j/k move by display line (gj/gk) — better for wrapped prose. Default on.
+  const [vimWrapMotion, setVimWrapMotion] = useState(true)
   // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
   // when Vim is off) — drives the status-bar mode chip + mode-coloured cursor.
   const [vimMode, setVimMode] = useState('')
@@ -505,6 +507,10 @@ export default function App() {
     await applyOpenResult(await window.api.openProject())
   }, [applyOpenResult])
 
+  const newProject = useCallback(async () => {
+    await applyOpenResult(await window.api.newProject())
+  }, [applyOpenResult])
+
   const openRecent = useCallback(
     async (path: string) => {
       await applyOpenResult(await window.api.openRecent(path))
@@ -572,6 +578,7 @@ export default function App() {
       if (settings.focusMode) setFocusMode(settings.focusMode)
       if (settings.userThemes) setUserThemes(settings.userThemes)
       if (settings.vim) setVim(settings.vim)
+      if (settings.vimWrapMotion !== undefined) setVimWrapMotion(settings.vimWrapMotion)
       allPinsRef.current = settings.pins ?? {}
       allExplorerPinsRef.current = settings.explorerPins ?? {}
       const last = settings.recentProjects[0]
@@ -628,6 +635,11 @@ export default function App() {
     setVim(next)
     void window.api.updateSettings({ vim: next })
   }, [vim])
+  const toggleVimWrapMotion = useCallback(() => {
+    const next = !vimWrapMotion
+    setVimWrapMotion(next)
+    void window.api.updateSettings({ vimWrapMotion: next })
+  }, [vimWrapMotion])
 
   // --- explorer file operations (M4) ---
 
@@ -824,10 +836,18 @@ export default function App() {
     return (
       <div className="welcome">
         <h1>writer-gui</h1>
-        <p>Open a folder with a project.json — or any folder to start a new project.</p>
-        <button className="welcome__open" onClick={() => void openProject()}>
-          Open Project…
-        </button>
+        <p>Start a new project, or open an existing folder.</p>
+        <div className="welcome__actions">
+          <button className="welcome__open" onClick={() => void newProject()}>
+            New Project…
+          </button>
+          <button
+            className="welcome__open welcome__open--ghost"
+            onClick={() => void openProject()}
+          >
+            Open Project…
+          </button>
+        </div>
         {recents.length > 0 && (
           <div className="welcome__recents">
             <div className="welcome__recents-title">Recent projects</div>
@@ -869,7 +889,26 @@ export default function App() {
   // Command registry (SPEC → command palette). Declared once here; the palette,
   // and later menus/keybindings, draw from it.
   const commands: QuickCommand[] = [
+    { id: 'new-project', title: 'New Project…', run: () => void newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
+    {
+      id: 'format-bold',
+      title: 'Bold',
+      hint: '⌘B',
+      run: () => editorHandle.current?.format('bold')
+    },
+    {
+      id: 'format-italic',
+      title: 'Italic',
+      hint: '⌘I',
+      run: () => editorHandle.current?.format('italic')
+    },
+    {
+      id: 'format-link',
+      title: 'Insert Link',
+      hint: '⌘K',
+      run: () => editorHandle.current?.format('link')
+    },
     {
       id: 'new-file',
       title: 'New File',
@@ -1171,6 +1210,20 @@ export default function App() {
                       {label}
                     </button>
                   ))}
+                  {vim && (
+                    <button
+                      className="menu-pop__row"
+                      role="menuitemcheckbox"
+                      aria-checked={vimWrapMotion}
+                      onClick={() => {
+                        toggleVimWrapMotion()
+                        setMenuOpen(null)
+                      }}
+                    >
+                      <span className="menu-pop__check">{vimWrapMotion ? '✓' : ''}</span>
+                      Wrapped-line motion (j/k)
+                    </button>
+                  )}
 
                   <div className="menu-pop__sep" />
                   <button
@@ -1403,6 +1456,7 @@ export default function App() {
                 <Editor
                   doc={doc}
                   vimEnabled={vim}
+                  vimWrapMotion={vimWrapMotion}
                   diagnosticsEnabled={diagnostics}
                   analysis={analysis}
                   onStatus={setStatus}

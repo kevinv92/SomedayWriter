@@ -2,7 +2,7 @@
 order: 10
 type: character
 name: Mara
-aliases: [Mara Venn, the courier]
+aliases: [Mara Veron, the courier]
 ---
 
 # Mara

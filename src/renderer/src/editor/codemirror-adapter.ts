@@ -32,7 +32,7 @@ import {
   type CompletionResult
 } from '@codemirror/autocomplete'
 import { search, searchKeymap, highlightSelectionMatches } from '@codemirror/search'
-import { vim, getCM } from '@replit/codemirror-vim'
+import { vim, getCM, Vim } from '@replit/codemirror-vim'
 
 import type { EditorAdapter, FormatAction } from './editor-adapter'
 import type {
@@ -153,6 +153,24 @@ class CodeMirrorAdapter implements EditorAdapter {
    * line numbers ride along so `:42` / `42G` jumps have visible targets. */
   private vimBundle(): Extension {
     return this.vimEnabled ? [vim(), lineNumbers()] : []
+  }
+
+  /** Make Vim `j`/`k` (and ↓/↑) move by display line (gj/gk) rather than logical
+   * line — better for wrapped prose. Vim maps are global, so this affects the
+   * editor whenever Vim is on. */
+  setVimWrapMotion(enabled: boolean): void {
+    const pairs: [string, string][] = [
+      ['j', 'gj'],
+      ['k', 'gk'],
+      ['<Down>', 'gj'],
+      ['<Up>', 'gk']
+    ]
+    for (const [lhs, rhs] of pairs) {
+      for (const mode of ['normal', 'visual'] as const) {
+        if (enabled) Vim.map(lhs, rhs, mode)
+        else Vim.unmap(lhs, mode)
+      }
+    }
   }
 
   /** Subscribe to Vim mode changes ('normal' | 'insert' | 'visual' | 'replace',

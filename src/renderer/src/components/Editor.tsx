@@ -24,6 +24,8 @@ export interface EditorHandle {
 interface EditorProps {
   doc: EditorDoc
   vimEnabled: boolean
+  /** Vim j/k move by display line (gj/gk) — for wrapped prose. */
+  vimWrapMotion: boolean
   diagnosticsEnabled: boolean
   /** The analysis facade — supplies completions (pull) and diagnostics (push).
    * The editor never talks to a provider directly (SPEC seam). */
@@ -54,6 +56,7 @@ interface EditorProps {
 export function Editor({
   doc,
   vimEnabled,
+  vimWrapMotion,
   diagnosticsEnabled,
   analysis,
   onStatus,
@@ -151,6 +154,11 @@ export function Editor({
   useEffect(() => {
     adapterRef.current?.setVimMode(vimEnabled)
   }, [vimEnabled])
+
+  // Display-line motion (gj/gk) preference.
+  useEffect(() => {
+    adapterRef.current?.setVimWrapMotion(vimWrapMotion)
+  }, [vimWrapMotion])
 
   // Diagnostics on/off is owned by the facade (off by default).
   useEffect(() => {

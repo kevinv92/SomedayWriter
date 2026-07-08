@@ -83,6 +83,9 @@ export interface EditorAdapter {
 
   setVimMode(enabled: boolean): void
 
+  /** Vim `j`/`k` move by display line (gj/gk) instead of logical line. */
+  setVimWrapMotion(enabled: boolean): void
+
   /** Subscribe to Vim mode changes: 'normal' | 'insert' | 'visual' | 'replace',
    * or '' when Vim is off. Returns an unsubscribe fn. */
   onVimModeChange(cb: (mode: string) => void): () => void

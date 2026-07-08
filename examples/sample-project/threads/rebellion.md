@@ -1,7 +1,7 @@
 ---
 type: thread
 name: Rebellion
-color: crimson
+color: blue
 ---
 
 # Rebellion
