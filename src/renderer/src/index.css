@@ -307,6 +307,14 @@ body {
   gap: var(--space-1);
 }
 
+/* Groups the menubar: [nav] · [actions] · [menus]. */
+.menubar__sep {
+  width: 1px;
+  align-self: stretch;
+  margin: var(--space-2) var(--space-2);
+  background: var(--border);
+}
+
 .menubar__right {
   margin-left: auto;
   display: flex;
@@ -509,6 +517,12 @@ body {
   z-index: 30;
 }
 
+/* Hovering anywhere on the rail reveals every label at once, so the whole rail
+   is legible in one pass (not one icon at a time). The hovered/focused button's
+   label stays emphasised. */
+.rail:hover .rail__tip {
+  opacity: 0.6;
+}
 .rail__btn:hover .rail__tip,
 .rail__btn:focus-visible .rail__tip {
   opacity: 1;

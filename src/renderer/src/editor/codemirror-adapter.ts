@@ -524,6 +524,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         frontmatterPlugin,
         assetDirField,
         imageField,
+        mentionField,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
         // the text rather than at the bottom, which reads better for prose.
@@ -755,6 +756,50 @@ const imageField = StateField.define<DecorationSet>({
     if (tr.docChanged || tr.effects.some((e) => e.is(setAssetDirEffect))) {
       return buildImageDecos(tr.state)
     }
+    return deco.map(tr.changes)
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
+
+// Soften `@{surface}` mentions for reading: hide the braces and tint the surface
+// at rest so prose reads cleanly ("Irene Adler", not "@{Irene Adler}"); reveal the
+// raw syntax when the cursor enters the token, so it stays fully editable.
+const mentionMark = Decoration.mark({ class: 'cm-mention' })
+const hideBrace = Decoration.replace({})
+const MENTION_TOKEN_RE = /@\{([^}\n]+)\}/g
+
+function buildMentionDecos(state: EditorState): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  const sel = state.selection.main
+  const doc = state.doc
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n)
+    if (!line.text.includes('@{')) continue
+    MENTION_TOKEN_RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = MENTION_TOKEN_RE.exec(line.text)) !== null) {
+      const from = line.from + m.index
+      const to = from + m[0].length
+      const innerFrom = from + 2 // after `@{`
+      const innerTo = to - 1 // before `}`
+      // Cursor within (or touching) the token → show raw for editing.
+      if (sel.from <= to && sel.to >= from) {
+        builder.add(innerFrom, innerTo, mentionMark)
+      } else {
+        builder.add(from, innerFrom, hideBrace)
+        builder.add(innerFrom, innerTo, mentionMark)
+        builder.add(innerTo, to, hideBrace)
+      }
+    }
+  }
+  return builder.finish()
+}
+
+const mentionField = StateField.define<DecorationSet>({
+  create: (state) => buildMentionDecos(state),
+  update(deco, tr) {
+    // Recompute on edits and on cursor moves (to reveal/hide around the caret).
+    if (tr.docChanged || tr.selection) return buildMentionDecos(tr.state)
     return deco.map(tr.changes)
   },
   provide: (f) => EditorView.decorations.from(f)
@@ -1128,6 +1173,11 @@ const proseTheme = EditorView.theme({
     cursor: 'pointer'
   },
   '&.cm-linkable .cm-content': { cursor: 'pointer' },
+  // Resting-state mention: braces hidden, surface gently tinted so prose reads
+  // clean while the link stays marked.
+  '.cm-mention': {
+    color: 'color-mix(in oklch, var(--accent) 70%, var(--fg))'
+  },
   // Inline thread markers (M25b): a quiet structural tag, not prose.
   '.cm-thread-marker': {
     color: 'var(--accent)',

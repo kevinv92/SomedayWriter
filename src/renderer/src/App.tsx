@@ -1316,6 +1316,7 @@ export default function App() {
           >
             ›
           </button>
+          <span className="menubar__sep" role="separator" />
           <button className="menubar__item" onClick={() => void newProject()}>
             New…
           </button>
@@ -1329,6 +1330,7 @@ export default function App() {
           >
             Find
           </button>
+          <span className="menubar__sep" role="separator" />
           <div className="menu">
             <button
               className={`menubar__item${menuOpen === 'view' ? ' menubar__item--open' : ''}`}
@@ -1352,7 +1354,7 @@ export default function App() {
                       ['Project References', refsOpen, () => setRefsOpen((v) => !v)],
                       ['Project Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
                       [
-                        'Project Threads Overview',
+                        'Project Threads · Timeline',
                         braidOpen,
                         () => setBraidOpen((v) => !v)
                       ],
