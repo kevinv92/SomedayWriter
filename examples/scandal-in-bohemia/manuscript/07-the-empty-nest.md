@@ -1,6 +1,6 @@
 ---
 order: 70
-threads: [the-case, the-woman]
+threads: [the-case, the-woman, royal-scandal, the-outwitting]
 ---
 
 # The Empty Nest

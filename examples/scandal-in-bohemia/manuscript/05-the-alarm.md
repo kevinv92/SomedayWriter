@@ -1,6 +1,6 @@
 ---
 order: 50
-threads: [the-case]
+threads: [the-case, the-disguise]
 ---
 
 # The Alarm of Fire

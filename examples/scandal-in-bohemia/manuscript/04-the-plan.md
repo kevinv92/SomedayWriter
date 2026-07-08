@@ -1,6 +1,6 @@
 ---
 order: 40
-threads: [the-case, holmes-and-watson]
+threads: [the-case, holmes-and-watson, the-disguise, royal-scandal]
 ---
 
 # The Plan

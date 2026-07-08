@@ -1,6 +1,6 @@
 ---
 order: 20
-threads: [the-case]
+threads: [the-case, royal-scandal]
 ---
 
 # The King of Bohemia

@@ -1,6 +1,6 @@
 ---
 order: 30
-threads: [the-case, the-woman]
+threads: [the-case, the-woman, the-disguise]
 ---
 
 # Briony Lodge
