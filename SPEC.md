@@ -1334,6 +1334,16 @@ Plain-language definitions of terms used above.
   (2) **remove `%% … %%` note comments** entirely, and (3) **strip CriticMarkup**
   — remove `{>> … <<}` comments and unwrap `{==span==}` highlights to their text —
   so the output is clean prose.
+- **Inline table preview** — render a GFM table as a live `<table>` while writing
+  (Obsidian-style: rendered when the cursor is away, source when it enters). The
+  cheap _"Format Table"_ column-aligner already shipped; this is the WYSIWYG step
+  (a CM block widget + cursor in/out toggle + editing/undo/wide-scroll handling).
+- **Internationalisation (i18n)** — localize the app's own UI. Writing in any
+  language already works (Unicode). Scaffold is cheap (a `t('key')` helper +
+  per-locale JSON + a language setting); the cost is extracting hardcoded English
+  across ~two dozen components, plus plurals/interpolation. RTL _UI_ layout
+  mirroring is the one genuinely hard piece. (Also: per-language spellcheck
+  dictionaries and CJK-aware word count.)
 
 ## Deferred decisions (revisit later)
 
