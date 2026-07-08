@@ -11,6 +11,9 @@ export interface QuickCommand {
 export interface QuickFile {
   path: string
   name: string
+  /** Directory relative to the project root ('' at the root) — shown as a dimmed
+   * location hint next to the file name. */
+  rel?: string
 }
 
 interface QuickInputProps {
@@ -127,7 +130,7 @@ export function QuickInput({
                 onClick={() => choose(i)}
               >
                 <span className="quickinput__label">{f.name}</span>
-                <span className="quickinput__hint">{f.path}</span>
+                {f.rel && <span className="quickinput__hint">{f.rel}</span>}
               </button>
             ))
           )}

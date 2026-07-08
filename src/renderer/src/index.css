@@ -1,28 +1,255 @@
+/* ============================================================
+   Design tokens — synced from the Writer Design System
+   (claude.ai/design · colors_and_type.css). Warm paper (light)
+   and warm dusk (dark) are a token swap on <html data-theme>;
+   accent swaps on data-accent; focus mode on data-focus.
+   Fonts use system stacks (Iowan Old Style ships on macOS);
+   the design's self-hosted @font-face is omitted here to stay
+   within the app CSP. --panel / --muted are kept as aliases so
+   existing call sites and the CodeMirror theme keep working.
+   ============================================================ */
 :root {
   color-scheme: light dark;
-  --bg: #ffffff;
-  --fg: #1a1a1a;
-  --muted: #6b7280;
-  --border: #e5e7eb;
-  --panel: #f8f9fa;
-  --accent: #2563eb;
-  --accent-fg: #ffffff;
+
+  /* ---------- Raw palette — warm paper (light) ---------- */
+  --paper: oklch(97.5% 0.008 85);
+  --paper-2: oklch(95.5% 0.01 85);
+  --paper-3: oklch(93% 0.012 82);
+  --paper-4: oklch(89% 0.014 80);
+  --ink: oklch(26% 0.016 62);
+  --ink-2: oklch(41% 0.014 62);
+  --ink-3: oklch(54% 0.012 64);
+  --ink-4: oklch(68% 0.01 66);
+
+  /* ---------- Raw palette — warm dusk (dark) ---------- */
+  --dusk: oklch(23% 0.011 62);
+  --dusk-2: oklch(27% 0.011 62);
+  --dusk-3: oklch(31% 0.012 62);
+  --dusk-4: oklch(36% 0.013 62);
+  --parch: oklch(92% 0.012 84);
+  --parch-2: oklch(80% 0.012 82);
+  --parch-3: oklch(66% 0.011 78);
+  --parch-4: oklch(52% 0.01 72);
+
+  /* ---------- Accent options (dark-mode values) ---------- */
+  --accent-ink: oklch(72% 0.075 245);
+  --accent-sage: oklch(72% 0.07 155);
+  --accent-clay: oklch(70% 0.09 40);
+  --accent-plum: oklch(70% 0.08 330);
+  --accent-gold: oklch(80% 0.09 85);
+  --accent-slate: oklch(70% 0.01 62);
+
+  /* ---------- Status hues ---------- */
+  --sage: oklch(66% 0.08 150);
+  --amber: oklch(74% 0.11 80);
+  --clay: oklch(62% 0.12 32);
+
+  /* ---------- Semantic tokens — DARK (warm dusk) base ---------- */
+  --bg: var(--dusk);
+  --bg-1: var(--dusk-2);
+  --bg-2: var(--dusk-3);
+  --bg-3: var(--dusk-4);
+  --fg: var(--parch);
+  --fg-2: var(--parch-2);
+  --fg-3: var(--parch-3);
+  --fg-4: var(--parch-4);
+  --border: oklch(42% 0.011 62);
+  --border-soft: oklch(37% 0.01 62);
+  --divider: oklch(39% 0.01 62);
+  --accent: var(--accent-ink);
+  --accent-soft: color-mix(in oklch, var(--accent) 20%, transparent);
+  --accent-fg: oklch(18% 0.03 245);
+  --success: var(--sage);
+  --warning: var(--amber);
+  --danger: var(--clay);
+  --selection: color-mix(in oklch, var(--accent) 26%, transparent);
+  --highlight: color-mix(in oklch, var(--accent-gold) 22%, transparent);
+
+  /* ---------- Popups & overlays (floating chrome) ---------- */
+  --popup-bg: oklch(29% 0.011 62);
+  --popup-border: oklch(45% 0.012 62);
+  --popup-active: var(--accent-soft);
+  --overlay: color-mix(in oklch, oklch(14% 0.01 62) 58%, transparent);
+
+  /* ---------- Vim mode chip / cursor hues (borrow the accent family) ---------- */
+  --vim-normal: var(--accent-slate);
+  --vim-insert: var(--accent-sage);
+  --vim-visual: var(--accent-gold);
+  --vim-replace: var(--accent-clay);
+  --vim-command: var(--accent-ink);
+  --vim-fg: oklch(19% 0.02 62);
+
+  /* ---------- Legacy aliases (pre-Phase-8 call sites) ---------- */
+  --panel: var(--bg-2);
+  --muted: var(--fg-3);
+
+  /* ---------- Type ---------- */
+  --font-reading:
+    'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', 'Source Serif Pro',
+    Georgia, serif;
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-display: var(--font-reading);
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 25px;
+  --text-3xl: 31px;
+  --text-4xl: 39px;
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-prose: 1.7;
+  --tracking-tight: -0.011em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.02em;
+  --tracking-caps: 0.09em;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+
+  /* ---------- Spacing / radii / shadows / motion ---------- */
+  --space-0: 0;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 8px;
+  --space-4: 12px;
+  --space-5: 16px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 48px;
+  --space-9: 64px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+  --shadow-rest: 0 1px 0 rgba(20, 14, 8, 0.28);
+  --shadow-lift: 0 14px 30px -14px rgba(12, 8, 4, 0.55), 0 2px 4px rgba(12, 8, 4, 0.3);
+  --shadow-popup: 0 22px 48px -18px rgba(6, 4, 2, 0.7), 0 4px 10px rgba(6, 4, 2, 0.4);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 130ms;
+  --dur-mid: 200ms;
+  --dur-slow: 280ms;
+  --measure: 68ch;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1e1e1e;
-    --fg: #e5e5e5;
-    --muted: #9ca3af;
-    --border: #333333;
-    --panel: #252526;
-    --accent: #3b82f6;
-    --accent-fg: #ffffff;
-  }
+/* ---------- Light theme (warm paper) — the shipped default ---------- */
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: var(--paper);
+  --bg-1: var(--paper-2);
+  --bg-2: var(--paper-3);
+  --bg-3: var(--paper-4);
+  --fg: var(--ink);
+  --fg-2: var(--ink-2);
+  --fg-3: var(--ink-3);
+  --fg-4: var(--ink-4);
+  --border: oklch(84% 0.011 82);
+  --border-soft: oklch(89% 0.009 82);
+  --divider: oklch(87% 0.009 82);
+  --accent-ink: oklch(50% 0.09 245);
+  --accent-sage: oklch(50% 0.085 155);
+  --accent-clay: oklch(52% 0.12 40);
+  --accent-plum: oklch(50% 0.1 330);
+  --accent-gold: oklch(62% 0.11 85);
+  --accent-slate: oklch(44% 0.01 62);
+  --accent: var(--accent-ink);
+  --accent-soft: color-mix(in oklch, var(--accent) 12%, transparent);
+  --accent-fg: var(--paper);
+  --selection: color-mix(in oklch, var(--accent) 18%, transparent);
+  --highlight: color-mix(in oklch, var(--accent-gold) 28%, transparent);
+  --popup-bg: oklch(98.7% 0.005 85);
+  --popup-border: oklch(82% 0.012 82);
+  --overlay: color-mix(in oklch, oklch(38% 0.02 60) 20%, transparent);
+  --vim-fg: var(--paper);
+  --shadow-rest: 0 1px 0 rgba(60, 40, 20, 0.05);
+  --shadow-lift:
+    0 10px 26px -10px rgba(60, 40, 20, 0.14), 0 1px 2px rgba(60, 40, 20, 0.05);
+  --shadow-popup:
+    0 20px 44px -16px rgba(60, 40, 20, 0.22), 0 3px 8px rgba(60, 40, 20, 0.1);
+}
+
+/* ---------- Dark theme (explicit) — re-assert dusk semantics ---------- */
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: var(--dusk);
+  --bg-1: var(--dusk-2);
+  --bg-2: var(--dusk-3);
+  --bg-3: var(--dusk-4);
+  --fg: var(--parch);
+  --fg-2: var(--parch-2);
+  --fg-3: var(--parch-3);
+  --fg-4: var(--parch-4);
+  --border: oklch(42% 0.011 62);
+  --border-soft: oklch(37% 0.01 62);
+  --divider: oklch(39% 0.01 62);
+  --accent-ink: oklch(72% 0.075 245);
+  --accent-sage: oklch(72% 0.07 155);
+  --accent-clay: oklch(70% 0.09 40);
+  --accent-plum: oklch(70% 0.08 330);
+  --accent-gold: oklch(80% 0.09 85);
+  --accent-slate: oklch(70% 0.01 62);
+  --accent: var(--accent-ink);
+  --accent-soft: color-mix(in oklch, var(--accent) 20%, transparent);
+  --accent-fg: oklch(18% 0.03 245);
+  --selection: color-mix(in oklch, var(--accent) 26%, transparent);
+  --highlight: color-mix(in oklch, var(--accent-gold) 22%, transparent);
+  --popup-bg: oklch(29% 0.011 62);
+  --popup-border: oklch(45% 0.012 62);
+  --overlay: color-mix(in oklch, oklch(14% 0.01 62) 58%, transparent);
+  --vim-fg: oklch(19% 0.02 62);
+}
+
+/* ---------- Accent selectors — set on <html data-accent> ---------- */
+[data-accent='ink'] {
+  --accent: var(--accent-ink);
+}
+[data-accent='sage'] {
+  --accent: var(--accent-sage);
+}
+[data-accent='clay'] {
+  --accent: var(--accent-clay);
+}
+[data-accent='plum'] {
+  --accent: var(--accent-plum);
+}
+[data-accent='gold'] {
+  --accent: var(--accent-gold);
+}
+[data-accent='slate'] {
+  --accent: var(--accent-slate);
+}
+
+/* ---------- Focus mode — dim chrome to a calm reading column ---------- */
+[data-focus] {
+  --border: transparent;
+  --border-soft: transparent;
+  --divider: color-mix(in oklch, var(--fg) 8%, transparent);
+  --shadow-rest: none;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Writer icon-set SVGs (Icon.tsx) — align with adjacent text; never shrink. */
+.icon {
+  flex: none;
+  vertical-align: -0.15em;
+}
+/* Type badges pair an icon with a label — lay them out inline-centred. */
+.companion-entry__type,
+.inspector-mention__type,
+.refs-entity__type {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
 }
 
 html,
@@ -33,11 +260,8 @@ body,
 }
 
 body {
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--font-ui);
+  font-size: var(--text-base);
   background: var(--bg);
   color: var(--fg);
 }
@@ -49,26 +273,305 @@ body {
 }
 
 /* --- toolbar --- */
-.toolbar {
+/* --- menubar (Phase 8) --- */
+.menubar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.75rem;
+  gap: var(--space-4);
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--border);
-  background: var(--panel);
+  background: var(--bg-1);
+  font-size: var(--text-sm);
 }
 
-.toolbar__group {
+.menubar__left {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.menubar__brand {
+  font-family: var(--font-display);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg);
+}
+
+.menubar__project {
+  color: var(--fg-3);
+}
+
+.menubar__menus {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: var(--space-1);
 }
 
-.toolbar__project {
-  font-size: 0.85rem;
-  font-weight: 600;
-  margin-left: 0.35rem;
+.menubar__right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.menubar__item {
+  font: inherit;
+  font-size: var(--text-sm);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
+.menubar__item:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+.menubar__item--active {
+  color: var(--accent);
+}
+
+.menubar__item--open {
+  background: var(--bg-3);
+  color: var(--fg);
+}
+
+.menubar__cmd {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.menubar__cmd:hover {
+  border-color: var(--accent);
+  color: var(--fg);
+}
+
+/* Panel-toggle icons (left = explorer, right = companion). */
+.ptog {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 26px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.ptog:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+.ptog[data-on='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.ptog__bar {
+  width: 14px;
+  height: 12px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+  position: relative;
+}
+
+.ptog--left .ptog__bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: currentColor;
+}
+
+.ptog--right .ptog__bar::before {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: currentColor;
+}
+
+/* Panel rail — always-present right-edge switcher for the right-pane panels. */
+.rail {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  background: var(--bg-1);
+  border-left: 1px solid var(--border);
+}
+
+.rail__btn {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-3);
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.rail__btn:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+.rail__btn--active {
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+
+.rail__btn--active::before {
+  content: '';
+  position: absolute;
+  left: -2px;
+  top: 8px;
+  bottom: 8px;
+  width: 2px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+
+/* Hover label — a designed tooltip to the left of the rail icon. */
+.rail__tip {
+  position: absolute;
+  right: calc(100% + var(--space-3));
+  top: 50%;
+  transform: translateY(-50%);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--popup-bg);
+  border: 1px solid var(--popup-border);
+  box-shadow: var(--shadow-popup);
+  color: var(--fg);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+  z-index: 30;
+}
+
+.rail__btn:hover .rail__tip,
+.rail__btn:focus-visible .rail__tip {
+  opacity: 1;
+}
+
+/* Dropdown menu (View) — floats on the design's popup tokens. */
+.menu {
+  position: relative;
+}
+
+.menu__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+}
+
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 21;
+  min-width: 244px;
+  padding: var(--space-2);
+  background: var(--popup-bg);
+  border: 1px solid var(--popup-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  color: var(--fg);
+}
+
+.menu-pop__label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--weight-medium);
+  padding: var(--space-3) var(--space-3) var(--space-1);
+}
+
+.menu-pop__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--text-base);
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-pop__row:hover {
+  background: var(--popup-active);
+}
+
+.menu-pop__row--static,
+.menu-pop__row--static:hover {
+  cursor: default;
+  background: transparent;
+}
+
+.menu-pop__check {
+  width: 1.1em;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.menu-pop__sep {
+  height: 1px;
+  margin: var(--space-2);
+  background: var(--divider);
+}
+
+.menu-pop__swatches {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.swatch {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.swatch--on {
+  box-shadow:
+    0 0 0 2px var(--popup-bg),
+    0 0 0 3px var(--fg-3);
 }
 
 .tab,
@@ -219,6 +722,71 @@ body {
   cursor: pointer;
 }
 
+/* Explorer quick-access pins (top of the tree). */
+.tree-pins {
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--divider);
+}
+
+.tree-pins__label {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--weight-medium);
+  padding: var(--space-2) var(--space-3) var(--space-1);
+}
+
+.tree-pin {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+}
+
+.tree-pin--active {
+  background: var(--accent-soft);
+}
+
+.tree-pin__open {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: left;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.2rem 0.4rem;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-pin__open:hover {
+  background: var(--bg-2);
+}
+
+.tree-pin__unpin {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.tree-pin__unpin:hover {
+  color: var(--fg);
+}
+
 .tree-dir__label:hover,
 .tree-file:not(:disabled):hover {
   background: var(--border);
@@ -346,6 +914,147 @@ body {
 }
 
 /* --- editor --- */
+/* Markdown & syntax reference (cheat sheet). */
+.syntax-help {
+  width: min(680px, calc(100vw - 2rem));
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--popup-bg);
+  border: 1px solid var(--popup-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popup);
+  overflow: hidden;
+}
+
+.syntax-help__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--divider);
+}
+
+.syntax-help__heading {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.syntax-help__body {
+  overflow-y: auto;
+  padding: var(--space-5);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-7);
+}
+
+.syntax-help__title {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: var(--weight-medium);
+  margin: 0 0 var(--space-4);
+}
+
+.syntax-help__list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.syntax-help__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.syntax-help__row dt {
+  margin: 0;
+}
+
+.syntax-help__row dt code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--accent);
+  background: var(--accent-soft);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-xs);
+}
+
+.syntax-help__row dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--fg-2);
+  line-height: var(--leading-snug);
+}
+
+.fmt--help {
+  margin-left: auto;
+  color: var(--fg-3);
+}
+
+/* Formatting toolbar — writer-friendly Markdown affordances above the editor. */
+.formatbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+}
+
+.fmt {
+  min-width: 28px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-3);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-2);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.fmt:hover {
+  background: var(--bg-2);
+  color: var(--fg);
+}
+
+.fmt--bold {
+  font-weight: var(--weight-semibold);
+}
+.fmt--italic {
+  font-style: italic;
+  font-family: var(--font-reading);
+}
+.fmt--quote {
+  font-family: var(--font-reading);
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+.fmt--icon {
+  color: var(--fg-3);
+}
+
+.fmt-sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 var(--space-2);
+  background: var(--divider);
+}
+
+/* Focus mode keeps the writing surface calm — hide the formatting chrome. */
+[data-focus] .formatbar {
+  display: none;
+}
+
 .editor-host {
   flex: 1;
   min-height: 0;
@@ -354,6 +1063,39 @@ body {
 
 .editor-host .cm-editor {
   height: 100%;
+}
+
+/* In Vim mode a line-number gutter appears at the pane's left edge. Center the
+   gutter+text as a group (rather than centering only the text, which would leave
+   the numbers stranded far to the left) so the numbers sit right beside the
+   still-centered prose. `.cm-scroller` is a flexbox, so justify-content centers
+   the pair once the content drops its own auto margins. */
+.cm-editor[data-vim-mode] .cm-scroller {
+  justify-content: center;
+}
+.cm-editor[data-vim-mode] .cm-content {
+  margin-left: 0;
+  margin-right: 0;
+}
+
+/* Vim mode-coloured cursor. The adapter stamps data-vim-mode on .cm-editor;
+   the block (fat) cursor and the insert caret take the mode's hue. */
+.cm-editor[data-vim-mode] .cm-fat-cursor,
+.cm-editor[data-vim-mode] .cm-fat-cursor .cm-cursor {
+  background-color: var(--vim-normal);
+}
+.cm-editor[data-vim-mode='visual'] .cm-fat-cursor,
+.cm-editor[data-vim-mode='visual'] .cm-fat-cursor .cm-cursor {
+  background-color: var(--vim-visual);
+}
+.cm-editor[data-vim-mode='replace'] .cm-fat-cursor,
+.cm-editor[data-vim-mode='replace'] .cm-fat-cursor .cm-cursor {
+  background-color: var(--vim-replace);
+}
+.cm-editor[data-vim-mode='insert'] .cm-cursor,
+.cm-editor[data-vim-mode='insert'].cm-focused .cm-cursor {
+  border-left-color: var(--vim-insert);
+  border-left-width: 2px;
 }
 
 /* --- status bar --- */
@@ -366,6 +1108,32 @@ body {
   background: var(--panel);
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+/* Vim mode chip — bleeds to the status-bar's left/top/bottom edges, filled by
+   the mode's hue from the design system (--vim-*). */
+.statusbar__vim {
+  align-self: stretch;
+  display: inline-flex;
+  align-items: center;
+  margin: -0.3rem 0.5rem -0.3rem -0.75rem;
+  padding: 0 var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  color: var(--vim-fg);
+  background: var(--vim-normal);
+}
+
+.statusbar__vim[data-vim-mode='insert'] {
+  background: var(--vim-insert);
+}
+.statusbar__vim[data-vim-mode='visual'] {
+  background: var(--vim-visual);
+}
+.statusbar__vim[data-vim-mode='replace'] {
+  background: var(--vim-replace);
 }
 
 .statusbar__dot {
@@ -431,6 +1199,50 @@ body {
   border-color: var(--accent);
 }
 
+/* Icon-only action buttons (New file / New folder) — a glyph with a small "new"
+   badge and a hover tooltip. */
+.icon-btn--action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 24px;
+  padding: 0;
+  font-size: 1rem;
+}
+
+.icon-btn--action {
+  color: var(--fg-2);
+}
+.icon-btn--action:hover {
+  color: var(--fg);
+}
+
+.icon-btn__tip {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 50%;
+  transform: translateX(-50%);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--popup-bg);
+  border: 1px solid var(--popup-border);
+  box-shadow: var(--shadow-popup);
+  color: var(--fg);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+  z-index: 30;
+}
+
+.icon-btn--action:hover .icon-btn__tip,
+.icon-btn--action:focus-visible .icon-btn__tip {
+  opacity: 1;
+}
+
 /* --- context menu --- */
 .context-menu {
   position: fixed;
@@ -488,31 +1300,36 @@ body {
   background: rgba(0, 0, 0, 0.4);
 }
 
-/* --- quick input (Cmd+P / Cmd+Shift+P) --- */
+/* --- quick input / command palette (Cmd+P / Cmd+Shift+P) ---
+   Floats on the design system's popup tokens, matching the View menu. */
 .quick-overlay {
   align-items: flex-start;
-  background: rgba(0, 0, 0, 0.28);
+  background: var(--overlay);
 }
 
 .quickinput {
   width: min(40rem, calc(100vw - 2rem));
   margin-top: 12vh;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--panel);
-  box-shadow: 0 12px 44px rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--popup-border);
+  border-radius: var(--radius-lg);
+  background: var(--popup-bg);
+  box-shadow: var(--shadow-popup);
   overflow: hidden;
 }
 
 .quickinput__input {
   width: 100%;
   font: inherit;
-  font-size: 0.95rem;
-  padding: 0.7rem 0.9rem;
+  font-size: var(--text-md);
+  padding: var(--space-4) var(--space-5);
   border: none;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  border-bottom: 1px solid var(--divider);
+  background: transparent;
   color: var(--fg);
+}
+
+.quickinput__input::placeholder {
+  color: var(--fg-3);
 }
 
 .quickinput__input:focus {
@@ -522,54 +1339,55 @@ body {
 .quickinput__list {
   max-height: 22rem;
   overflow-y: auto;
-  padding: 0.25rem;
+  padding: var(--space-2);
 }
 
 .quickinput__empty {
-  padding: 0.75rem 0.9rem;
-  color: var(--muted);
-  font-size: 0.85rem;
+  padding: var(--space-4) var(--space-5);
+  color: var(--fg-3);
+  font-size: var(--text-sm);
 }
 
 .quickinput__item {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-5);
   width: 100%;
   text-align: left;
   font: inherit;
-  padding: 0.4rem 0.6rem;
+  padding: var(--space-3) var(--space-4);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--fg);
   cursor: pointer;
 }
 
 .quickinput__item--active {
-  background: var(--accent);
-  color: var(--accent-fg);
+  background: var(--popup-active);
+  color: var(--fg);
 }
 
 .quickinput__label {
-  font-size: 0.88rem;
+  flex: 0 0 auto;
+  font-size: var(--text-base);
+  white-space: nowrap;
+}
+
+.quickinput__hint {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.quickinput__hint {
-  flex-shrink: 0;
-  font-size: 0.72rem;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .quickinput__item--active .quickinput__hint {
-  color: var(--accent-fg);
-  opacity: 0.85;
+  color: var(--accent);
 }
 
 .modal {

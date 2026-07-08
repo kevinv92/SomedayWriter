@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { TreeNode } from '@shared/types'
-import { parentDir } from '../lib/paths'
+import { basename, parentDir } from '../lib/paths'
+import { Icon } from './Icon'
 
 interface FileTreeProps {
   /** The project root node; its children are rendered (the root itself is the
@@ -10,6 +11,10 @@ interface FileTreeProps {
   /** Icon per profile file (Phase 7, M18), keyed by path — badges a location vs.
    * an item in the tree. Absent for non-entity files. */
   entityIcons?: Map<string, string>
+  /** Explorer-pinned file paths, shown in a quick-access section atop the tree. */
+  pinned?: string[]
+  /** Pin/unpin a file (context menu + the Pinned section's toggle). */
+  onTogglePin?: (path: string) => void
   onSelect: (path: string) => void
   onNewFile: (dir: string) => void
   onNewFolder: (dir: string) => void
@@ -38,6 +43,8 @@ export function FileTree({
   root,
   activePath,
   entityIcons,
+  pinned,
+  onTogglePin,
   onSelect,
   onNewFile,
   onNewFolder,
@@ -165,6 +172,36 @@ export function FileTree({
       onKeyDown={onKeyDown}
       onDragEnd={() => setDropPath(null)}
     >
+      {pinned && pinned.length > 0 && (
+        <div className="tree-pins">
+          <div className="tree-pins__label">Pinned</div>
+          {pinned.map((path) => {
+            const icon = entityIcons?.get(path)
+            return (
+              <div
+                key={path}
+                className={`tree-pin${path === activePath ? ' tree-pin--active' : ''}`}
+              >
+                <button className="tree-pin__open" onClick={() => onSelect(path)}>
+                  {icon && (
+                    <span className="tree-file__icon">
+                      <Icon name={icon} size={14} />
+                    </span>
+                  )}
+                  {basename(path)}
+                </button>
+                <button
+                  className="tree-pin__unpin"
+                  title="Unpin"
+                  onClick={() => onTogglePin?.(path)}
+                >
+                  <Icon name="pin" size={13} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
       {rows.length === 0 ? (
         <p className="tree-empty">This project has no files yet.</p>
       ) : (
@@ -193,7 +230,10 @@ export function FileTree({
                 }}
               >
                 <span className="tree-dir__caret">
-                  {collapsed.has(node.path) ? '▸' : '▾'}
+                  <Icon
+                    name={collapsed.has(node.path) ? 'chevron-right' : 'chevron-down'}
+                    size={13}
+                  />
                 </span>
                 {node.name}
               </button>
@@ -229,7 +269,11 @@ export function FileTree({
                 onDropNode(node)
               }}
             >
-              {icon && <span className="tree-file__icon">{icon} </span>}
+              {icon && (
+                <span className="tree-file__icon">
+                  <Icon name={icon} size={14} />
+                </span>
+              )}
               {node.name}
             </button>
           )
@@ -248,6 +292,14 @@ export function FileTree({
           <button onClick={() => run(() => onNewFolder(targetDir(menu.node)))}>
             New Folder
           </button>
+          {menu.node.type === 'file' && onTogglePin && (
+            <>
+              <div className="context-menu__sep" />
+              <button onClick={() => run(() => onTogglePin(menu.node.path))}>
+                {pinned?.includes(menu.node.path) ? 'Unpin from top' : 'Pin to top'}
+              </button>
+            </>
+          )}
           <div className="context-menu__sep" />
           <button onClick={() => run(() => onRename(menu.node))}>Rename…</button>
           <button

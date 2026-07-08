@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Icon } from './Icon'
 import type { FileInspection } from '@shared/types'
 import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 import { basename } from '../lib/paths'
@@ -140,7 +141,11 @@ export function InspectorPanel({
                     <div key={mention.name} className="inspector-mention">
                       <span className="inspector-mention__name">{mention.name}</span>
                       <span className="inspector-mention__type">
-                        {entityTypeMeta(mention.type, entityTypes).icon} {mention.type}
+                        <Icon
+                          name={entityTypeMeta(mention.type, entityTypes).iconName}
+                          size={13}
+                        />{' '}
+                        {mention.type}
                       </span>
                       <span className="inspector-mention__count">×{mention.count}</span>
                     </div>

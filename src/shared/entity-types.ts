@@ -13,6 +13,8 @@ export type ResolvedEntityType = {
   type: string
   label: string
   icon: string
+  /** Writer icon-set name for the badge (see `Icon.tsx`); themes with currentColor. */
+  iconName: string
   color: string
   fields: EntityFieldDef[]
 }
@@ -30,6 +32,7 @@ export const COMMON_FIELDS: EntityFieldDef[] = [
 
 /** Fallbacks for a type with no registry entry (an unknown `type:` value). */
 const FALLBACK_ICON = '📄'
+const FALLBACK_ICON_NAME = 'tag'
 const FALLBACK_COLOR = 'var(--muted, #8b949e)'
 
 /** The built-in types. `character` mirrors Phase 5; the rest generalise it. A
@@ -41,6 +44,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'character',
     label: 'Character',
     icon: '👤',
+    iconName: 'user',
     color: '#6ea8fe',
     fields: []
   },
@@ -48,6 +52,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'location',
     label: 'Location',
     icon: '📍',
+    iconName: 'map-pin',
     color: '#3fb950',
     fields: [{ name: 'region', label: 'Region' }]
   },
@@ -55,6 +60,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'item',
     label: 'Item',
     icon: '🗡',
+    iconName: 'gem',
     color: '#d29922',
     fields: [{ name: 'owner', label: 'Owner' }]
   },
@@ -62,6 +68,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'faction',
     label: 'Faction',
     icon: '⚔',
+    iconName: 'flag',
     color: '#f778ba',
     fields: [{ name: 'leader', label: 'Leader' }]
   },
@@ -69,6 +76,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'magic-system',
     label: 'Magic System',
     icon: '✨',
+    iconName: 'sparkles',
     color: '#a371f7',
     fields: [{ name: 'source', label: 'Source' }]
   },
@@ -76,6 +84,7 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     type: 'thread',
     label: 'Thread',
     icon: '🧵',
+    iconName: 'thread',
     color: '#db6d28',
     fields: [
       { name: 'color', label: 'Colour' },
@@ -99,6 +108,7 @@ function normalize(def: EntityTypeDef): ResolvedEntityType {
     type: def.type,
     label: def.label?.trim() || titleCase(def.type),
     icon: def.icon?.trim() || FALLBACK_ICON,
+    iconName: def.iconName?.trim() || FALLBACK_ICON_NAME,
     color: def.color?.trim() || FALLBACK_COLOR,
     fields: def.fields ?? []
   }

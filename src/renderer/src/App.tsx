@@ -21,6 +21,8 @@ import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
+import { Icon } from './components/Icon'
+import { SyntaxHelp } from './components/SyntaxHelp'
 import { AnalysisService } from './analysis/analysis-service'
 import { createEntityProvider } from './analysis/providers/entity-provider'
 import { createFrontmatterProvider } from './analysis/providers/frontmatter-provider'
@@ -31,8 +33,10 @@ import type {
   OpenProjectResult,
   ProjectMeta,
   RecentProject,
+  ThemeDef,
   TreeNode
 } from '@shared/types'
+import { BUILTIN_THEME_OPTIONS, resolveTheme, tokenProp } from './lib/theme'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, isInsideDir, joinPath, parentDir } from './lib/paths'
@@ -62,6 +66,9 @@ type ModalState =
   | { kind: 'rename'; node: TreeNode }
   | { kind: 'delete'; node: TreeNode }
   | null
+
+/** Accent options from the Writer Design System (data-accent values). */
+const ACCENTS = ['ink', 'sage', 'clay', 'plum', 'gold', 'slate']
 
 export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
@@ -94,6 +101,8 @@ export default function App() {
   // Companion pins for the current project (paths); the full per-project map lives
   // in allPinsRef so persisting one project never clobbers another's.
   const [pinnedPaths, setPinnedPaths] = useState<string[]>([])
+  // Explorer-pinned files for the current project (quick access, top of the tree).
+  const [explorerPins, setExplorerPins] = useState<string[]>([])
   // Story entities (StoryIndex), for the references panel + go-to-definition.
   const [entities, setEntities] = useState<Entity[]>([])
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
@@ -102,8 +111,23 @@ export default function App() {
     null
   )
   const [vim, setVim] = useState(false)
+  // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
+  // when Vim is off) — drives the status-bar mode chip + mode-coloured cursor.
+  const [vimMode, setVimMode] = useState('')
   const [diagnostics, setDiagnostics] = useState(false)
   const [autosave, setAutosave] = useState(false)
+  // Appearance (Phase 8) — persisted globally in app-settings, applied as
+  // data-* attributes on <html>. 'auto' theme follows the OS preference.
+  // Theme id: 'auto' | 'light' | 'dark' | a custom theme's id (Phase 8).
+  const [theme, setTheme] = useState('auto')
+  const [accent, setAccent] = useState('ink')
+  const [focusMode, setFocusMode] = useState(false)
+  // User-defined themes (from settings.json); project themes come off the config.
+  const [userThemes, setUserThemes] = useState<ThemeDef[]>([])
+  // Menubar: which dropdown is open (null = none); explorer visibility.
+  const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const [sidebarHidden, setSidebarHidden] = useState(false)
+  const [helpOpen, setHelpOpen] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
     words: 0,
     cursor: { line: 1, column: 1 }
@@ -117,6 +141,17 @@ export default function App() {
   const editorHandle = useRef<EditorHandle | null>(null)
   // The whole Companion pins map (project root → paths), loaded from settings.
   const allPinsRef = useRef<Record<string, string[]>>({})
+  // The whole explorer-pins map (project root → paths), loaded from settings.
+  const allExplorerPinsRef = useRef<Record<string, string[]>>({})
+  // Custom-theme token props currently set inline on <html>, so we can clear them
+  // when switching themes (Phase 8).
+  const appliedThemeTokens = useRef<string[]>([])
+
+  // Themes available in the picker: user themes (settings) + this project's themes.
+  const availableThemes = useMemo<ThemeDef[]>(
+    () => [...userThemes, ...(project?.config.themes ?? [])],
+    [userThemes, project]
+  )
 
   // The doc handed to the editor — keyed on the active tab only, so typing (which
   // mutates the buffer in the ref) never re-loads the editor. Switching tabs
@@ -170,17 +205,43 @@ export default function App() {
     [project]
   )
 
-  // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P).
+  // Pin/unpin a file to the explorer's quick-access section (per project).
+  const toggleExplorerPin = useCallback(
+    (path: string) => {
+      if (!project) return
+      const current = allExplorerPinsRef.current[project.root] ?? []
+      const next = current.includes(path)
+        ? current.filter((p) => p !== path)
+        : [...current, path]
+      allExplorerPinsRef.current = { ...allExplorerPinsRef.current, [project.root]: next }
+      setExplorerPins(next)
+      void window.api.updateSettings({ explorerPins: allExplorerPinsRef.current })
+    },
+    [project]
+  )
+
+  // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P). `rel` is
+  // the file's directory relative to the project root ('' at the root), shown as
+  // a dimmed hint so the full file name always reads.
   const projectFiles = useMemo<QuickFile[]>(() => {
+    const rootLen = project ? project.root.length + 1 : 0
     const out: QuickFile[] = []
     const walk = (node: TreeNode) => {
       if (node.type === 'file') {
-        if (node.name.endsWith('.md')) out.push({ path: node.path, name: node.name })
+        if (node.name.endsWith('.md')) {
+          const relPath = node.path.slice(rootLen)
+          const slash = relPath.lastIndexOf('/')
+          out.push({
+            path: node.path,
+            name: node.name,
+            rel: slash >= 0 ? relPath.slice(0, slash) : ''
+          })
+        }
       } else node.children?.forEach(walk)
     }
     tree?.children?.forEach(walk)
     return out
-  }, [tree])
+  }, [tree, project])
 
   // Registered entity types (Phase 7, M18): built-in defaults with this project's
   // `entityTypes` merged over them. Drives type badges, frontmatter intellisense,
@@ -197,7 +258,8 @@ export default function App() {
   // path off the entity list (only files with a `type:` appear).
   const entityIcons = useMemo(() => {
     const map = new Map<string, string>()
-    for (const e of entities) map.set(e.path, entityTypeMeta(e.type, entityTypes).icon)
+    for (const e of entities)
+      map.set(e.path, entityTypeMeta(e.type, entityTypes).iconName)
     return map
   }, [entities, entityTypes])
 
@@ -412,7 +474,11 @@ export default function App() {
       setNotice(null)
       setDiagnostics(result.project.config.editor?.diagnostics ?? false)
       setAutosave(result.project.config.editor?.autosave ?? false)
+      // A project can ship a default look (project.json `theme`). Applied for the
+      // session without persisting to the global setting — the picker still wins.
+      if (result.project.config.theme) setTheme(result.project.config.theme)
       setPinnedPaths(allPinsRef.current[result.project.root] ?? [])
+      setExplorerPins(allExplorerPinsRef.current[result.project.root] ?? [])
       refreshEntities()
     },
     [refreshEntities]
@@ -484,11 +550,67 @@ export default function App() {
       setRecents(settings.recentProjects)
       if (settings.sidebarWidth) setSidebarWidth(settings.sidebarWidth)
       if (settings.panelWidth) setPanelWidth(settings.panelWidth)
+      if (settings.theme) setTheme(settings.theme)
+      if (settings.accent) setAccent(settings.accent)
+      if (settings.focusMode) setFocusMode(settings.focusMode)
+      if (settings.userThemes) setUserThemes(settings.userThemes)
+      if (settings.vim) setVim(settings.vim)
       allPinsRef.current = settings.pins ?? {}
+      allExplorerPinsRef.current = settings.explorerPins ?? {}
       const last = settings.recentProjects[0]
       if (last) await openRecent(last.path)
     })()
   }, [openRecent])
+
+  // Appearance → <html> data-* attributes (the design system's theme/accent/
+  // focus swaps). 'auto' resolves against the OS and follows live OS changes.
+  useEffect(() => {
+    const root = document.documentElement
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const applyTheme = () => {
+      const { dataTheme, tokens } = resolveTheme(theme, availableThemes, mq.matches)
+      root.dataset.theme = dataTheme
+      // Clear the previous custom theme's inline props, then apply this one's.
+      for (const prop of appliedThemeTokens.current) root.style.removeProperty(prop)
+      appliedThemeTokens.current = Object.entries(tokens).map(([k, v]) => {
+        const prop = tokenProp(k)
+        root.style.setProperty(prop, v)
+        return prop
+      })
+    }
+    applyTheme()
+    root.dataset.accent = accent
+    if (focusMode) root.dataset.focus = ''
+    else delete root.dataset.focus
+    // Only 'auto' needs to follow live OS changes.
+    if (theme === 'auto') {
+      mq.addEventListener('change', applyTheme)
+      return () => mq.removeEventListener('change', applyTheme)
+    }
+  }, [theme, accent, focusMode, availableThemes])
+
+  // Appearance setters that also persist the choice globally.
+  const changeTheme = useCallback((next: string) => {
+    setTheme(next)
+    void window.api.updateSettings({ theme: next })
+  }, [])
+  const setAccentTo = useCallback((next: string) => {
+    setAccent(next)
+    void window.api.updateSettings({ accent: next })
+  }, [])
+  const cycleAccent = useCallback(() => {
+    setAccentTo(ACCENTS[(ACCENTS.indexOf(accent) + 1) % ACCENTS.length])
+  }, [accent, setAccentTo])
+  const toggleFocus = useCallback(() => {
+    const next = !focusMode
+    setFocusMode(next)
+    void window.api.updateSettings({ focusMode: next })
+  }, [focusMode])
+  const toggleVim = useCallback(() => {
+    const next = !vim
+    setVim(next)
+    void window.api.updateSettings({ vim: next })
+  }, [vim])
 
   // --- explorer file operations (M4) ---
 
@@ -720,7 +842,9 @@ export default function App() {
         : '46rem'
   const editorStyle = {
     '--editor-measure': measureVar,
-    '--editor-font': fontStack(ed?.font),
+    // Fall back to the theme's reading font (so a theme like Terminal can retint
+    // the prose to mono); an explicit project editor.font still wins.
+    '--editor-font': ed?.font ? fontStack(ed.font) : 'var(--font-reading)',
     '--editor-font-size': ed?.fontSize ? `${ed.fontSize}px` : '16px',
     '--editor-line-height': ed?.lineHeight ? String(ed.lineHeight) : '1.7'
   } as CSSProperties
@@ -803,7 +927,7 @@ export default function App() {
     {
       id: 'toggle-vim',
       title: `Toggle Vim (${vim ? 'on' : 'off'})`,
-      run: () => setVim((v) => !v)
+      run: () => toggleVim()
     },
     {
       id: 'toggle-diagnostics',
@@ -814,6 +938,36 @@ export default function App() {
       id: 'toggle-autosave',
       title: `Toggle Autosave (${autosave ? 'on' : 'off'})`,
       run: () => setAutosave((v) => !v)
+    },
+    {
+      id: 'theme-light',
+      title: 'Theme: Warm Paper (Light)',
+      run: () => changeTheme('light')
+    },
+    {
+      id: 'theme-dark',
+      title: 'Theme: Warm Dusk (Dark)',
+      run: () => changeTheme('dark')
+    },
+    {
+      id: 'theme-auto',
+      title: 'Theme: Match System',
+      run: () => changeTheme('auto')
+    },
+    {
+      id: 'cycle-accent',
+      title: `Cycle Accent (${accent})`,
+      run: () => cycleAccent()
+    },
+    {
+      id: 'toggle-focus',
+      title: `Toggle Focus Mode (${focusMode ? 'on' : 'off'})`,
+      run: () => toggleFocus()
+    },
+    {
+      id: 'syntax-reference',
+      title: 'Markdown & Syntax Reference',
+      run: () => setHelpOpen(true)
     },
     {
       id: 'save',
@@ -846,81 +1000,185 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="toolbar">
-        <div className="toolbar__group">
-          <button className="toggle" onClick={() => void openProject()}>
-            Open Project…
-          </button>
-          <span className="toolbar__project">{project.name}</span>
+      <header className="menubar">
+        <div className="menubar__left">
+          <span className="menubar__brand">Writer</span>
+          <span className="menubar__project" title={project.root}>
+            {project.name}
+          </span>
         </div>
-        <div className="toolbar__group">
+
+        <nav className="menubar__menus">
+          <button className="menubar__item" onClick={() => void openProject()}>
+            Open…
+          </button>
           <button
-            className={`toggle${searchOpen ? ' toggle--on' : ''}`}
-            title="Search across all files (⌘/Ctrl+Shift+F). Use ⌘/Ctrl+F to find in the current file."
+            className={`menubar__item${searchOpen ? ' menubar__item--active' : ''}`}
+            title="Search across all files (⌘/Ctrl+Shift+F)"
             onClick={() => setSearchOpen((v) => !v)}
           >
-            Find in Project
+            Find
           </button>
+          <div className="menu">
+            <button
+              className={`menubar__item${menuOpen === 'view' ? ' menubar__item--open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen === 'view'}
+              onClick={() => setMenuOpen((m) => (m === 'view' ? null : 'view'))}
+            >
+              View ▾
+            </button>
+            {menuOpen === 'view' && (
+              <>
+                <div className="menu__backdrop" onClick={() => setMenuOpen(null)} />
+                <div className="menu-pop" role="menu">
+                  <div className="menu-pop__label">Panels</div>
+                  {(
+                    [
+                      ['References', refsOpen, () => setRefsOpen((v) => !v)],
+                      ['Companion', companionOpen, () => setCompanionOpen((v) => !v)],
+                      ['Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
+                      ['Thread braid', braidOpen, () => setBraidOpen((v) => !v)],
+                      ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)]
+                    ] as [string, boolean, () => void][]
+                  ).map(([label, on, toggle]) => (
+                    <button
+                      key={label}
+                      className="menu-pop__row"
+                      role="menuitemcheckbox"
+                      aria-checked={on}
+                      onClick={() => {
+                        toggle()
+                        setMenuOpen(null)
+                      }}
+                    >
+                      <span className="menu-pop__check">{on ? '✓' : ''}</span>
+                      {label}
+                    </button>
+                  ))}
+
+                  <div className="menu-pop__sep" />
+                  <div className="menu-pop__label">Theme</div>
+                  {[
+                    ...BUILTIN_THEME_OPTIONS,
+                    ...availableThemes.map((t) => ({ id: t.id, name: t.name }))
+                  ].map(({ id, name }) => (
+                    <button
+                      key={id}
+                      className="menu-pop__row"
+                      role="menuitemradio"
+                      aria-checked={theme === id}
+                      onClick={() => {
+                        changeTheme(id)
+                        setMenuOpen(null)
+                      }}
+                    >
+                      <span className="menu-pop__check">{theme === id ? '✓' : ''}</span>
+                      {name}
+                    </button>
+                  ))}
+                  <div className="menu-pop__row menu-pop__row--static">
+                    <span className="menu-pop__check" />
+                    Accent
+                    <span className="menu-pop__swatches">
+                      {ACCENTS.map((a) => (
+                        <button
+                          key={a}
+                          className={`swatch${accent === a ? ' swatch--on' : ''}`}
+                          data-accent={a}
+                          title={a}
+                          onClick={() => setAccentTo(a)}
+                        />
+                      ))}
+                    </span>
+                  </div>
+                  <button
+                    className="menu-pop__row"
+                    role="menuitemcheckbox"
+                    aria-checked={focusMode}
+                    onClick={() => {
+                      toggleFocus()
+                      setMenuOpen(null)
+                    }}
+                  >
+                    <span className="menu-pop__check">{focusMode ? '✓' : ''}</span>
+                    Focus mode
+                  </button>
+
+                  <div className="menu-pop__sep" />
+                  <div className="menu-pop__label">Editor</div>
+                  {(
+                    [
+                      ['Vim keys', vim, toggleVim],
+                      ['Diagnostics', diagnostics, () => setDiagnostics((v) => !v)],
+                      ['Autosave', autosave, () => setAutosave((v) => !v)]
+                    ] as [string, boolean, () => void][]
+                  ).map(([label, on, toggle]) => (
+                    <button
+                      key={label}
+                      className="menu-pop__row"
+                      role="menuitemcheckbox"
+                      aria-checked={on}
+                      onClick={() => {
+                        toggle()
+                        setMenuOpen(null)
+                      }}
+                    >
+                      <span className="menu-pop__check">{on ? '✓' : ''}</span>
+                      {label}
+                    </button>
+                  ))}
+
+                  <div className="menu-pop__sep" />
+                  <button
+                    className="menu-pop__row"
+                    onClick={() => {
+                      void forceRefresh()
+                      setMenuOpen(null)
+                    }}
+                  >
+                    <span className="menu-pop__check" />
+                    Reload from disk
+                  </button>
+                  <button
+                    className="menu-pop__row"
+                    onClick={() => {
+                      setHelpOpen(true)
+                      setMenuOpen(null)
+                    }}
+                  >
+                    <span className="menu-pop__check" />
+                    Markdown &amp; syntax reference
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </nav>
+
+        <div className="menubar__right">
           <button
-            className={`toggle${refsOpen ? ' toggle--on' : ''}`}
-            title="Find every mention of a character/entity. Cmd/Ctrl+click a mention to jump to its profile."
-            onClick={() => setRefsOpen((v) => !v)}
+            className="ptog ptog--left"
+            data-on={!sidebarHidden}
+            title="Toggle explorer"
+            onClick={() => setSidebarHidden((v) => !v)}
           >
-            References
+            <span className="ptog__bar" />
           </button>
           <button
-            className={`toggle${companionOpen ? ' toggle--on' : ''}`}
-            title="Companion: keep character sheets & notes at hand — auto-follows the scene, pin to keep one in view"
+            className="ptog ptog--right"
+            data-on={companionOpen}
+            title="Toggle companion panel"
             onClick={() => setCompanionOpen((v) => !v)}
           >
-            Companion
+            <span className="ptog__bar" />
           </button>
           <button
-            className={`toggle${threadsOpen ? ' toggle--on' : ''}`}
-            title="Threads: each storyline's beats in order, across the manuscript"
-            onClick={() => setThreadsOpen((v) => !v)}
+            className="menubar__cmd"
+            title="Command palette (⌘/Ctrl+Shift+P)"
+            onClick={() => setQuickInput('>')}
           >
-            Threads
-          </button>
-          <button
-            className={`toggle${braidOpen ? ' toggle--on' : ''}`}
-            title="Braid: a visual map of how threads run through the manuscript"
-            onClick={() => setBraidOpen((v) => !v)}
-          >
-            Braid
-          </button>
-          <button
-            className={`toggle${inspectorOpen ? ' toggle--on' : ''}`}
-            title="Inspector: what the app parses from the current file (title, order, threads, mentions, warnings)"
-            onClick={() => setInspectorOpen((v) => !v)}
-          >
-            Inspector
-          </button>
-          <button
-            className={`toggle${vim ? ' toggle--on' : ''}`}
-            onClick={() => setVim((v) => !v)}
-          >
-            Vim: {vim ? 'on' : 'off'}
-          </button>
-          <button
-            className={`toggle${diagnostics ? ' toggle--on' : ''}`}
-            onClick={() => setDiagnostics((d) => !d)}
-          >
-            Diagnostics: {diagnostics ? 'on' : 'off'}
-          </button>
-          <button
-            className={`toggle${autosave ? ' toggle--on' : ''}`}
-            title="Auto-save edits a moment after you stop typing"
-            onClick={() => setAutosave((a) => !a)}
-          >
-            Autosave: {autosave ? 'on' : 'off'}
-          </button>
-          <button
-            className="toggle"
-            title="Reload from disk — re-scan the project for changes made outside the app"
-            onClick={() => void forceRefresh()}
-          >
-            ↻ Reload
+            ⌘ Commands
           </button>
         </div>
       </header>
@@ -929,49 +1187,59 @@ export default function App() {
         className="body"
         style={{ '--panel-width': `${panelWidth}px` } as CSSProperties}
       >
-        <aside className="sidebar" style={{ width: sidebarWidth }}>
-          <div className="sidebar__header">
-            <span className="sidebar__title">{project.name}</span>
-            <div className="sidebar__actions">
-              <button
-                className="icon-btn"
-                title="New file in project root"
-                onClick={() => tree && setModal({ kind: 'newFile', dir: tree.path })}
-              >
-                ＋ File
-              </button>
-              <button
-                className="icon-btn"
-                title="New folder in project root"
-                onClick={() => tree && setModal({ kind: 'newFolder', dir: tree.path })}
-              >
-                ＋ Folder
-              </button>
-            </div>
-          </div>
-          {tree ? (
-            <FileTree
-              root={tree}
-              activePath={activePath}
-              entityIcons={entityIcons}
-              onSelect={(path) => openFile(path)}
-              onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
-              onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
-              onRename={(node) => setModal({ kind: 'rename', node })}
-              onDelete={(node) => setModal({ kind: 'delete', node })}
-              onDrop={(draggedPath, target) => void handleDrop(draggedPath, target)}
-            />
-          ) : (
-            <p className="tree-empty">Loading…</p>
-          )}
-        </aside>
+        {!sidebarHidden && (
+          <>
+            <aside className="sidebar" style={{ width: sidebarWidth }}>
+              <div className="sidebar__header">
+                <span className="sidebar__title">{project.name}</span>
+                <div className="sidebar__actions">
+                  <button
+                    className="icon-btn icon-btn--action"
+                    aria-label="New file"
+                    onClick={() => tree && setModal({ kind: 'newFile', dir: tree.path })}
+                  >
+                    <Icon name="file-plus" size={17} />
+                    <span className="icon-btn__tip">New file</span>
+                  </button>
+                  <button
+                    className="icon-btn icon-btn--action"
+                    aria-label="New folder"
+                    onClick={() =>
+                      tree && setModal({ kind: 'newFolder', dir: tree.path })
+                    }
+                  >
+                    <Icon name="folder-plus" size={17} />
+                    <span className="icon-btn__tip">New folder</span>
+                  </button>
+                </div>
+              </div>
+              {tree ? (
+                <FileTree
+                  root={tree}
+                  activePath={activePath}
+                  entityIcons={entityIcons}
+                  pinned={explorerPins}
+                  onTogglePin={toggleExplorerPin}
+                  onSelect={(path) => openFile(path)}
+                  onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
+                  onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
+                  onRename={(node) => setModal({ kind: 'rename', node })}
+                  onDelete={(node) => setModal({ kind: 'delete', node })}
+                  onDrop={(draggedPath, target) => void handleDrop(draggedPath, target)}
+                />
+              ) : (
+                <p className="tree-empty">Loading…</p>
+              )}
+            </aside>
 
-        <div
-          className="divider"
-          role="separator"
-          title="Drag to resize"
-          onMouseDown={startSidebarResize}
-        />
+            <div
+              className="divider"
+              role="separator"
+              title="Drag to resize"
+              onMouseDown={startSidebarResize}
+            />
+          </>
+        )}
 
         <main className="main" style={editorStyle}>
           {braidOpen ? (
@@ -1011,6 +1279,76 @@ export default function App() {
                   ))}
                 </div>
               )}
+              {doc && !vim && (
+                <div className="formatbar" role="toolbar" aria-label="Formatting">
+                  <button
+                    className="fmt fmt--bold"
+                    title="Bold (⌘/Ctrl+B)"
+                    onClick={() => editorHandle.current?.format('bold')}
+                  >
+                    B
+                  </button>
+                  <button
+                    className="fmt fmt--italic"
+                    title="Italic (⌘/Ctrl+I)"
+                    onClick={() => editorHandle.current?.format('italic')}
+                  >
+                    I
+                  </button>
+                  <span className="fmt-sep" />
+                  <button
+                    className="fmt"
+                    title="Heading 1"
+                    onClick={() => editorHandle.current?.format('h1')}
+                  >
+                    H1
+                  </button>
+                  <button
+                    className="fmt"
+                    title="Heading 2"
+                    onClick={() => editorHandle.current?.format('h2')}
+                  >
+                    H2
+                  </button>
+                  <span className="fmt-sep" />
+                  <button
+                    className="fmt"
+                    title="Bullet list"
+                    onClick={() => editorHandle.current?.format('bullet')}
+                  >
+                    •
+                  </button>
+                  <button
+                    className="fmt"
+                    title="Numbered list"
+                    onClick={() => editorHandle.current?.format('ordered')}
+                  >
+                    1.
+                  </button>
+                  <button
+                    className="fmt fmt--quote"
+                    title="Quote"
+                    onClick={() => editorHandle.current?.format('quote')}
+                  >
+                    &rdquo;
+                  </button>
+                  <span className="fmt-sep" />
+                  <button
+                    className="fmt fmt--icon"
+                    title="Link (⌘/Ctrl+K)"
+                    onClick={() => editorHandle.current?.format('link')}
+                  >
+                    <Icon name="link" size={15} />
+                  </button>
+                  <button
+                    className="fmt fmt--help"
+                    title="Markdown & syntax reference"
+                    onClick={() => setHelpOpen(true)}
+                  >
+                    ?
+                  </button>
+                </div>
+              )}
               {doc ? (
                 <Editor
                   doc={doc}
@@ -1018,6 +1356,7 @@ export default function App() {
                   diagnosticsEnabled={diagnostics}
                   analysis={analysis}
                   onStatus={setStatus}
+                  onVimMode={setVimMode}
                   onDocChange={handleDocChange}
                   revealTarget={revealTarget}
                   onGoToDefinition={goToDefinition}
@@ -1087,9 +1426,42 @@ export default function App() {
             onClose={() => setThreadsOpen(false)}
           />
         )}
+
+        {/* Panel rail — switch the right-pane panels from the pane itself. */}
+        <nav className="rail" aria-label="Panels">
+          {(
+            [
+              ['References', 'link', refsOpen, () => setRefsOpen((v) => !v)],
+              [
+                'Companion',
+                'book-open',
+                companionOpen,
+                () => setCompanionOpen((v) => !v)
+              ],
+              ['Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
+              ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)]
+            ] as [string, string, boolean, () => void][]
+          ).map(([label, icon, on, toggle]) => (
+            <button
+              key={label}
+              className={`rail__btn${on ? ' rail__btn--active' : ''}`}
+              aria-label={label}
+              aria-pressed={on}
+              onClick={toggle}
+            >
+              <Icon name={icon} size={18} />
+              <span className="rail__tip">{label}</span>
+            </button>
+          ))}
+        </nav>
       </div>
 
       <footer className="statusbar">
+        {vim && vimMode && (
+          <span className="statusbar__vim" data-vim-mode={vimMode}>
+            {vimMode.toUpperCase()}
+          </span>
+        )}
         <span>
           {activePath ? basename(activePath) : 'No file open'}
           {dirty && <span className="statusbar__dot" title="Unsaved changes" />}
@@ -1179,9 +1551,13 @@ export default function App() {
           commands={commands}
           initialQuery={quickInput}
           onClose={() => setQuickInput(null)}
-          onOpenFile={(path) => openFile(path)}
+          // Reveal line 1 so the editor takes focus — land in the file ready to
+          // type, not back in the quick-input.
+          onOpenFile={(path) => openFile(path, { line: 1, column: 1 })}
         />
       )}
+
+      {helpOpen && <SyntaxHelp onClose={() => setHelpOpen(false)} />}
     </div>
   )
 }
