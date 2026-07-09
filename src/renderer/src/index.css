@@ -710,6 +710,11 @@ body {
   background: var(--bg);
 }
 
+/* Dim the tab being dragged (drag-to-reorder). */
+.tabstrip__tab--dragging {
+  opacity: 0.4;
+}
+
 .tabstrip__name {
   overflow: hidden;
   text-overflow: ellipsis;

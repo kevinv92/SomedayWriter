@@ -23,6 +23,7 @@ import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput } from './components/QuickInput'
+import { TabStrip } from './components/TabStrip'
 import { Icon } from './components/Icon'
 import { SyntaxHelp } from './components/SyntaxHelp'
 import type {
@@ -956,29 +957,14 @@ export default function App() {
           ) : (
             <>
               {documents.openPaths.length > 0 && (
-                <div className="tabstrip">
-                  {documents.openPaths.map((p) => (
-                    <div
-                      key={p}
-                      className={`tabstrip__tab${p === documents.activePath ? ' tabstrip__tab--active' : ''}`}
-                      title={p}
-                      onClick={() => documents.switchTo(p)}
-                    >
-                      <span className="tabstrip__name">{basename(p)}</span>
-                      {documents.dirtyPaths.has(p) && <span className="tabstrip__dot" />}
-                      <button
-                        className="tabstrip__close"
-                        title="Close (⌘/Ctrl+W)"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          documents.closeTab(p)
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                <TabStrip
+                  openPaths={documents.openPaths}
+                  activePath={documents.activePath}
+                  dirtyPaths={documents.dirtyPaths}
+                  onSelect={documents.switchTo}
+                  onClose={documents.closeTab}
+                  onReorder={documents.reorderTabs}
+                />
               )}
               {documents.doc && !settings.vim && (
                 <div className="formatbar" role="toolbar" aria-label="Formatting">

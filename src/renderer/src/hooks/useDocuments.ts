@@ -46,6 +46,8 @@ export interface DocumentsApi {
   switchTo: (path: string) => void
   openFile: (path: string, reveal?: Reveal) => void
   closeTab: (path: string) => void
+  /** Reorder the tab strip: move `from` to `to`'s slot (drag-to-reorder). */
+  reorderTabs: (from: string, to: string) => void
   resolveClosing: (action: 'save' | 'discard') => Promise<void>
   cancelClosing: () => void
   saveTab: (path: string) => Promise<boolean>
@@ -337,6 +339,19 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
     setDirtyPaths(new Set())
   }, [])
 
+  const reorderTabs = useCallback((from: string, to: string) => {
+    if (from === to) return
+    setOpenPaths((prev) => {
+      const fi = prev.indexOf(from)
+      const ti = prev.indexOf(to)
+      if (fi === -1 || ti === -1) return prev
+      const next = [...prev]
+      next.splice(fi, 1)
+      next.splice(ti, 0, from)
+      return next
+    })
+  }, [])
+
   return {
     openPaths,
     activePath,
@@ -353,6 +368,7 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
     switchTo,
     openFile,
     closeTab,
+    reorderTabs,
     resolveClosing,
     cancelClosing,
     saveTab,
