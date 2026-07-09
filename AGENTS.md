@@ -143,6 +143,46 @@ Bypass in a pinch with `git commit --no-verify` — but fix it, don't leave it.
 - `npm run format && npm run lint && npm run typecheck && npm run build` all
   clean. Don't disable a lint rule to pass — fix the code or justify inline.
 
+## Design system
+
+The whole visual language lives as CSS custom properties in
+`src/renderer/src/index.css` (`:root`). There are two built-in themes — **Warm
+Paper** (light) and **Warm Dusk** (dark) — plus a user-cyclable accent. **The
+one rule: style through the tokens, never hardcode.** A new component that uses
+`var(--…)` inherits theme, accent, and focus mode for free; a hardcoded
+`#f4f1ea` or `12px` silently breaks in the other theme. When adding UI, copy the
+closest existing component's markup and classes and swap the content — don't
+invent a new pattern.
+
+**Tokens** (use these, not raw values):
+
+- **Color** — `--bg`, `--bg-1/2/3` (raised surfaces, ascending); `--fg`,
+  `--fg-2/3/4` (text, descending emphasis); `--muted` (= `--fg-3`); `--accent`,
+  `--accent-soft` (translucent), `--accent-fg` (text on accent). The six accent
+  hues the user cycles are `--accent-{ink,sage,clay,plum,gold,slate}` — don't
+  reference those directly; use `--accent`.
+- **Type** — `--font-reading` / `--font-display` (serif, for editorial/content),
+  `--font-ui` (system sans, for chrome), `--font-mono`. Sizes `--text-xs` (11px)
+  → `--text-4xl` (39px). Weights `--weight-regular` / `--weight-medium` /
+  `--weight-semibold` (400/500/600).
+- **Space** — `--space-1`…`--space-9` (2, 4, 8, 12, 16, 24, 32, 48, 64px). Lay
+  out with `gap`, not per-element margins.
+- **Radius** — `--radius-xs/sm/md/lg/full`.
+
+**Icons** — add via the `Icon` component. Follow the icon rule (see
+`Icon.tsx`): **dimensional/glossy = domain content** (a character, a thread, an
+entity); **flat line = UI chrome** (rail, menus, chevrons, close, reload).
+
+**Class naming** — BEM-ish `block__element--modifier`
+(`.menubar__item--active`, `.help__version`). Watch selector specificity: a
+type-based selector fighting an element-based one over spacing is the usual
+cascade bug. Both themes must stay legible — never style directly inside a
+`prefers-color-scheme` block; redefine tokens there and style through them.
+
+Handing an unstyled component to an agent works well _because_ of this system:
+point it at `index.css` and a sibling component, and say "style with our tokens,
+matching `<X>`."
+
 ## Contributing — workflow & keeping docs in sync
 
 Code is only half the job; the docs are the memory that survives across sessions.

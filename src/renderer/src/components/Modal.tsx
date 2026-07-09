@@ -183,6 +183,46 @@ export function UnsavedChangesModal({
   )
 }
 
+interface ConflictModalProps {
+  filename: string
+  onOverwrite: () => void
+  onReload: () => void
+  onCancel: () => void
+}
+
+/** Shown when a save is blocked because the file changed on disk since it was
+ * opened — an external edit (another editor, a git checkout, an agent CLI working
+ * the same folder). Prevents the silent last-writer-wins clobber. */
+export function ConflictModal({
+  filename,
+  onOverwrite,
+  onReload,
+  onCancel
+}: ConflictModalProps) {
+  return (
+    <div className="modal-overlay" onMouseDown={onCancel}>
+      <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
+        <h2 className="modal__title">Changed on disk</h2>
+        <p className="modal__message">
+          “{filename}” was modified outside the editor since you opened it. Saving now
+          would overwrite those changes.
+        </p>
+        <div className="modal__actions">
+          <button className="toggle" onClick={onCancel}>
+            Cancel
+          </button>
+          <button className="modal__danger" onClick={onOverwrite}>
+            Overwrite
+          </button>
+          <button className="modal__primary" onClick={onReload}>
+            Reload from disk
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 interface ConfirmModalProps {
   title: string
   message: string

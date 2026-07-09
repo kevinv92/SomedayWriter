@@ -19,6 +19,7 @@ import type {
   SearchOptions,
   TreeNode,
   WriteConfigResult,
+  WriteFileResult,
   WriteResult
 } from '../shared/types'
 import {
@@ -45,6 +46,7 @@ import {
   writeProjectConfig
 } from './fs-project'
 import { writeOrder } from './frontmatter'
+import { writeDefaultAgentsDoc } from './agents-doc'
 import { findMatches, replaceAll } from './search'
 
 // The project the renderer is currently allowed to touch. Every file op is
@@ -162,7 +164,7 @@ function createWindow(): void {
     width: 1100,
     height: 720,
     show: false,
-    title: 'writer-gui',
+    title: 'SomedayWriter',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // Security: renderer is sandboxed and isolated; no direct Node/fs access.
@@ -232,7 +234,7 @@ async function offerCreateProject(
     buttons: ['Create Project', 'Cancel'],
     defaultId: 0,
     cancelId: 1,
-    message: 'Create a new writer-gui project here?',
+    message: 'Create a new SomedayWriter project here?',
     detail: `${root}\n\nThis folder has no project.json. Create one to start writing.`
   }
   const { response } = win
@@ -247,6 +249,9 @@ async function initProject(root: string): Promise<OpenProjectResult> {
   try {
     const config = defaultProjectConfig(basename(root))
     await writeProjectConfig(root, config)
+    // Drop in a templated AGENTS.md so any agent CLI pointed at this folder
+    // understands its story conventions. Best-effort; never clobbers an author's.
+    await writeDefaultAgentsDoc(root, config.project.name)
     const project = setCurrentProject(root, config)
     await addRecentProject(root, project.name, Date.now())
     return { ok: true, project }
@@ -328,6 +333,9 @@ function registerIpc(): void {
   // The repo root — used to build a ready-to-paste MCP config in the in-app Help
   // (points a client at this repo's `src/mcp/server.ts`, which runs from source).
   ipcMain.handle('app:dir', (): string => repoRoot())
+
+  // The app's semver (package.json → Electron), shown in the Help panel.
+  ipcMain.handle('app:version', (): string => app.getVersion())
 
   ipcMain.handle('project:open', (): Promise<OpenProjectResult> => openProject())
 
@@ -496,20 +504,39 @@ function registerIpc(): void {
     if (!guardPath(path)) return OUTSIDE_ERR
     try {
       const text = await fs.readFile(path, 'utf8')
-      return { ok: true, text }
+      const { mtimeMs } = await fs.stat(path)
+      return { ok: true, text, mtimeMs }
     } catch (err) {
       return { ok: false, error: messageOf(err) }
     }
   })
 
+  // Write, guarding against clobbering an external edit. `baseMtimeMs` is the
+  // on-disk timestamp the tab last saw; if the file is now newer, we refuse and
+  // report a conflict so the UI can prompt (overwrite / reload). Passing no
+  // baseMtimeMs forces the write (used by the "Overwrite" choice and new files).
   ipcMain.handle(
     'file:write',
-    async (_e, path: string, contents: string): Promise<WriteResult> => {
+    async (
+      _e,
+      path: string,
+      contents: string,
+      baseMtimeMs?: number
+    ): Promise<WriteFileResult> => {
       if (!guardPath(path)) return OUTSIDE_ERR
       try {
+        if (baseMtimeMs != null) {
+          const current = await fs.stat(path).catch(() => null)
+          // A newer mtime means someone else wrote it since we read it. (A missing
+          // file — externally deleted — is not a conflict; the write recreates it.)
+          if (current && current.mtimeMs > baseMtimeMs) {
+            return { ok: false, conflict: true, diskMtimeMs: current.mtimeMs }
+          }
+        }
         await fs.writeFile(path, contents, 'utf8')
+        const { mtimeMs } = await fs.stat(path)
         invalidateStoryIndex()
-        return { ok: true }
+        return { ok: true, mtimeMs }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
       }

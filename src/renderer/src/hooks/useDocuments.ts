@@ -7,8 +7,10 @@ export type Reveal = { line: number; column: number; endColumn?: number }
 
 /** One open document: its last-saved baseline and its live buffer. Kept in a ref
  * (not state) so per-keystroke edits don't re-render App; switching tabs restores
- * the live buffer, so unsaved edits are never lost (M13). */
-export type OpenBuffer = { saved: string; current: string }
+ * the live buffer, so unsaved edits are never lost (M13). `mtimeMs` is the file's
+ * on-disk timestamp when we last read/saved it — the baseline the save-time guard
+ * compares against to catch an external edit (0 for images, which we never write). */
+export type OpenBuffer = { saved: string; current: string; mtimeMs: number }
 
 export interface UseDocumentsOptions {
   /** The open project's root, for resolving image + asset paths (null = none). */
@@ -26,6 +28,9 @@ export interface DocumentsApi {
   activeLoadText: string
   dirtyPaths: Set<string>
   closingTab: string | null
+  /** A tab whose save was blocked because the file changed on disk underneath it
+   * (external edit) — drives the conflict dialog. Null when there's no conflict. */
+  conflictTab: string | null
   /** True when the active tab has unsaved edits. */
   dirty: boolean
 
@@ -50,6 +55,10 @@ export interface DocumentsApi {
   reorderTabs: (from: string, to: string) => void
   resolveClosing: (action: 'save' | 'discard') => Promise<void>
   cancelClosing: () => void
+  /** Resolve an external-edit conflict: 'overwrite' forces our buffer to disk;
+   * 'reload' discards our edits and re-reads the file from disk. */
+  resolveConflict: (action: 'overwrite' | 'reload') => Promise<void>
+  cancelConflict: () => void
   saveTab: (path: string) => Promise<boolean>
   goBack: () => void
   goForward: () => void
@@ -58,8 +67,9 @@ export interface DocumentsApi {
   updateActiveBuffer: (text: string) => void
   /** The live text of a tab (its buffer), if open. */
   currentText: (path: string) => string | undefined
-  /** Replace a tab's saved+live buffer from disk (e.g. after an external edit). */
-  reloadBuffer: (path: string, text: string) => void
+  /** Replace a tab's saved+live buffer from disk (e.g. after an external edit),
+   * re-baselining its on-disk timestamp. */
+  reloadBuffer: (path: string, text: string, mtimeMs: number) => void
   /** Repoint open tabs after a file/folder rename or move. */
   remapOpenDocs: (from: string, to: string) => void
   /** Close tabs for a deleted file/folder. */
@@ -89,6 +99,7 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
   const [activeLoadText, setActiveLoadText] = useState('')
   const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set())
   const [closingTab, setClosingTab] = useState<string | null>(null)
+  const [conflictTab, setConflictTab] = useState<string | null>(null)
   const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
     null
   )
@@ -182,7 +193,7 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
       }
       // Images open in the read-only viewer, not the text editor — no text read.
       if (isImageFile(path)) {
-        docsRef.current.set(path, { saved: '', current: '' })
+        docsRef.current.set(path, { saved: '', current: '', mtimeMs: 0 })
         setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
         switchTo(path)
         return
@@ -193,7 +204,11 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
           setNotice(`Couldn't open file: ${result.error}`)
           return
         }
-        docsRef.current.set(path, { saved: result.text, current: result.text })
+        docsRef.current.set(path, {
+          saved: result.text,
+          current: result.text,
+          mtimeMs: result.mtimeMs
+        })
         setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
         switchTo(path)
         setNotice(null)
@@ -233,9 +248,9 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
   )
 
   const reloadBuffer = useCallback(
-    (path: string, text: string) => {
+    (path: string, text: string, mtimeMs: number) => {
       if (!docsRef.current.has(path)) return
-      docsRef.current.set(path, { saved: text, current: text })
+      docsRef.current.set(path, { saved: text, current: text, mtimeMs })
       markDirty(path, false)
       if (path === activePath) setActiveLoadText(text)
     },
@@ -247,12 +262,18 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
       if (isImageFile(path)) return true // read-only; never write over the binary
       const buffer = docsRef.current.get(path)
       if (!buffer) return true
-      const result = await window.api.writeFile(path, buffer.current)
+      // Pass the last-seen mtime so main can refuse to clobber an external edit.
+      const result = await window.api.writeFile(path, buffer.current, buffer.mtimeMs)
       if (!result.ok) {
+        if ('conflict' in result) {
+          setConflictTab(path)
+          return false
+        }
         setNotice(`Couldn't save: ${result.error}`)
         return false
       }
       buffer.saved = buffer.current
+      buffer.mtimeMs = result.mtimeMs
       markDirty(path, false)
       // The Inspector + Companion read from disk; a save is when their view can
       // change.
@@ -261,6 +282,43 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
     },
     [markDirty, setNotice, onAfterSave]
   )
+
+  /** Resolve the external-edit conflict on `conflictTab`. 'overwrite' forces the
+   * live buffer to disk (past the guard); 'reload' throws the edits away and
+   * re-reads the file. */
+  const resolveConflict = useCallback(
+    async (action: 'overwrite' | 'reload') => {
+      const path = conflictTab
+      if (!path) return
+      setConflictTab(null)
+      const buffer = docsRef.current.get(path)
+      if (!buffer) return
+      if (action === 'overwrite') {
+        // No base mtime → main skips the guard and writes unconditionally.
+        const result = await window.api.writeFile(path, buffer.current)
+        if (!result.ok) {
+          setNotice(
+            'error' in result ? `Couldn't save: ${result.error}` : "Couldn't save."
+          )
+          return
+        }
+        buffer.saved = buffer.current
+        buffer.mtimeMs = result.mtimeMs
+        markDirty(path, false)
+        onAfterSave()
+      } else {
+        const r = await window.api.readFile(path)
+        if (!r.ok) {
+          setNotice(`Couldn't reload: ${r.error}`)
+          return
+        }
+        reloadBuffer(path, r.text, r.mtimeMs)
+      }
+    },
+    [conflictTab, markDirty, setNotice, onAfterSave, reloadBuffer]
+  )
+
+  const cancelConflict = useCallback(() => setConflictTab(null), [])
 
   const doCloseTab = (path: string) => {
     const idx = openPaths.indexOf(path)
@@ -337,6 +395,7 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
     setActivePath(null)
     setActiveLoadText('')
     setDirtyPaths(new Set())
+    setConflictTab(null)
   }, [])
 
   const reorderTabs = useCallback((from: string, to: string) => {
@@ -358,6 +417,7 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
     activeLoadText,
     dirtyPaths,
     closingTab,
+    conflictTab,
     dirty,
     doc,
     activeImageUrl,
@@ -371,6 +431,8 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
     reorderTabs,
     resolveClosing,
     cancelClosing,
+    resolveConflict,
+    cancelConflict,
     saveTab,
     goBack,
     goForward,

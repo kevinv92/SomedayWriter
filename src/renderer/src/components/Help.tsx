@@ -84,6 +84,7 @@ function SyntaxTable({ rows }: { rows: SyntaxRow[] }) {
 export function Help({ projectRoot, projectName, onClose }: HelpProps) {
   const [section, setSection] = useState('start')
   const [appDir, setAppDir] = useState('')
+  const [appVersion, setAppVersion] = useState('')
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -94,6 +95,7 @@ export function Help({ projectRoot, projectName, onClose }: HelpProps) {
 
   useEffect(() => {
     void window.api.getAppDir().then(setAppDir)
+    void window.api.getAppVersion().then(setAppVersion)
   }, [])
 
   const mcpConfig = useMemo(() => {
@@ -126,9 +128,9 @@ export function Help({ projectRoot, projectName, onClose }: HelpProps) {
       body: (
         <>
           <p>
-            writer-gui keeps your work as plain <code>.md</code> files on disk. A folder
-            becomes a <strong>project</strong> when it has a <code>project.json</code>{' '}
-            (edit it any time from the file tree or
+            SomedayWriter keeps your work as plain <code>.md</code> files on disk. A
+            folder becomes a <strong>project</strong> when it has a{' '}
+            <code>project.json</code> (edit it any time from the file tree or
             <em> View → Project settings…</em>).
           </p>
           <ul>
@@ -249,7 +251,7 @@ export function Help({ projectRoot, projectName, onClose }: HelpProps) {
       body: (
         <>
           <p>
-            writer-gui ships an <strong>MCP server</strong> so{' '}
+            SomedayWriter ships an <strong>MCP server</strong> so{' '}
             <strong>Claude Desktop or Claude Code</strong> can read and reason over{' '}
             <em>this</em> manuscript — on your subscription, with no API key and no AI
             code in the app. Ask things like <em>“summarise the the-case thread”</em> or{' '}
@@ -285,7 +287,17 @@ export function Help({ projectRoot, projectName, onClose }: HelpProps) {
     <div className="modal-overlay" onMouseDown={onClose}>
       <div className="help" onMouseDown={(e) => e.stopPropagation()}>
         <div className="help__header">
-          <span className="help__heading">Help</span>
+          <span className="help__heading">
+            Help
+            {appVersion && (
+              <span
+                className="help__version"
+                title="Preview build — use at your own risk. Back up your work."
+              >
+                v{appVersion} · preview
+              </span>
+            )}
+          </span>
           <button className="icon-btn" title="Close (Esc)" onClick={onClose}>
             <Icon name="x" size={14} />
           </button>

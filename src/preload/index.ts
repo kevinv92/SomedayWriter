@@ -15,6 +15,7 @@ import type {
   SearchFileResult,
   SearchOptions,
   TreeNode,
+  WriteFileResult,
   WriteResult
 } from '../shared/types'
 
@@ -28,6 +29,9 @@ const api = {
 
   /** The app's install directory, for building the MCP connection config in Help. */
   getAppDir: (): Promise<string> => ipcRenderer.invoke('app:dir'),
+
+  /** The app's semver (from package.json), shown in Help. */
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('app:version'),
 
   /** Prompt for a folder and open it as a project (reads `project.json`). */
   openProject: (): Promise<OpenProjectResult> => ipcRenderer.invoke('project:open'),
@@ -51,9 +55,14 @@ const api = {
   readFile: (path: string): Promise<FileReadResult> =>
     ipcRenderer.invoke('file:read', path),
 
-  /** Write a file inside the open project. */
-  writeFile: (path: string, contents: string): Promise<WriteResult> =>
-    ipcRenderer.invoke('file:write', path, contents),
+  /** Write a file inside the open project. `baseMtimeMs` is the timestamp the tab
+   * last read; omit it to force the write past the external-edit conflict guard. */
+  writeFile: (
+    path: string,
+    contents: string,
+    baseMtimeMs?: number
+  ): Promise<WriteFileResult> =>
+    ipcRenderer.invoke('file:write', path, contents, baseMtimeMs),
 
   /** Create an empty file (fails if it already exists). */
   createFile: (path: string): Promise<WriteResult> =>

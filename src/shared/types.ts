@@ -124,9 +124,21 @@ export type OpenProjectResult =
   | { ok: false; reason: 'no-config'; root: string }
   | { ok: false; reason: 'invalid-config'; root: string; message: string }
 
-export type FileReadResult = { ok: true; text: string } | { ok: false; error: string }
+export type FileReadResult =
+  { ok: true; text: string; mtimeMs: number } | { ok: false; error: string }
 
 export type WriteResult = { ok: true } | { ok: false; error: string }
+
+/** The outcome of writing an editor buffer (file:write). Like WriteResult, but
+ * success carries the new mtime so the tab can re-baseline, and there's a
+ * `conflict` variant: the file changed on disk since the tab last read it — the
+ * guard against silently clobbering an external edit (e.g. an agent CLI editing
+ * the same folder). `diskMtimeMs` is the on-disk timestamp we refused to
+ * overwrite. */
+export type WriteFileResult =
+  | { ok: true; mtimeMs: number }
+  | { ok: false; conflict: true; diskMtimeMs: number }
+  | { ok: false; error: string }
 
 /** A project in the recent-projects list (app settings, M12). */
 export type RecentProject = { path: string; name: string; openedAt: number }

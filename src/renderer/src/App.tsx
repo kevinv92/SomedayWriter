@@ -10,6 +10,7 @@ import { Editor, type EditorHandle, type EditorStatus } from './components/Edito
 import { FileTree } from './components/FileTree'
 import {
   ConfirmModal,
+  ConflictModal,
   NewFileModal,
   PromptModal,
   UnsavedChangesModal
@@ -26,6 +27,7 @@ import { QuickInput } from './components/QuickInput'
 import { TabStrip } from './components/TabStrip'
 import { ProjectSettings } from './components/ProjectSettings'
 import { Icon } from './components/Icon'
+import { Logo } from './components/Logo'
 import { Help } from './components/Help'
 import type {
   OpenProjectResult,
@@ -43,7 +45,13 @@ import { useLayout } from './hooks/useLayout'
 import { useProject } from './hooks/useProject'
 import { entityTypeMeta } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
-import { basename, joinPath, parentDir, posixRelativePath } from './lib/paths'
+import {
+  basename,
+  isImageFile,
+  joinPath,
+  parentDir,
+  posixRelativePath
+} from './lib/paths'
 import { ImageView } from './components/ImageView'
 import { mentionRangeAt } from './lib/mentions'
 import { parseEntityHead, detectRename, type EntityHead } from './lib/rename'
@@ -228,7 +236,7 @@ export default function App() {
     for (const path of result.changed) {
       const r = await window.api.readFile(path)
       if (!r.ok) continue
-      documents.reloadBuffer(path, r.text)
+      documents.reloadBuffer(path, r.text, r.mtimeMs)
     }
     projectData.refreshEntities()
     setNotice(
@@ -238,14 +246,45 @@ export default function App() {
     )
   }, [renamePrompt, documents, projectData.refreshEntities])
 
+  // Reload from disk (the dedicated toolbar button + View menu + command). Drops
+  // the main-process index cache, re-reads the tree/entities, and re-reads every
+  // open tab that has no unsaved edits so the editor reflects what's on disk —
+  // the counterpart to the save-time conflict guard for external edits. Dirty
+  // tabs are left untouched (their edits win until the user saves or discards).
+  const reloadFromDisk = useCallback(async () => {
+    await projectData.forceRefresh()
+    const dirtyCount = documents.openPaths.filter((p) =>
+      documents.dirtyPaths.has(p)
+    ).length
+    for (const path of documents.openPaths) {
+      if (documents.dirtyPaths.has(path) || isImageFile(path)) continue
+      const r = await window.api.readFile(path)
+      if (r.ok) documents.reloadBuffer(path, r.text, r.mtimeMs)
+    }
+    setNotice(
+      dirtyCount
+        ? `Reloaded from disk — ${dirtyCount} tab(s) with unsaved edits left as-is.`
+        : 'Reloaded from disk.'
+    )
+  }, [projectData.forceRefresh, documents, setNotice])
+
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
   useEffect(() => {
     const path = documents.activePath
     if (!settings.autosave || !path || !documents.dirtyPaths.has(path)) return
+    // Don't autosave into an unresolved conflict — it would just re-trigger the
+    // dialog every tick. Wait for the user to overwrite/reload first.
+    if (documents.conflictTab) return
     const timer = setTimeout(() => void documents.saveTab(path), 1000)
     return () => clearTimeout(timer)
-  }, [settings.autosave, documents.activePath, documents.dirtyPaths, documents.saveTab])
+  }, [
+    settings.autosave,
+    documents.activePath,
+    documents.dirtyPaths,
+    documents.conflictTab,
+    documents.saveTab
+  ])
 
   // --- project open ---
 
@@ -254,7 +293,9 @@ export default function App() {
       if (!result.ok) {
         if (result.reason === 'cancelled') return
         if (result.reason === 'no-config') {
-          setNotice(`No project.json in ${result.root} — not a writer-gui project yet.`)
+          setNotice(
+            `No project.json in ${result.root} — not a SomedayWriter project yet.`
+          )
         } else {
           setNotice(`Couldn't open project: ${result.message}`)
         }
@@ -333,7 +374,9 @@ export default function App() {
     if (entityType) {
       const def = entityTypeMeta(entityType, projectData.entityTypes)
       const written = await window.api.writeFile(path, entityTemplate(def, name))
-      if (!written.ok) setNotice(`Couldn't write template: ${written.error}`)
+      // Fresh file, no base mtime passed → no conflict possible; only real errors.
+      if (!written.ok && 'error' in written)
+        setNotice(`Couldn't write template: ${written.error}`)
     }
     await projectData.refreshTree()
     if (fileName.endsWith('.md')) documents.openFile(path)
@@ -550,7 +593,7 @@ export default function App() {
     editorHandle,
     newProject,
     openProject,
-    forceRefresh: projectData.forceRefresh,
+    forceRefresh: reloadFromDisk,
     goToDefinition: projectData.goToDefinition,
     togglePin: projectData.togglePin,
     insertImageFromPicker,
@@ -565,7 +608,8 @@ export default function App() {
   if (!project) {
     return (
       <div className="welcome">
-        <h1>writer-gui</h1>
+        <Logo size={56} className="welcome__logo" />
+        <h1>SomedayWriter</h1>
         <p>Start a new project, or open an existing folder.</p>
         <div className="welcome__actions">
           <button className="welcome__open" onClick={() => void newProject()}>
@@ -632,7 +676,10 @@ export default function App() {
     <div className="app">
       <header className="menubar">
         <div className="menubar__left">
-          <span className="menubar__brand">Writer</span>
+          <span className="menubar__brand">
+            <Logo size={18} className="menubar__logo" />
+            SomedayWriter
+          </span>
           <span className="menubar__project" title={project.root}>
             {project.name}
           </span>
@@ -668,6 +715,14 @@ export default function App() {
             onClick={() => panels.toggle('search')}
           >
             Find
+          </button>
+          <button
+            className="menubar__item menubar__item--icon"
+            title="Reload from disk — pick up edits made outside the app (⌘/Ctrl+P → Reload)"
+            aria-label="Reload from disk"
+            onClick={() => void reloadFromDisk()}
+          >
+            <Icon name="reload" size={15} />
           </button>
           <span className="menubar__sep" role="separator" />
           <div className="menu">
@@ -807,7 +862,7 @@ export default function App() {
                   <button
                     className="menu-pop__row"
                     onClick={() => {
-                      void projectData.forceRefresh()
+                      void reloadFromDisk()
                       setMenuOpen(null)
                     }}
                   >
@@ -1342,6 +1397,15 @@ export default function App() {
           onSave={() => void documents.resolveClosing('save')}
           onDiscard={() => void documents.resolveClosing('discard')}
           onCancel={documents.cancelClosing}
+        />
+      )}
+
+      {documents.conflictTab && (
+        <ConflictModal
+          filename={basename(documents.conflictTab)}
+          onOverwrite={() => void documents.resolveConflict('overwrite')}
+          onReload={() => void documents.resolveConflict('reload')}
+          onCancel={documents.cancelConflict}
         />
       )}
 
