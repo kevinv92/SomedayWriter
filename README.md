@@ -197,6 +197,11 @@ nothing drifts.
 - A cohesive **custom SVG icon set** (glossy solids for entities, flat lines for
   chrome).
 
+<div align="center">
+<img src="docs/images/themes.png" width="860" alt="Four themes side by side: Warm paper, Warm dusk, Gaslight, Foolscap" />
+<br/><em>The whole UI retints. Top: <strong>Warm paper</strong> &amp; <strong>Warm dusk</strong> (built in); bottom: <strong>Gaslight</strong> &amp; <strong>Foolscap</strong> (custom themes the sample project ships).</em>
+</div>
+
 ### AI & grammar
 
 Everything here is **opt-in and off by default**; the core app needs none of it.
