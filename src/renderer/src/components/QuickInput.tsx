@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fuzzyScore } from '../lib/fuzzy'
 
 export interface QuickCommand {
@@ -106,6 +106,14 @@ export function QuickInput({
 
   const count = isCommand ? commandResults.length : fileResults.length
 
+  // Keep the highlighted row visible: scroll it into the list on arrow-nav (or
+  // when the result set changes). `nearest` scrolls the list only when the row is
+  // off-screen, and never moves the page.
+  const activeRef = useRef<HTMLButtonElement | null>(null)
+  useEffect(() => {
+    activeRef.current?.scrollIntoView({ block: 'nearest' })
+  }, [index, fileResults, commandResults])
+
   const choose = (i: number) => {
     if (isCommand) {
       const cmd = commandResults[i]
@@ -155,6 +163,7 @@ export function QuickInput({
             commandResults.map((c, i) => (
               <button
                 key={c.id}
+                ref={i === index ? activeRef : undefined}
                 className={`quickinput__item${i === index ? ' quickinput__item--active' : ''}`}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => choose(i)}
@@ -167,6 +176,7 @@ export function QuickInput({
             fileResults.map((f, i) => (
               <button
                 key={f.path}
+                ref={i === index ? activeRef : undefined}
                 className={`quickinput__item${i === index ? ' quickinput__item--active' : ''}`}
                 onMouseEnter={() => setIndex(i)}
                 onClick={() => choose(i)}
