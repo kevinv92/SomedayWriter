@@ -35,10 +35,11 @@ import type {
   OpenProjectResult,
   ProjectMeta,
   RecentProject,
-  ThemeDef,
   TreeNode
 } from '@shared/types'
-import { BUILTIN_THEME_OPTIONS, resolveTheme, tokenProp } from './lib/theme'
+import { BUILTIN_THEME_OPTIONS } from './lib/theme'
+import { usePanels } from './hooks/usePanels'
+import { ACCENTS, useSettings } from './hooks/useSettings'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import {
@@ -80,9 +81,6 @@ type ModalState =
   | { kind: 'delete'; node: TreeNode }
   | null
 
-/** Accent options from the Writer Design System (data-accent values). */
-const ACCENTS = ['ink', 'sage', 'clay', 'plum', 'gold', 'slate']
-
 export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [recents, setRecents] = useState<RecentProject[]>([])
@@ -102,14 +100,11 @@ export default function App() {
 
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [refsOpen, setRefsOpen] = useState(false)
-  const [inspectorOpen, setInspectorOpen] = useState(false)
-  const [companionOpen, setCompanionOpen] = useState(false)
-  const [threadsOpen, setThreadsOpen] = useState(false)
-  const [braidOpen, setBraidOpen] = useState(false)
-  const [commentsOpen, setCommentsOpen] = useState(false)
-  const [healthOpen, setHealthOpen] = useState(false)
+  // Right-hand panels + reference overlays (open/closed) — see usePanels.
+  const panels = usePanels()
+  // Appearance + editor preferences (theme/accent/vim/…) and their persistence.
+  const projectThemes = useMemo(() => project?.config.themes ?? [], [project])
+  const settings = useSettings(projectThemes)
   // Pending alias-rename offer (a debounced frontmatter edit renamed a surface).
   const [renamePrompt, setRenamePrompt] = useState<{
     from: string
@@ -135,26 +130,12 @@ export default function App() {
   const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
     null
   )
-  const [vim, setVim] = useState(false)
-  // Vim j/k move by display line (gj/gk) — better for wrapped prose. Default on.
-  const [vimWrapMotion, setVimWrapMotion] = useState(true)
   // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
   // when Vim is off) — drives the status-bar mode chip + mode-coloured cursor.
   const [vimMode, setVimMode] = useState('')
-  const [diagnostics, setDiagnostics] = useState(false)
-  const [autosave, setAutosave] = useState(false)
-  // Appearance (Phase 8) — persisted globally in app-settings, applied as
-  // data-* attributes on <html>. 'auto' theme follows the OS preference.
-  // Theme id: 'auto' | 'light' | 'dark' | a custom theme's id (Phase 8).
-  const [theme, setTheme] = useState('auto')
-  const [accent, setAccent] = useState('ink')
-  const [focusMode, setFocusMode] = useState(false)
-  // User-defined themes (from settings.json); project themes come off the config.
-  const [userThemes, setUserThemes] = useState<ThemeDef[]>([])
   // Menubar: which dropdown is open (null = none); explorer visibility.
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
   const [sidebarHidden, setSidebarHidden] = useState(false)
-  const [helpOpen, setHelpOpen] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
     words: 0,
     cursor: { line: 1, column: 1 }
@@ -185,15 +166,6 @@ export default function App() {
   const allPinsRef = useRef<Record<string, string[]>>({})
   // The whole explorer-pins map (project root → paths), loaded from settings.
   const allExplorerPinsRef = useRef<Record<string, string[]>>({})
-  // Custom-theme token props currently set inline on <html>, so we can clear them
-  // when switching themes (Phase 8).
-  const appliedThemeTokens = useRef<string[]>([])
-
-  // Themes available in the picker: user themes (settings) + this project's themes.
-  const availableThemes = useMemo<ThemeDef[]>(
-    () => [...userThemes, ...(project?.config.themes ?? [])],
-    [userThemes, project]
-  )
 
   // The doc handed to the editor — keyed on the active tab only, so typing (which
   // mutates the buffer in the ref) never re-loads the editor. Switching tabs
@@ -511,11 +483,11 @@ export default function App() {
   // Keep the Comments panel's text current: seed it when the panel opens or the
   // file switches; live edits flow in via handleDocChange while it's open.
   useEffect(() => {
-    commentsOpenRef.current = commentsOpen
-    if (commentsOpen && activePath) {
+    commentsOpenRef.current = panels.open.comments
+    if (panels.open.comments && activePath) {
       setDocText(docsRef.current.get(activePath)?.current ?? activeLoadText)
     }
-  }, [commentsOpen, activePath, activeLoadText])
+  }, [panels.open.comments, activePath, activeLoadText])
 
   // Apply the pending rename: rewrite @{from}→@{to} across files (skipping any
   // open with unsaved edits), reload the touched buffers, and refresh the index.
@@ -569,10 +541,10 @@ export default function App() {
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
   useEffect(() => {
-    if (!autosave || !activePath || !dirtyPaths.has(activePath)) return
+    if (!settings.autosave || !activePath || !dirtyPaths.has(activePath)) return
     const timer = setTimeout(() => void saveTab(activePath), 1000)
     return () => clearTimeout(timer)
-  }, [autosave, activePath, dirtyPaths, saveTab])
+  }, [settings.autosave, activePath, dirtyPaths, saveTab])
 
   const doCloseTab = (path: string) => {
     const idx = openPaths.indexOf(path)
@@ -662,11 +634,7 @@ export default function App() {
       setActivePath(null)
       setDirtyPaths(new Set())
       setNotice(null)
-      setDiagnostics(result.project.config.editor?.diagnostics ?? false)
-      setAutosave(result.project.config.editor?.autosave ?? false)
-      // A project can ship a default look (project.json `theme`). Applied for the
-      // session without persisting to the global setting — the picker still wins.
-      if (result.project.config.theme) setTheme(result.project.config.theme)
+      settings.applyProjectConfig(result.project.config)
       setPinnedPaths(allPinsRef.current[result.project.root] ?? [])
       setExplorerPins(allExplorerPinsRef.current[result.project.root] ?? [])
       refreshEntities()
@@ -740,77 +708,17 @@ export default function App() {
     if (didInit.current) return
     didInit.current = true
     void (async () => {
-      const settings = await window.api.getSettings()
-      setRecents(settings.recentProjects)
-      if (settings.sidebarWidth) setSidebarWidth(settings.sidebarWidth)
-      if (settings.panelWidth) setPanelWidth(settings.panelWidth)
-      if (settings.theme) setTheme(settings.theme)
-      if (settings.accent) setAccent(settings.accent)
-      if (settings.focusMode) setFocusMode(settings.focusMode)
-      if (settings.userThemes) setUserThemes(settings.userThemes)
-      if (settings.vim) setVim(settings.vim)
-      if (settings.vimWrapMotion !== undefined) setVimWrapMotion(settings.vimWrapMotion)
-      allPinsRef.current = settings.pins ?? {}
-      allExplorerPinsRef.current = settings.explorerPins ?? {}
-      const last = settings.recentProjects[0]
+      const loaded = await window.api.getSettings()
+      setRecents(loaded.recentProjects)
+      if (loaded.sidebarWidth) setSidebarWidth(loaded.sidebarWidth)
+      if (loaded.panelWidth) setPanelWidth(loaded.panelWidth)
+      settings.hydrate(loaded)
+      allPinsRef.current = loaded.pins ?? {}
+      allExplorerPinsRef.current = loaded.explorerPins ?? {}
+      const last = loaded.recentProjects[0]
       if (last) await openRecent(last.path)
     })()
   }, [openRecent])
-
-  // Appearance → <html> data-* attributes (the design system's theme/accent/
-  // focus swaps). 'auto' resolves against the OS and follows live OS changes.
-  useEffect(() => {
-    const root = document.documentElement
-    const mq = window.matchMedia('(prefers-color-scheme: dark)')
-    const applyTheme = () => {
-      const { dataTheme, tokens } = resolveTheme(theme, availableThemes, mq.matches)
-      root.dataset.theme = dataTheme
-      // Clear the previous custom theme's inline props, then apply this one's.
-      for (const prop of appliedThemeTokens.current) root.style.removeProperty(prop)
-      appliedThemeTokens.current = Object.entries(tokens).map(([k, v]) => {
-        const prop = tokenProp(k)
-        root.style.setProperty(prop, v)
-        return prop
-      })
-    }
-    applyTheme()
-    root.dataset.accent = accent
-    if (focusMode) root.dataset.focus = ''
-    else delete root.dataset.focus
-    // Only 'auto' needs to follow live OS changes.
-    if (theme === 'auto') {
-      mq.addEventListener('change', applyTheme)
-      return () => mq.removeEventListener('change', applyTheme)
-    }
-  }, [theme, accent, focusMode, availableThemes])
-
-  // Appearance setters that also persist the choice globally.
-  const changeTheme = useCallback((next: string) => {
-    setTheme(next)
-    void window.api.updateSettings({ theme: next })
-  }, [])
-  const setAccentTo = useCallback((next: string) => {
-    setAccent(next)
-    void window.api.updateSettings({ accent: next })
-  }, [])
-  const cycleAccent = useCallback(() => {
-    setAccentTo(ACCENTS[(ACCENTS.indexOf(accent) + 1) % ACCENTS.length])
-  }, [accent, setAccentTo])
-  const toggleFocus = useCallback(() => {
-    const next = !focusMode
-    setFocusMode(next)
-    void window.api.updateSettings({ focusMode: next })
-  }, [focusMode])
-  const toggleVim = useCallback(() => {
-    const next = !vim
-    setVim(next)
-    void window.api.updateSettings({ vim: next })
-  }, [vim])
-  const toggleVimWrapMotion = useCallback(() => {
-    const next = !vimWrapMotion
-    setVimWrapMotion(next)
-    void window.api.updateSettings({ vimWrapMotion: next })
-  }, [vimWrapMotion])
 
   // --- explorer file operations (M4) ---
 
@@ -996,7 +904,7 @@ export default function App() {
         saveRef.current()
       } else if (k === 'f' && e.shiftKey) {
         e.preventDefault()
-        setSearchOpen((v) => !v)
+        panels.toggle('search')
       } else if (k === 'w') {
         e.preventDefault()
         closeActiveRef.current()
@@ -1130,12 +1038,12 @@ export default function App() {
       id: 'find-in-project',
       title: 'Find in Project',
       hint: '⌘⇧F',
-      run: () => setSearchOpen((v) => !v)
+      run: () => panels.toggle('search')
     },
     {
       id: 'find-references',
       title: 'Find References…',
-      run: () => setRefsOpen(true)
+      run: () => panels.set('refs', true)
     },
     {
       id: 'go-to-definition',
@@ -1148,22 +1056,22 @@ export default function App() {
     {
       id: 'toggle-inspector',
       title: 'Toggle Inspector',
-      run: () => setInspectorOpen((v) => !v)
+      run: () => panels.toggle('inspector')
     },
     {
       id: 'toggle-companion',
       title: 'Toggle Companion',
-      run: () => setCompanionOpen((v) => !v)
+      run: () => panels.toggle('companion')
     },
     {
       id: 'toggle-threads',
       title: 'Toggle Threads',
-      run: () => setThreadsOpen((v) => !v)
+      run: () => panels.toggle('threads')
     },
     {
       id: 'toggle-braid',
       title: 'Toggle Thread Braid',
-      run: () => setBraidOpen((v) => !v)
+      run: () => panels.toggle('braid')
     },
     {
       id: 'reload-from-disk',
@@ -1176,49 +1084,49 @@ export default function App() {
       run: () => {
         if (activePath) {
           togglePin(activePath)
-          setCompanionOpen(true)
+          panels.set('companion', true)
         }
       }
     },
     {
       id: 'toggle-vim',
-      title: `Toggle Vim (${vim ? 'on' : 'off'})`,
-      run: () => toggleVim()
+      title: `Toggle Vim (${settings.vim ? 'on' : 'off'})`,
+      run: () => settings.toggleVim()
     },
     {
       id: 'toggle-diagnostics',
-      title: `Toggle Diagnostics (${diagnostics ? 'on' : 'off'})`,
-      run: () => setDiagnostics((v) => !v)
+      title: `Toggle Diagnostics (${settings.diagnostics ? 'on' : 'off'})`,
+      run: () => settings.toggleDiagnostics()
     },
     {
       id: 'toggle-autosave',
-      title: `Toggle Autosave (${autosave ? 'on' : 'off'})`,
-      run: () => setAutosave((v) => !v)
+      title: `Toggle Autosave (${settings.autosave ? 'on' : 'off'})`,
+      run: () => settings.toggleAutosave()
     },
     {
       id: 'theme-light',
       title: 'Theme: Warm Paper (Light)',
-      run: () => changeTheme('light')
+      run: () => settings.changeTheme('light')
     },
     {
       id: 'theme-dark',
       title: 'Theme: Warm Dusk (Dark)',
-      run: () => changeTheme('dark')
+      run: () => settings.changeTheme('dark')
     },
     {
       id: 'theme-auto',
       title: 'Theme: Match System',
-      run: () => changeTheme('auto')
+      run: () => settings.changeTheme('auto')
     },
     {
       id: 'cycle-accent',
-      title: `Cycle Accent (${accent})`,
-      run: () => cycleAccent()
+      title: `Cycle Accent (${settings.accent})`,
+      run: () => settings.cycleAccent()
     },
     {
       id: 'toggle-focus',
-      title: `Toggle Focus Mode (${focusMode ? 'on' : 'off'})`,
-      run: () => toggleFocus()
+      title: `Toggle Focus Mode (${settings.focusMode ? 'on' : 'off'})`,
+      run: () => settings.toggleFocus()
     },
     {
       id: 'add-comment',
@@ -1258,7 +1166,7 @@ export default function App() {
     {
       id: 'syntax-reference',
       title: 'Markdown & Syntax Reference',
-      run: () => setHelpOpen(true)
+      run: () => panels.set('help', true)
     },
     {
       id: 'save',
@@ -1324,9 +1232,9 @@ export default function App() {
             Open…
           </button>
           <button
-            className={`menubar__item${searchOpen ? ' menubar__item--active' : ''}`}
+            className={`menubar__item${panels.open.search ? ' menubar__item--active' : ''}`}
             title="Search across all files (⌘/Ctrl+Shift+F)"
-            onClick={() => setSearchOpen((v) => !v)}
+            onClick={() => panels.toggle('search')}
           >
             Find
           </button>
@@ -1347,18 +1255,38 @@ export default function App() {
                   <div className="menu-pop__label">This file</div>
                   {(
                     [
-                      ['Companion', companionOpen, () => setCompanionOpen((v) => !v)],
-                      ['Comments', commentsOpen, () => setCommentsOpen((v) => !v)],
-                      ['Inspector', inspectorOpen, () => setInspectorOpen((v) => !v)],
+                      [
+                        'Companion',
+                        panels.open.companion,
+                        () => panels.toggle('companion')
+                      ],
+                      ['Comments', panels.open.comments, () => panels.toggle('comments')],
+                      [
+                        'Inspector',
+                        panels.open.inspector,
+                        () => panels.toggle('inspector')
+                      ],
                       ['__label__', false, () => {}],
-                      ['Project References', refsOpen, () => setRefsOpen((v) => !v)],
-                      ['Project Threads', threadsOpen, () => setThreadsOpen((v) => !v)],
+                      [
+                        'Project References',
+                        panels.open.refs,
+                        () => panels.toggle('refs')
+                      ],
+                      [
+                        'Project Threads',
+                        panels.open.threads,
+                        () => panels.toggle('threads')
+                      ],
                       [
                         'Project Threads · Timeline',
-                        braidOpen,
-                        () => setBraidOpen((v) => !v)
+                        panels.open.braid,
+                        () => panels.toggle('braid')
                       ],
-                      ['Project Health', healthOpen, () => setHealthOpen((v) => !v)]
+                      [
+                        'Project Health',
+                        panels.open.health,
+                        () => panels.toggle('health')
+                      ]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) =>
                     label === '__label__' ? (
@@ -1386,19 +1314,21 @@ export default function App() {
                   <div className="menu-pop__label">Theme</div>
                   {[
                     ...BUILTIN_THEME_OPTIONS,
-                    ...availableThemes.map((t) => ({ id: t.id, name: t.name }))
+                    ...settings.availableThemes.map((t) => ({ id: t.id, name: t.name }))
                   ].map(({ id, name }) => (
                     <button
                       key={id}
                       className="menu-pop__row"
                       role="menuitemradio"
-                      aria-checked={theme === id}
+                      aria-checked={settings.theme === id}
                       onClick={() => {
-                        changeTheme(id)
+                        settings.changeTheme(id)
                         setMenuOpen(null)
                       }}
                     >
-                      <span className="menu-pop__check">{theme === id ? '✓' : ''}</span>
+                      <span className="menu-pop__check">
+                        {settings.theme === id ? '✓' : ''}
+                      </span>
                       {name}
                     </button>
                   ))}
@@ -1409,10 +1339,10 @@ export default function App() {
                       {ACCENTS.map((a) => (
                         <button
                           key={a}
-                          className={`swatch${accent === a ? ' swatch--on' : ''}`}
+                          className={`swatch${settings.accent === a ? ' swatch--on' : ''}`}
                           data-accent={a}
                           title={a}
-                          onClick={() => setAccentTo(a)}
+                          onClick={() => settings.setAccentTo(a)}
                         />
                       ))}
                     </span>
@@ -1420,13 +1350,15 @@ export default function App() {
                   <button
                     className="menu-pop__row"
                     role="menuitemcheckbox"
-                    aria-checked={focusMode}
+                    aria-checked={settings.focusMode}
                     onClick={() => {
-                      toggleFocus()
+                      settings.toggleFocus()
                       setMenuOpen(null)
                     }}
                   >
-                    <span className="menu-pop__check">{focusMode ? '✓' : ''}</span>
+                    <span className="menu-pop__check">
+                      {settings.focusMode ? '✓' : ''}
+                    </span>
                     Focus mode
                   </button>
 
@@ -1461,9 +1393,9 @@ export default function App() {
                 <div className="menu-pop" role="menu">
                   {(
                     [
-                      ['Vim keys', vim, toggleVim],
-                      ['Diagnostics', diagnostics, () => setDiagnostics((v) => !v)],
-                      ['Autosave', autosave, () => setAutosave((v) => !v)]
+                      ['Vim keys', settings.vim, settings.toggleVim],
+                      ['Diagnostics', settings.diagnostics, settings.toggleDiagnostics],
+                      ['Autosave', settings.autosave, settings.toggleAutosave]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) => (
                     <button
@@ -1480,17 +1412,19 @@ export default function App() {
                       {label}
                     </button>
                   ))}
-                  {vim && (
+                  {settings.vim && (
                     <button
                       className="menu-pop__row"
                       role="menuitemcheckbox"
-                      aria-checked={vimWrapMotion}
+                      aria-checked={settings.vimWrapMotion}
                       onClick={() => {
-                        toggleVimWrapMotion()
+                        settings.toggleVimWrapMotion()
                         setMenuOpen(null)
                       }}
                     >
-                      <span className="menu-pop__check">{vimWrapMotion ? '✓' : ''}</span>
+                      <span className="menu-pop__check">
+                        {settings.vimWrapMotion ? '✓' : ''}
+                      </span>
                       Wrapped-line motion (j/k)
                     </button>
                   )}
@@ -1499,7 +1433,7 @@ export default function App() {
                   <button
                     className="menu-pop__row"
                     onClick={() => {
-                      setHelpOpen(true)
+                      panels.set('help', true)
                       setMenuOpen(null)
                     }}
                   >
@@ -1523,9 +1457,9 @@ export default function App() {
           </button>
           <button
             className="ptog ptog--right"
-            data-on={companionOpen}
+            data-on={panels.open.companion}
             title="Toggle companion panel"
-            onClick={() => setCompanionOpen((v) => !v)}
+            onClick={() => panels.toggle('companion')}
           >
             <span className="ptog__bar" />
           </button>
@@ -1598,15 +1532,15 @@ export default function App() {
         )}
 
         <main className="main" style={editorStyle}>
-          {braidOpen ? (
+          {panels.open.braid ? (
             <BraidView
               sceneOrder={projectFiles.map((f) => f.path)}
               refreshKey={inspectorRefresh}
               onOpen={(path) => {
                 openFile(path)
-                setBraidOpen(false)
+                panels.set('braid', false)
               }}
-              onClose={() => setBraidOpen(false)}
+              onClose={() => panels.set('braid', false)}
             />
           ) : (
             <>
@@ -1635,7 +1569,7 @@ export default function App() {
                   ))}
                 </div>
               )}
-              {doc && !vim && (
+              {doc && !settings.vim && (
                 <div className="formatbar" role="toolbar" aria-label="Formatting">
                   <button
                     className="fmt fmt--bold"
@@ -1706,7 +1640,7 @@ export default function App() {
                   <button
                     className="fmt fmt--help"
                     title="Markdown & syntax reference"
-                    onClick={() => setHelpOpen(true)}
+                    onClick={() => panels.set('help', true)}
                   >
                     ?
                   </button>
@@ -1717,9 +1651,9 @@ export default function App() {
               ) : doc ? (
                 <Editor
                   doc={doc}
-                  vimEnabled={vim}
-                  vimWrapMotion={vimWrapMotion}
-                  diagnosticsEnabled={diagnostics}
+                  vimEnabled={settings.vim}
+                  vimWrapMotion={settings.vimWrapMotion}
+                  diagnosticsEnabled={settings.diagnostics}
                   analysis={analysis}
                   onStatus={setStatus}
                   onVimMode={setVimMode}
@@ -1740,7 +1674,11 @@ export default function App() {
           )}
         </main>
 
-        {(searchOpen || refsOpen || inspectorOpen || companionOpen || threadsOpen) && (
+        {(panels.open.search ||
+          panels.open.refs ||
+          panels.open.inspector ||
+          panels.open.companion ||
+          panels.open.threads) && (
           <div
             className="divider divider--panel"
             role="separator"
@@ -1749,18 +1687,18 @@ export default function App() {
           />
         )}
 
-        {searchOpen && (
+        {panels.open.search && (
           <ProjectSearch
-            onClose={() => setSearchOpen(false)}
+            onClose={() => panels.set('search', false)}
             onOpenMatch={(path, line, column) => openFile(path, { line, column })}
           />
         )}
 
-        {refsOpen && (
+        {panels.open.refs && (
           <ReferencesPanel
             entities={entities}
             entityTypes={entityTypes}
-            onClose={() => setRefsOpen(false)}
+            onClose={() => panels.set('refs', false)}
             onOpenRef={(path, line, column, length) =>
               openFile(path, { line, column, endColumn: column + length })
             }
@@ -1768,17 +1706,17 @@ export default function App() {
           />
         )}
 
-        {inspectorOpen && (
+        {panels.open.inspector && (
           <InspectorPanel
             path={activePath}
             readingPosition={readingPosition}
             refreshKey={inspectorRefresh}
             entityTypes={entityTypes}
-            onClose={() => setInspectorOpen(false)}
+            onClose={() => panels.set('inspector', false)}
           />
         )}
 
-        {companionOpen && (
+        {panels.open.companion && (
           <CompanionPanel
             activePath={activePath}
             pinnedPaths={pinnedPaths}
@@ -1786,33 +1724,33 @@ export default function App() {
             onOpenFull={(path) => openFile(path)}
             refreshKey={inspectorRefresh}
             entityTypes={entityTypes}
-            onClose={() => setCompanionOpen(false)}
+            onClose={() => panels.set('companion', false)}
           />
         )}
 
-        {threadsOpen && (
+        {panels.open.threads && (
           <ThreadsPanel
             onOpenBeat={(path) => openFile(path)}
             refreshKey={inspectorRefresh}
-            onClose={() => setThreadsOpen(false)}
+            onClose={() => panels.set('threads', false)}
           />
         )}
 
-        {commentsOpen && (
+        {panels.open.comments && (
           <CommentsPanel
             text={docText}
             onJump={(line, column) => fireReveal({ line, column })}
-            onClose={() => setCommentsOpen(false)}
+            onClose={() => panels.set('comments', false)}
           />
         )}
 
-        {healthOpen && (
+        {panels.open.health && (
           <HealthPanel
             refreshKey={inspectorRefresh}
             onOpen={(path, line, column, length) =>
               openFile(path, { line, column, endColumn: column + length })
             }
-            onClose={() => setHealthOpen(false)}
+            onClose={() => panels.set('health', false)}
           />
         )}
 
@@ -1824,15 +1762,40 @@ export default function App() {
               [
                 'Companion',
                 'book-open',
-                companionOpen,
-                () => setCompanionOpen((v) => !v)
+                panels.open.companion,
+                () => panels.toggle('companion')
               ],
-              ['Comments', 'comment', commentsOpen, () => setCommentsOpen((v) => !v)],
-              ['Inspector', 'info', inspectorOpen, () => setInspectorOpen((v) => !v)],
+              [
+                'Comments',
+                'comment',
+                panels.open.comments,
+                () => panels.toggle('comments')
+              ],
+              [
+                'Inspector',
+                'info',
+                panels.open.inspector,
+                () => panels.toggle('inspector')
+              ],
               null,
-              ['Project References', 'link', refsOpen, () => setRefsOpen((v) => !v)],
-              ['Project Threads', 'thread', threadsOpen, () => setThreadsOpen((v) => !v)],
-              ['Project Health', 'activity', healthOpen, () => setHealthOpen((v) => !v)]
+              [
+                'Project References',
+                'link',
+                panels.open.refs,
+                () => panels.toggle('refs')
+              ],
+              [
+                'Project Threads',
+                'thread',
+                panels.open.threads,
+                () => panels.toggle('threads')
+              ],
+              [
+                'Project Health',
+                'activity',
+                panels.open.health,
+                () => panels.toggle('health')
+              ]
             ] as ([string, string, boolean, () => void] | null)[]
           ).map((item, i) =>
             item === null ? (
@@ -1856,7 +1819,7 @@ export default function App() {
       </div>
 
       <footer className="statusbar">
-        {vim && vimMode && (
+        {settings.vim && vimMode && (
           <span className="statusbar__vim" data-vim-mode={vimMode}>
             {vimMode.toUpperCase()}
           </span>
@@ -1963,7 +1926,7 @@ export default function App() {
         />
       )}
 
-      {helpOpen && <SyntaxHelp onClose={() => setHelpOpen(false)} />}
+      {panels.open.help && <SyntaxHelp onClose={() => panels.set('help', false)} />}
 
       {renamePrompt && (
         <ConfirmModal
