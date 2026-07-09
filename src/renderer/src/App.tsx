@@ -41,6 +41,7 @@ import { usePanels } from './hooks/usePanels'
 import { ACCENTS, useSettings } from './hooks/useSettings'
 import { useDocuments } from './hooks/useDocuments'
 import { useCommands } from './hooks/useCommands'
+import { useLayout } from './hooks/useLayout'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, joinPath, parentDir, posixRelativePath } from './lib/paths'
@@ -69,12 +70,12 @@ type ModalState =
 export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [recents, setRecents] = useState<RecentProject[]>([])
-  const [sidebarWidth, setSidebarWidth] = useState(240)
-  const [panelWidth, setPanelWidth] = useState(320)
   const [tree, setTree] = useState<TreeNode | null>(null)
 
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
+  // Chrome layout: sidebar/panel widths + collapse — see useLayout.
+  const layout = useLayout()
   // Right-hand panels + reference overlays (open/closed) — see usePanels.
   const panels = usePanels()
   // Appearance + editor preferences (theme/accent/vim/…) and their persistence.
@@ -113,9 +114,8 @@ export default function App() {
   // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
   // when Vim is off) — drives the status-bar mode chip + mode-coloured cursor.
   const [vimMode, setVimMode] = useState('')
-  // Menubar: which dropdown is open (null = none); explorer visibility.
+  // Menubar: which dropdown is open (null = none).
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
-  const [sidebarHidden, setSidebarHidden] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
     words: 0,
     cursor: { line: 1, column: 1 }
@@ -420,51 +420,6 @@ export default function App() {
     [applyOpenResult]
   )
 
-  // Drag the divider to resize the sidebar (clamped to a readable range).
-  const startSidebarResize = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      const startX = e.clientX
-      const startWidth = sidebarWidth
-      let latest = startWidth
-      const onMove = (ev: MouseEvent) => {
-        latest = Math.min(Math.max(startWidth + ev.clientX - startX, 160), 480)
-        setSidebarWidth(latest)
-      }
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove)
-        window.removeEventListener('mouseup', onUp)
-        void window.api.updateSettings({ sidebarWidth: latest })
-      }
-      window.addEventListener('mousemove', onMove)
-      window.addEventListener('mouseup', onUp)
-    },
-    [sidebarWidth]
-  )
-
-  // Drag the right-panel divider to resize the panels (they share one width).
-  // The panels are on the right, so dragging left (smaller clientX) widens them.
-  const startPanelResize = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault()
-      const startX = e.clientX
-      const startWidth = panelWidth
-      let latest = startWidth
-      const onMove = (ev: MouseEvent) => {
-        latest = Math.min(Math.max(startWidth - (ev.clientX - startX), 240), 640)
-        setPanelWidth(latest)
-      }
-      const onUp = () => {
-        window.removeEventListener('mousemove', onMove)
-        window.removeEventListener('mouseup', onUp)
-        void window.api.updateSettings({ panelWidth: latest })
-      }
-      window.addEventListener('mousemove', onMove)
-      window.addEventListener('mouseup', onUp)
-    },
-    [panelWidth]
-  )
-
   // On first mount: load settings, restore the sidebar width, and reopen the
   // most recent project (falling back to the welcome + recents list if it fails).
   useEffect(() => {
@@ -473,8 +428,7 @@ export default function App() {
     void (async () => {
       const loaded = await window.api.getSettings()
       setRecents(loaded.recentProjects)
-      if (loaded.sidebarWidth) setSidebarWidth(loaded.sidebarWidth)
-      if (loaded.panelWidth) setPanelWidth(loaded.panelWidth)
+      layout.hydrate(loaded)
       settings.hydrate(loaded)
       allPinsRef.current = loaded.pins ?? {}
       allExplorerPinsRef.current = loaded.explorerPins ?? {}
@@ -1041,9 +995,9 @@ export default function App() {
         <div className="menubar__right">
           <button
             className="ptog ptog--left"
-            data-on={!sidebarHidden}
+            data-on={!layout.sidebarHidden}
             title="Toggle explorer"
-            onClick={() => setSidebarHidden((v) => !v)}
+            onClick={layout.toggleSidebar}
           >
             <span className="ptog__bar" />
           </button>
@@ -1067,11 +1021,11 @@ export default function App() {
 
       <div
         className="body"
-        style={{ '--panel-width': `${panelWidth}px` } as CSSProperties}
+        style={{ '--panel-width': `${layout.panelWidth}px` } as CSSProperties}
       >
-        {!sidebarHidden && (
+        {!layout.sidebarHidden && (
           <>
-            <aside className="sidebar" style={{ width: sidebarWidth }}>
+            <aside className="sidebar" style={{ width: layout.sidebarWidth }}>
               <div className="sidebar__header">
                 <span className="sidebar__title">{project.name}</span>
                 <div className="sidebar__actions">
@@ -1118,7 +1072,7 @@ export default function App() {
               className="divider"
               role="separator"
               title="Drag to resize"
-              onMouseDown={startSidebarResize}
+              onMouseDown={layout.startSidebarResize}
             />
           </>
         )}
@@ -1278,7 +1232,7 @@ export default function App() {
             className="divider divider--panel"
             role="separator"
             title="Drag to resize"
-            onMouseDown={startPanelResize}
+            onMouseDown={layout.startPanelResize}
           />
         )}
 
