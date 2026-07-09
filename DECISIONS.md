@@ -1,6 +1,6 @@
 # Decision history — writer-gui
 
-Split out of [SPEC.md](SPEC.md) to keep the spec focused. Referenced there by
+Split out of [the spec](spec/) to keep the spec focused. Referenced there by
 number (e.g. decision #45).
 
 A running log of the choices behind this spec and _why_, so future changes don't

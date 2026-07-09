@@ -9,13 +9,13 @@ import type {
 /**
  * The editor seam. Nothing outside an implementation of this interface knows
  * which editor library is in use. The app is committed to CodeMirror 6
- * (see SPEC.md → Decision history), but talks to it only through here so the
- * choice stays swappable.
+ * (see DECISIONS.md), but talks to it only through here so the choice stays
+ * swappable.
  *
  * Markdown text is the canonical representation in and out — any editor that
  * implements this contract feeds and returns Markdown.
  *
- * NOTE: this refines the illustrative sketch in SPEC.md. Completions are a
+ * NOTE: this refines the illustrative sketch in spec/architecture.md. Completions are a
  * registered *source* (pull) rather than a pushed list, matching how editors
  * and the future AnalysisService actually work; `onChange` yields the new text.
  */

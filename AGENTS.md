@@ -1,9 +1,10 @@
 # AGENTS.md
 
 Guidance for AI coding agents (and humans) working in this repo. Keep changes
-consistent with what's here. For the product design and roadmap, read
-[SPEC.md](SPEC.md) — especially **[DECISIONS.md](DECISIONS.md)**, which records _why_
-choices were made so they aren't re-litigated.
+consistent with what's here. For the product design and roadmap, read the
+[spec](spec/) (sliced by subsystem; start at [spec/README.md](spec/README.md)) —
+especially **[DECISIONS.md](DECISIONS.md)**, which records _why_ choices were made
+so they aren't re-litigated.
 
 ## What this is
 
@@ -188,10 +189,12 @@ matching `<X>`."
 Code is only half the job; the docs are the memory that survives across sessions.
 When you change something, update the record in the same change.
 
-**`SPEC.md` — the design + decision record. Update it when:**
+**`spec/` — the design record (sliced by subsystem). Update the relevant file
+when:**
 
 - You **finish a phase or milestone** → mark it done (`✅`) and update the
-  **Status** line at the top of the Phases section (what's done, what's next).
+  **Status** line at the top of the Phases section in
+  [spec/roadmap.md](spec/roadmap.md) (what's done, what's next).
 - You **make a non-trivial decision** (a choice with a trade-off, a scope
   change, a reversal) → append a numbered entry to **[DECISIONS.md](DECISIONS.md)** with the
   _why_. Never silently contradict an existing entry — add a new one that
@@ -211,17 +214,17 @@ When you change something, update the record in the same change.
   you add a frontmatter field or change the entity/thread shape, reflect it here
   so it stays a valid, useful test target. Keep it small and stable.
 - **`README.md`** — human-facing; update the status blurb, features, or scripts
-  when they change. Don't put design rationale here (that's SPEC.md).
+  when they change. Don't put design rationale here (that's `spec/`).
 - **Project memory** (`MEMORY.md` + `memory/`) — when the "where we are / what's
   next" changes materially, update the status memory so a fresh session resumes
   correctly.
 
-**Editing large docs efficiently (SPEC.md / DECISIONS.md):** for **mechanical,
+**Editing large docs efficiently (`spec/*.md` / DECISIONS.md):** for **mechanical,
 repetitive** changes — renumbering milestones/decisions, a phrase find-replace
 across many spots, or moving a whole section — prefer a single `perl -i`/`sed`
 (or `head`/`tail` for a split) in one Bash call over many `Edit`s. It's far
 cheaper in context and deterministic. Example:
-`perl -i -pe 's{\bthread registry\b}{type: thread entities}g' SPEC.md`.
+`perl -i -pe 's{\bthread registry\b}{type: thread entities}g' spec/story-model.md`.
 Reserve `Edit` for genuine rewording where judgement is needed. After a `perl`
 sweep, `grep` to confirm no stale matches remain.
 
@@ -242,7 +245,7 @@ and the decision (if any) is logged.
 
 - Generated/vendored dirs (`node_modules/`, `out/`, `dist/`) are git-ignored and
   listed in `.cursorignore` — **don't index or read them**; they're noise.
-- Start from `SPEC.md` (design) and this file (practices) before reading source.
+- Start from `spec/` (design) and this file (practices) before reading source.
 - The source of truth for _decisions_ is **DECISIONS.md**.
 - `npm run pack:ai` runs **repomix** → a single-file digest (`repomix-output.xml`)
   of the whole repo for pasting into an LLM. Config: `repomix.config.json`;

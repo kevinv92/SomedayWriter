@@ -240,6 +240,21 @@ Irene Adler mentioned?"_ — answered from the real index.
 
 ---
 
+## Download
+
+Grab the latest macOS build from the
+**[Releases page](https://github.com/kevinv92/SomedayWriter/releases/latest)** —
+download the `.dmg`, open it, and drag **SomedayWriter** to Applications.
+
+> **The build is unsigned** (this is an early preview), so macOS Gatekeeper will
+> block it on first launch. To open it anyway: **right-click the app → Open** and
+> confirm once, or run `xattr -cr /Applications/SomedayWriter.app` in Terminal.
+> Currently **Apple Silicon (arm64)** only.
+
+Prefer to run from source? See below.
+
+---
+
 ## Getting started
 
 Requires **Node 20+**.
@@ -297,7 +312,7 @@ Electron + Vite + React + TypeScript, bundled with
 ## Contributing
 
 Standards and conventions live in [AGENTS.md](AGENTS.md); the design rationale and
-decision log live in [SPEC.md](SPEC.md) / [DECISIONS.md](DECISIONS.md). Please read
+decision log live in [spec/](spec/) / [DECISIONS.md](DECISIONS.md). Please read
 them before making changes.
 
 ## License

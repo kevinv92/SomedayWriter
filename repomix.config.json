@@ -6,7 +6,7 @@
     "compress": false,
     "showLineNumbers": true,
     "removeEmptyLines": false,
-    "headerText": "writer-gui — Electron Markdown writer. See SPEC.md (design + decision history) and AGENTS.md (standards) first."
+    "headerText": "SomedayWriter (pkg: writer-gui) — Electron Markdown writer. See spec/ (design), DECISIONS.md (decision history), and AGENTS.md (standards) first."
   },
   "ignore": {
     "useGitignore": true,
