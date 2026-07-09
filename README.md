@@ -17,6 +17,12 @@ understands your world and stays quiet until you ask.
 
 </div>
 
+> [!NOTE]
+> **Early preview (v0.1).** SomedayWriter is usable today, but it's young and
+> still moving — expect rough edges, and some things (config, syntax, defaults)
+> may change between versions. Your work is always plain `.md` files, so nothing
+> is ever trapped. Feedback and issues are very welcome.
+
 ---
 
 ## Why SomedayWriter
@@ -262,6 +268,7 @@ npm run dist:mac   # → dist/SomedayWriter-<version>-arm64.dmg
 | `npm run dist:mac`  | Build a macOS `.dmg` (electron-builder)    |
 | `npm run mcp`       | Run the MCP server (`-- --root <project>`) |
 | `npm run typecheck` | Type-check main + renderer                 |
+| `npm test`          | Run the unit tests (Vitest)                |
 | `npm run lint`      | Lint with ESLint                           |
 | `npm run format`    | Format with Prettier                       |
 

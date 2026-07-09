@@ -12,7 +12,7 @@ concurrency:
 
 jobs:
   check:
-    name: format · lint · typecheck · build
+    name: format · lint · typecheck · test · build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +33,9 @@ jobs:
 
       - name: Typecheck
         run: npm run typecheck
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
