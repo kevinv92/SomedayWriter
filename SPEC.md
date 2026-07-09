@@ -1272,6 +1272,45 @@ here in the committed phases, not in the deferred-AI lane. Depends on Phase 5.
 grounded question ("summarise the rebellion thread") answered from the real index
 — on your subscription, no API charges.
 
+**Built — M28 (MCP server):** `src/mcp/server.ts` is a standalone **stdio** MCP
+server (MCP SDK 1.29) that **reuses the exact same StoryIndex** the app does —
+`story-index.ts`/`fs-project.ts`/`frontmatter.ts`/`search.ts` are pure Node, so
+there's no second implementation to drift. Run via `tsx` (no build step). It
+exposes:
+
+- **Resources** — every project `.md` file, listed + readable at `writer:///<rel>`.
+- **Tools** (read-only unless noted): `project_overview`, `search_project`,
+  `list_entities`, `find_references`, `definition_of` (resolves name/alias/`@{…}`),
+  `mentions_in`, `thread_beats`, `reading_order` (manuscript scenes only, by
+  `order`), `read_file`, and `write_file` (destructive; the path is guarded with
+  the app's own `isInside(root, …)` so a client can't write outside the project).
+
+The project root comes from `--root <dir>` (or `WRITER_PROJECT_ROOT`). Connect it
+in Claude Desktop / Code:
+
+```jsonc
+{
+  "mcpServers": {
+    "writer-gui": {
+      "command": "/abs/path/writer-gui/node_modules/.bin/tsx",
+      "args": [
+        "/abs/path/writer-gui/src/mcp/server.ts",
+        "--root",
+        "/abs/path/to/your/project"
+      ]
+    }
+  }
+}
+```
+
+Deterministic (no AI code / key / metered cost in the app — the LLM is the
+client's). Verified end-to-end with a real MCP client: 10 tools + 27 resources
+enumerated; `thread_beats "The Case"` returned the 6 ordered scenes; alias
+resolution + `find_references` + the `write_file` root-guard all confirmed.
+Follow-ups: MCP **prompts** (canned "summarise thread X"), a live app↔server sync
+so edits reflect instantly, and richer edit tools (insert/replace a span vs whole
+file).
+
 ### Phase 12 — Command system & keybindings
 
 Unify commands behind **one registry** and make keys **user-overridable** — see
