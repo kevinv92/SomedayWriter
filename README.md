@@ -1,18 +1,71 @@
-# writer-gui
+<div align="center">
 
-A desktop **Markdown** writing tool for prose projects (novels, scripts, docs).
-File explorer on the left, editor in the middle, story panels on the right. Your
-work stays as ordinary `.md` files on disk — no proprietary format, no lock-in. A
-folder becomes a project when it has a `project.json`.
+<img src="build/icon.svg" width="96" alt="SomedayWriter" />
 
-Built to be **deterministic and quiet by default**: the story intelligence is
-real indexing, not guesswork, and nothing nags you unless you ask it to. AI is
-opt-in and runs on _your_ client — see [AI & grammar](#ai--grammar).
+# SomedayWriter
 
-> **Status:** Phases 0–11 complete. Only the unified command/keybinding system
-> (Phase 12) and the deferred lane (AI continuity, export/compile) remain. See
-> [SPEC.md](SPEC.md) for the full design and roadmap, and
-> [DECISIONS.md](DECISIONS.md) for the _why_.
+**A calm, local-first desktop app for writing long-form prose.**
+
+Your novel, script, or docs live as ordinary **Markdown files on disk** — no
+proprietary format, no cloud, no lock-in — with a story mind that actually
+understands your world and stays quiet until you ask.
+
+[![CI](https://github.com/kevinv92/SomedayWriter/actions/workflows/ci.yml/badge.svg)](https://github.com/kevinv92/SomedayWriter/actions/workflows/ci.yml)
+&nbsp;·&nbsp; Electron · React · CodeMirror 6 · TypeScript &nbsp;·&nbsp; MIT
+
+<img src="docs/images/hero.png" width="860" alt="SomedayWriter editor — a scene open with softened @mentions and a serif reading column" />
+
+</div>
+
+---
+
+## Why SomedayWriter
+
+Most writing apps make you choose: a plain text editor that knows nothing about
+your story, or a heavy "novel suite" that traps your work in a database. This is
+neither.
+
+- ✍️ **Write in peace.** A serif reading column, warm low-eye-strain themes, a
+  focus mode, and real Vim keys. `@{mentions}` and editorial marks soften to
+  clean prose at rest and reveal their syntax only when your cursor lands on them.
+- 🧠 **A story index that isn't guessing.** Every character, location, thread and
+  mention is deterministically indexed from your files — so "find references",
+  "go to definition", and a scene **Companion** work on your prose the way they
+  work on code.
+- 📁 **It's just files.** A folder becomes a project when it has a `project.json`.
+  Open it in any editor, keep it in git, sync it however you like. Nothing is
+  hidden from you.
+- 📖 **Get the draft out.** Compile the manuscript to a single clean Markdown
+  file or a proper **EPUB** — editorial notes, comments and tracked changes
+  stripped automatically.
+- 🤖 **Bring your own AI, or none.** Everything intelligent is opt-in and off by
+  default. A built-in MCP server lets **Claude** reason over your real manuscript
+  on your own subscription — no API keys or metered cost baked into the app.
+
+<div align="center">
+<img src="docs/images/companion.png" width="780" alt="The Companion panel auto-following the entities in the current scene" />
+<br/><em>The Companion panel follows whoever's in the current scene — with mention counts and pin-to-freeze.</em>
+</div>
+
+---
+
+## A look around
+
+**Trace your storylines.** The Project Threads · Timeline lays out one lane per
+thread, with the dots and branches showing exactly where plots cross and merge.
+
+<div align="center">
+<img src="docs/images/threads-timeline.png" width="820" alt="Project Threads Timeline — one lane per thread with intersections and branch/merge topology" />
+</div>
+
+**Keyboard-first, always.** Quick Open, a command palette, and clear document
+state at a glance.
+
+<div align="center">
+<img src="docs/images/export.png" width="600" alt="Command palette showing Export to EPUB and Export Manuscript commands" />
+&nbsp;&nbsp;
+<img src="docs/images/save-states.png" width="300" alt="Save-state button showing Unsaved" />
+</div>
 
 ---
 
@@ -30,8 +83,8 @@ opt-in and runs on _your_ client — see [AI & grammar](#ai--grammar).
   editorial comment, with `⌘B` / `⌘I` / `⌘K`. Hidden in Vim and focus modes.
 - **Real Vim mode** (`@replit/codemirror-vim`) with a status-bar mode chip, a
   mode-colored cursor, and display-line `j`/`k` motion for wrapped prose.
-- **Focus mode**, configurable font/size/line-height/measure (per project), and a
-  **Markdown & syntax reference** cheat-sheet.
+- **Tab to indent**, **Focus mode**, configurable font/size/line-height/measure
+  (per project), and a **Markdown & syntax reference** cheat-sheet.
 - **Format Table** — tidy a raw GFM table's columns from the palette.
 - **Images** — inline preview of `![](…)` (via a guarded `writer-asset://`
   protocol), insert from a picker or drag-and-drop, and a read-only viewer for
@@ -42,7 +95,7 @@ opt-in and runs on _your_ client — see [AI & grammar](#ai--grammar).
 - **File explorer** — new / rename / delete / drag-to-move / drag-to-reorder;
   per-type entity icons; a pinned quick-access section.
 - **Tabs** with per-tab unsaved buffers (switching never loses edits) and opt-in
-  **autosave**; unsaved-changes prompt on close.
+  **autosave**; a clear **Saved / Unsaved / Autosave** button in the menubar.
 - **Quick Open** (`⌘P`, fuzzy — matches name _and_ project-relative path) and a
   **command palette** (`⌘⇧P`); both surface recent files / commands first.
 - **Find in document** (`⌘F`) and **find across the project** (`⌘⇧F`).
@@ -82,6 +135,16 @@ nothing drifts.
 - **Inline thread markers** (`<!-- thread:x -->`) scope part of a scene to a
   thread.
 
+### Export & compile
+
+- **Export Manuscript (Markdown)** — concatenates your scenes in manuscript
+  `order` into one clean `.md`.
+- **Export to EPUB** — a valid EPUB (one chapter per scene, table of contents,
+  reading styles) you can open in any e-reader.
+- Both **strip your scaffolding on the way out**: frontmatter, `%%` notes,
+  `{>>comments<<}`, thread markers — gone; `{==highlights==}` and `@{mentions}`
+  unwrapped; tracked changes accepted.
+
 ### Look & feel
 
 - A warm, low-eye-strain **design system** — "warm paper" (light) and "warm dusk"
@@ -103,7 +166,7 @@ Everything here is **opt-in and off by default**; the core app needs none of it.
 
 #### Claude as your editor (MCP)
 
-writer-gui ships a **[Model Context Protocol](https://modelcontextprotocol.io)
+SomedayWriter ships a **[Model Context Protocol](https://modelcontextprotocol.io)
 server** so **Claude Desktop / Code** can reason over your _real_ manuscript — on
 your subscription, with no API key, no metered cost, and no AI code in the app. It
 reuses the exact same `StoryIndex`, exposing every file as a **resource** plus
@@ -116,10 +179,10 @@ Point Claude at it (root via `--root` or `WRITER_PROJECT_ROOT`):
 ```jsonc
 {
   "mcpServers": {
-    "writer-gui": {
-      "command": "/abs/path/writer-gui/node_modules/.bin/tsx",
+    "somedaywriter": {
+      "command": "/abs/path/SomedayWriter/node_modules/.bin/tsx",
       "args": [
-        "/abs/path/writer-gui/src/mcp/server.ts",
+        "/abs/path/SomedayWriter/src/mcp/server.ts",
         "--root",
         "/abs/path/to/your/project"
       ]
@@ -128,8 +191,8 @@ Point Claude at it (root via `--root` or `WRITER_PROJECT_ROOT`):
 }
 ```
 
-Then ask grounded questions — _"summarise the rebellion thread"_, _"where is Irene
-Adler mentioned?"_ — answered from the real index.
+Then ask grounded questions — _"summarise the Royal Scandal thread"_, _"where is
+Irene Adler mentioned?"_ — answered from the real index.
 
 ---
 
@@ -143,8 +206,14 @@ npm run dev      # launch the app with hot-reload
 ```
 
 Open the bundled example to explore everything above:
-`examples/scandal-in-bohemia/` (a public-domain Conan Doyle project with
-characters, locations, items, a faction, and six interwoven threads).
+`examples/scandal-in-bohemia/` — a public-domain Conan Doyle project with
+characters, locations, items, a faction, and six interwoven threads.
+
+Build a distributable macOS app (unsigned, local):
+
+```bash
+npm run dist:mac   # → dist/SomedayWriter-<version>-arm64.dmg
+```
 
 ## Scripts
 
@@ -152,32 +221,33 @@ characters, locations, items, a faction, and six interwoven threads).
 | ------------------- | ------------------------------------------ |
 | `npm run dev`       | Launch the app in development (hot-reload) |
 | `npm run build`     | Production build to `out/`                 |
+| `npm run dist:mac`  | Build a macOS `.dmg` (electron-builder)    |
 | `npm run mcp`       | Run the MCP server (`-- --root <project>`) |
 | `npm run typecheck` | Type-check main + renderer                 |
 | `npm run lint`      | Lint with ESLint                           |
 | `npm run format`    | Format with Prettier                       |
-| `npm run package`   | Build a distributable app                  |
 
 Git hooks are set up automatically on `npm install`: **pre-commit** formats and
-lints staged files; **pre-push** runs a full type-check + lint.
+lints staged files; **pre-push** runs a full type-check + lint. CI runs the same
+checks on every push and pull request.
 
 ## Project layout
 
 ```
 src/
   main/       Electron main process — filesystem, IPC, StoryIndex,
-              grammar (LanguageTool HTTP) + LSP client
+              export/EPUB, grammar (LanguageTool HTTP) + LSP client
   preload/    Secure bridge — the only renderer↔main surface (window.api)
   renderer/   React UI (App composes focused hooks under renderer/src/hooks)
   mcp/        Standalone MCP server (reuses the StoryIndex; run via tsx)
-  shared/     Types shared across the process boundary (aliased @shared)
+  shared/     Types + pure logic shared across the process boundary (@shared)
 ```
 
 ## Tech stack
 
 Electron + Vite + React + TypeScript, bundled with
-[electron-vite](https://electron-vite.org). Editor: CodeMirror 6. MCP via
-`@modelcontextprotocol/sdk`.
+[electron-vite](https://electron-vite.org). Editor: CodeMirror 6. EPUB via
+`marked` + `jszip`. MCP via `@modelcontextprotocol/sdk`.
 
 ## Contributing
 
@@ -187,4 +257,4 @@ them before making changes.
 
 ## License
 
-MIT
+[MIT](LICENSE)
