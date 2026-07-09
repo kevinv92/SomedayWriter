@@ -531,6 +531,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         assetDirField,
         imageField,
         mentionField,
+        colorField,
         EditorView.lineWrapping,
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
         // the text rather than at the bottom, which reads better for prose.
@@ -855,6 +856,89 @@ const criticField = StateField.define<DecorationSet>({
   create: (state) => buildCriticDecos(state),
   update(deco, tr) {
     if (tr.docChanged || tr.selection) return buildCriticDecos(tr.state)
+    return deco.map(tr.changes)
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
+
+// Inline colour swatches for hex colours in a file's frontmatter (e.g. a thread
+// or entity `color:`). Renders a small native colour input right after the hex;
+// picking a colour rewrites the literal in place. Scoped to the leading `---`
+// block so it never touches hex-looking text in prose.
+const HEX_COLOR_RE = /#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/g
+
+/** Expand `#rgb` → `#rrggbb` so a native `<input type=color>` accepts it. */
+function normalizeHex(hex: string): string {
+  if (hex.length === 4) {
+    return '#' + [hex[1], hex[2], hex[3]].map((c) => c + c).join('')
+  }
+  return hex.toLowerCase()
+}
+
+class ColorSwatchWidget extends WidgetType {
+  constructor(
+    readonly hex: string,
+    readonly from: number,
+    readonly to: number
+  ) {
+    super()
+  }
+  eq(other: ColorSwatchWidget): boolean {
+    return other.hex === this.hex && other.from === this.from
+  }
+  toDOM(view: EditorView): HTMLElement {
+    const input = document.createElement('input')
+    input.type = 'color'
+    input.className = 'cm-color-swatch'
+    input.value = normalizeHex(this.hex)
+    input.title = 'Pick colour'
+    // Don't let the click move the editor caret / start a selection.
+    input.addEventListener('mousedown', (e) => e.stopPropagation())
+    input.addEventListener('input', () => {
+      view.dispatch({ changes: { from: this.from, to: this.to, insert: input.value } })
+    })
+    return input
+  }
+  ignoreEvent(): boolean {
+    return true
+  }
+}
+
+/** [start, end) offsets of the frontmatter body, or null when there's no leading
+ * `---` fence. */
+function frontmatterRange(state: EditorState): [number, number] | null {
+  const doc = state.doc
+  if (doc.lines < 2 || doc.line(1).text.trim() !== '---') return null
+  for (let n = 2; n <= doc.lines; n++) {
+    if (doc.line(n).text.trim() === '---') return [doc.line(2).from, doc.line(n).from]
+  }
+  return null
+}
+
+function buildColorDecos(state: EditorState): DecorationSet {
+  const range = frontmatterRange(state)
+  const builder = new RangeSetBuilder<Decoration>()
+  if (!range) return builder.finish()
+  const [start, end] = range
+  const text = state.doc.sliceString(start, end)
+  HEX_COLOR_RE.lastIndex = 0
+  let m: RegExpExecArray | null
+  while ((m = HEX_COLOR_RE.exec(text)) !== null) {
+    const from = start + m.index
+    const to = from + m[0].length
+    builder.add(
+      to,
+      to,
+      Decoration.widget({ widget: new ColorSwatchWidget(m[0], from, to), side: 1 })
+    )
+  }
+  return builder.finish()
+}
+
+const colorField = StateField.define<DecorationSet>({
+  create: (state) => buildColorDecos(state),
+  update(deco, tr) {
+    if (tr.docChanged) return buildColorDecos(tr.state)
     return deco.map(tr.changes)
   },
   provide: (f) => EditorView.decorations.from(f)
@@ -1234,6 +1318,22 @@ const proseTheme = EditorView.theme({
   '.cm-mention': {
     color: 'color-mix(in oklch, var(--accent) 70%, var(--fg))'
   },
+  // Inline colour swatch after a frontmatter hex colour — a small native picker.
+  '.cm-color-swatch': {
+    width: '0.9em',
+    height: '0.9em',
+    verticalAlign: 'middle',
+    marginLeft: '0.35em',
+    padding: '0',
+    border: '1px solid var(--border)',
+    borderRadius: '3px',
+    cursor: 'pointer',
+    background: 'none',
+    WebkitAppearance: 'none',
+    appearance: 'none'
+  },
+  '.cm-color-swatch::-webkit-color-swatch-wrapper': { padding: '0' },
+  '.cm-color-swatch::-webkit-color-swatch': { border: 'none', borderRadius: '2px' },
   // Inline thread markers (M25b): a quiet structural tag, not prose.
   '.cm-thread-marker': {
     color: 'var(--accent)',
