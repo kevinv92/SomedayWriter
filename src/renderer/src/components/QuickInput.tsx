@@ -114,6 +114,14 @@ export function QuickInput({
     activeRef.current?.scrollIntoView({ block: 'nearest' })
   }, [index, fileResults, commandResults])
 
+  // Scrolling a row under the (stationary) cursor fires `mouseenter`, which would
+  // otherwise yank the selection back to whatever's under the pointer. Suppress
+  // hover-select during keyboard nav; a real `mousemove` re-enables it.
+  const suppressHover = useRef(false)
+  const hoverSelect = (i: number) => {
+    if (!suppressHover.current) setIndex(i)
+  }
+
   const choose = (i: number) => {
     if (isCommand) {
       const cmd = commandResults[i]
@@ -144,9 +152,11 @@ export function QuickInput({
           onKeyDown={(e) => {
             if (e.key === 'ArrowDown') {
               e.preventDefault()
+              suppressHover.current = true
               setIndex((i) => Math.min(i + 1, count - 1))
             } else if (e.key === 'ArrowUp') {
               e.preventDefault()
+              suppressHover.current = true
               setIndex((i) => Math.max(i - 1, 0))
             } else if (e.key === 'Enter') {
               e.preventDefault()
@@ -156,7 +166,12 @@ export function QuickInput({
             }
           }}
         />
-        <div className="quickinput__list">
+        <div
+          className="quickinput__list"
+          onMouseMove={() => {
+            suppressHover.current = false
+          }}
+        >
           {count === 0 ? (
             <div className="quickinput__empty">No matches</div>
           ) : isCommand ? (
@@ -165,7 +180,7 @@ export function QuickInput({
                 key={c.id}
                 ref={i === index ? activeRef : undefined}
                 className={`quickinput__item${i === index ? ' quickinput__item--active' : ''}`}
-                onMouseEnter={() => setIndex(i)}
+                onMouseEnter={() => hoverSelect(i)}
                 onClick={() => choose(i)}
               >
                 <span className="quickinput__label">{c.title}</span>
@@ -178,7 +193,7 @@ export function QuickInput({
                 key={f.path}
                 ref={i === index ? activeRef : undefined}
                 className={`quickinput__item${i === index ? ' quickinput__item--active' : ''}`}
-                onMouseEnter={() => setIndex(i)}
+                onMouseEnter={() => hoverSelect(i)}
                 onClick={() => choose(i)}
               >
                 <span className="quickinput__label">{f.name}</span>
