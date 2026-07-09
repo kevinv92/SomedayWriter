@@ -9,6 +9,7 @@ import type {
   EntityRef,
   FileInspection,
   FileReadResult,
+  GrammarMatch,
   Thread,
   OpenProjectResult,
   ProjectMeta,
@@ -30,6 +31,7 @@ import {
   sceneEntities
 } from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
+import { checkGrammar } from './grammar'
 import {
   DEFAULT_IGNORE,
   defaultProjectConfig,
@@ -307,7 +309,23 @@ function registerIpc(): void {
     openProjectPath(root)
   )
 
-  ipcMain.handle('settings:get', (): Promise<AppSettings> => readSettings())
+  // Strip the grammar secrets before settings ever reach the renderer — the
+  // premium API key lives only in main (Phase 10).
+  ipcMain.handle('settings:get', async (): Promise<AppSettings> => {
+    const s = await readSettings()
+    if (s.grammar && (s.grammar.apiKey || s.grammar.username)) {
+      const { apiKey: _k, username: _u, ...safe } = s.grammar
+      return { ...s, grammar: safe }
+    }
+    return s
+  })
+
+  // --- external analysis (Phase 10) ---
+
+  // Grammar/style check via LanguageTool; config (incl. any key) read in main.
+  ipcMain.handle('analysis:grammar', (_e, text: string): Promise<GrammarMatch[]> =>
+    checkGrammar(text)
+  )
 
   // --- story intelligence (Phase 5) ---
 

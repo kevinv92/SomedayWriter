@@ -164,6 +164,46 @@ export type AppSettings = {
   /** Vim `j`/`k` move by display line (gj/gk) instead of logical line — better
    * for wrapped prose. Persisted globally. Default true. */
   vimWrapMotion?: boolean
+  /** External grammar/style checking (Phase 10). Hand-edited in `settings.json`;
+   * the secrets (`apiKey`/`username`) are stripped before this object is handed
+   * to the renderer — the key lives only in main. */
+  grammar?: GrammarSettings
+}
+
+/** Configuration for the external grammar/style provider (Phase 10, M26). Points
+ * at a LanguageTool server — a **self-hosted** instance keeps prose on-device
+ * (recommended); the public cloud API works too. Opt-in: off unless `enabled`. */
+export type GrammarSettings = {
+  /** Turn the provider on. Default false — nothing is sent anywhere until set. */
+  enabled?: boolean
+  /** LanguageTool base URL, e.g. `http://localhost:8081` (self-hosted) or
+   * `https://api.languagetool.org`. The `/v2/check` path is appended. */
+  url?: string
+  /** Language code (`en-US`, `de-DE`, …) or `auto` to detect. Default `auto`. */
+  language?: string
+  /** Native language (`motherTongue`) — improves false-friend detection. */
+  motherTongue?: string
+  /** Premium cloud credentials. Live only in main; never sent to the renderer. */
+  apiKey?: string
+  username?: string
+}
+
+/** One grammar/style hit from the external checker (Phase 10), in the offset form
+ * the editor uses. Crosses IPC as this shape; the renderer provider maps it to a
+ * `Diagnostic` (offset → from, offset+length → to). */
+export type GrammarMatch = {
+  /** Character offset of the flagged span. */
+  offset: number
+  /** Length of the flagged span. */
+  length: number
+  message: string
+  /** LanguageTool `rule.issueType` folded to the editor's severities. */
+  severity: 'error' | 'warning' | 'info'
+  /** Rule id + category, for future filtering/quick-fix. */
+  ruleId?: string
+  category?: string
+  /** Suggested replacements (first few), for a future quick-fix. */
+  replacements?: string[]
 }
 
 /** A story entity from `StoryIndex` (Phase 5) — a profile file (`type` in its

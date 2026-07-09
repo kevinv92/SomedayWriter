@@ -6,6 +6,7 @@ import type {
   EntityRef,
   FileInspection,
   FileReadResult,
+  GrammarMatch,
   Thread,
   OpenProjectResult,
   ReplaceResult,
@@ -120,7 +121,12 @@ const api = {
 
   /** Import a known image file (e.g. dragged in) into assets/; returns its path. */
   importImageFile: (sourcePath: string): Promise<{ path: string } | null> =>
-    ipcRenderer.invoke('image:importFile', sourcePath)
+    ipcRenderer.invoke('image:importFile', sourcePath),
+
+  /** Grammar/style check (Phase 10) — routed to LanguageTool in main. Returns
+   * offset-based hits; `[]` when the checker is off/unconfigured. */
+  checkGrammar: (text: string): Promise<GrammarMatch[]> =>
+    ipcRenderer.invoke('analysis:grammar', text)
 }
 
 export type Api = typeof api

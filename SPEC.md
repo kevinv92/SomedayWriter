@@ -1205,6 +1205,31 @@ third-party providers) is a bigger, separate _Deferred_ item.
 **Exit:** enable LanguageTool; its grammar/style hits appear as squiggles through
 the same facade as the built-in spell provider, opt-in.
 
+**Built — M26 (LanguageTool):** `src/main/grammar.ts` POSTs to a LanguageTool
+`/v2/check` endpoint and maps `matches[]` → the shared `GrammarMatch` (offset
+form); the renderer `createLanguageToolProvider` (registered behind the facade
+next to spell) requests a check on `didChange` and maps `GrammarMatch` →
+`Diagnostic`, with a request-sequence guard so a stale async response for a
+superseded edit is dropped. **No editor or facade change** — the diagnostics
+toggle gates it like every other provider. **Opt-in via `settings.json`** (global
+app settings, hand-edited like `userThemes`), off until set:
+
+```jsonc
+"grammar": {
+  "enabled": true,
+  "url": "http://localhost:8081",   // self-hosted LanguageTool (prose stays local)
+  "language": "en-US",              // or "auto"
+  "motherTongue": "en-US",          // optional, improves false-friend detection
+  "username": "…", "apiKey": "…"    // optional premium cloud; live ONLY in main
+}
+```
+
+The network call runs in **main**; `apiKey`/`username` are **stripped from
+`settings:get`** so they never reach the renderer. Unconfigured / disabled / any
+error → `[]`, so a down checker can never break the editor. Text size limits +
+per-request throttling (cloud free-tier) and quick-fix from `replacements` are
+follow-ups. **M27 (real LSP via `ltex-ls`) still open.**
+
 ### Phase 11 — MCP server (committed)
 
 Expose the project as an **MCP server** so a subscription-authed client drives AI
