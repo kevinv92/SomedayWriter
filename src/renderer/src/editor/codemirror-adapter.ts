@@ -519,6 +519,7 @@ class CodeMirrorAdapter implements EditorAdapter {
         syntaxHighlighting(proseHighlightStyle),
         notesPlugin,
         criticPlugin,
+        criticField,
         criticHover,
         threadMarkerPlugin,
         frontmatterPlugin,
@@ -805,22 +806,72 @@ const mentionField = StateField.define<DecorationSet>({
   provide: (f) => EditorView.decorations.from(f)
 })
 
+// Soften wrapper CriticMarkup for reading, the same way as mentions: hide the
+// `{++`/`++}`, `{--`/`--}`, `{==`/`==}` delimiters at rest and keep only the styled
+// inner text, revealing the raw syntax when the cursor enters the token. Every
+// wrapper has a 3-char opener and 3-char closer, so the geometry is uniform.
+const criticMarks: Record<string, Decoration> = {
+  '{==': Decoration.mark({ class: 'cm-critic-highlight' }),
+  '{++': Decoration.mark({ class: 'cm-critic-insert' }),
+  '{--': Decoration.mark({ class: 'cm-critic-delete' })
+}
+const CRITIC_WRAP_RE = /\{==.*?==\}|\{\+\+.*?\+\+\}|\{--.*?--\}/g
+
+function buildCriticDecos(state: EditorState): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>()
+  const sel = state.selection.main
+  const doc = state.doc
+  for (let n = 1; n <= doc.lines; n++) {
+    const line = doc.line(n)
+    if (!line.text.includes('{')) continue
+    CRITIC_WRAP_RE.lastIndex = 0
+    let m: RegExpExecArray | null
+    while ((m = CRITIC_WRAP_RE.exec(line.text)) !== null) {
+      const mark = criticMarks[m[0].slice(0, 3)]
+      if (!mark) continue
+      const from = line.from + m.index
+      const to = from + m[0].length
+      const innerFrom = from + 3 // after `{++`
+      const innerTo = to - 3 // before `++}`
+      // Cursor within (or touching) the token → show raw for editing.
+      if (sel.from <= to && sel.to >= from) {
+        if (innerTo > innerFrom) builder.add(innerFrom, innerTo, mark)
+      } else {
+        builder.add(from, innerFrom, hideBrace)
+        if (innerTo > innerFrom) builder.add(innerFrom, innerTo, mark)
+        builder.add(innerTo, to, hideBrace)
+      }
+    }
+  }
+  return builder.finish()
+}
+
+const criticField = StateField.define<DecorationSet>({
+  create: (state) => buildCriticDecos(state),
+  update(deco, tr) {
+    if (tr.docChanged || tr.selection) return buildCriticDecos(tr.state)
+    return deco.map(tr.changes)
+  },
+  provide: (f) => EditorView.decorations.from(f)
+})
+
 /**
  * Editorial marks (Phase 9, M23) — CriticMarkup, in plain text so it survives
- * anywhere: `{==span==}` highlights a span and `{>>comment<<}` anchors a comment
- * (rendered de-emphasised; the full text hovers). Both edit in source and are
- * stripped on export. Reuses the notes-decoration pattern.
+ * anywhere and is stripped on export. Split by form:
+ *   • `{~~old~>new~~}` and `{>>comment<<}` keep their syntax visible (styled
+ *     marks only) — the delimiters carry meaning that can't collapse to one
+ *     readable span, so they stay here in the always-on MatchDecorator.
+ *   • `{++insert++}`, `{--delete--}`, `{==highlight==}` are wrapper forms whose
+ *     inner text reads as prose, so `criticField` (below) hides the delimiters at
+ *     rest and reveals them on caret entry, mirroring `@{}` mentions.
  */
 const CRITIC_CLASS: Record<string, string> = {
-  '{==': 'cm-critic-highlight',
   '{>>': 'cm-critic-comment',
-  '{++': 'cm-critic-insert',
-  '{--': 'cm-critic-delete',
   '{~~': 'cm-critic-subst'
 }
 
 const criticMatcher = new MatchDecorator({
-  regexp: /\{==.*?==\}|\{>>.*?<<\}|\{\+\+.*?\+\+\}|\{--.*?--\}|\{~~.*?~~\}/g,
+  regexp: /\{>>.*?<<\}|\{~~.*?~~\}/g,
   decoration: (match) =>
     Decoration.mark({ class: CRITIC_CLASS[match[0].slice(0, 3)] ?? 'cm-critic-comment' })
 })
