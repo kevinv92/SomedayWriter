@@ -29,7 +29,6 @@ import { AnalysisService } from './analysis/analysis-service'
 import { createEntityProvider } from './analysis/providers/entity-provider'
 import { createFrontmatterProvider } from './analysis/providers/frontmatter-provider'
 import { createSpellProvider } from './analysis/providers/spell-provider'
-import type { EditorDoc } from './editor/types'
 import type {
   Entity,
   OpenProjectResult,
@@ -40,28 +39,13 @@ import type {
 import { BUILTIN_THEME_OPTIONS } from './lib/theme'
 import { usePanels } from './hooks/usePanels'
 import { ACCENTS, useSettings } from './hooks/useSettings'
+import { useDocuments } from './hooks/useDocuments'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
-import {
-  basename,
-  isImageFile,
-  isInsideDir,
-  joinPath,
-  parentDir,
-  posixDir,
-  posixRelativePath,
-  projectRelative
-} from './lib/paths'
+import { basename, joinPath, parentDir, posixRelativePath } from './lib/paths'
 import { ImageView } from './components/ImageView'
 import { entityAt, mentionRangeAt } from './lib/mentions'
 import { parseEntityHead, detectRename, type EntityHead } from './lib/rename'
-
-type Reveal = { line: number; column: number; endColumn?: number }
-
-/** One open document: its last-saved baseline and its live buffer. Kept in a ref
- * (not state) so per-keystroke edits don't re-render App; switching tabs restores
- * the live buffer, so unsaved edits are never lost (M13). */
-type OpenBuffer = { saved: string; current: string }
 
 // Resolve an editor.font value to a CSS font-family: a preset keyword, or a
 // custom family string passed through as-is (an installed font).
@@ -88,16 +72,6 @@ export default function App() {
   const [panelWidth, setPanelWidth] = useState(320)
   const [tree, setTree] = useState<TreeNode | null>(null)
 
-  // Open tabs: the ordered paths, which is active, and which are dirty. The
-  // text buffers live in `docsRef` (see OpenBuffer).
-  const [openPaths, setOpenPaths] = useState<string[]>([])
-  const [activePath, setActivePath] = useState<string | null>(null)
-  // The text to load into the editor for the active tab — set only on switch, so
-  // the editor doesn't reload on every keystroke (the live buffer is in docsRef).
-  const [activeLoadText, setActiveLoadText] = useState('')
-  const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set())
-  const [closingTab, setClosingTab] = useState<string | null>(null)
-
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
   // Right-hand panels + reference overlays (open/closed) — see usePanels.
@@ -118,6 +92,14 @@ export default function App() {
   // Bumped after a save / entity change so the disk-based Inspector + Companion
   // re-read the active file.
   const [inspectorRefresh, setInspectorRefresh] = useState(0)
+  const bumpInspector = useCallback(() => setInspectorRefresh((n) => n + 1), [])
+  // The open-document model: tabs, per-tab live buffers, save/close, nav history,
+  // and the editor reveal signal — see useDocuments.
+  const documents = useDocuments({
+    projectRoot: project?.root ?? null,
+    setNotice,
+    onAfterSave: bumpInspector
+  })
   // Companion pins for the current project (paths); the full per-project map lives
   // in allPinsRef so persisting one project never clobbers another's.
   const [pinnedPaths, setPinnedPaths] = useState<string[]>([])
@@ -127,9 +109,6 @@ export default function App() {
   const [entities, setEntities] = useState<Entity[]>([])
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
   const [quickInput, setQuickInput] = useState<string | null>(null)
-  const [revealTarget, setRevealTarget] = useState<(Reveal & { nonce: number }) | null>(
-    null
-  )
   // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
   // when Vim is off) — drives the status-bar mode chip + mode-coloured cursor.
   const [vimMode, setVimMode] = useState('')
@@ -141,23 +120,16 @@ export default function App() {
     cursor: { line: 1, column: 1 }
   })
 
-  const docsRef = useRef(new Map<string, OpenBuffer>())
   // Whether the Comments panel is open, read inside the stable doc-change handler.
   const commentsOpenRef = useRef(false)
-  // Navigation history (back/forward through visited files) + button enabled state.
-  const navStack = useRef<string[]>([])
-  const navIndex = useRef(-1)
-  const navigating = useRef(false)
-  const [navState, setNavState] = useState({ back: false, forward: false })
-  // Session recency for Quick Open (files) + command palette (command ids).
-  const [recentFiles, setRecentFiles] = useState<string[]>([])
+  // Session recency for the command palette (command ids); file recency lives in
+  // useDocuments.
   const [recentCommands, setRecentCommands] = useState<string[]>([])
   // Alias-rename detection: baseline heads per entity path (saved state), a debounce
   // timer, and renames the user has skipped this session.
   const entityHeadBaseline = useRef(new Map<string, EntityHead>())
   const renameTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const dismissedRenames = useRef(new Set<string>())
-  const revealNonce = useRef(0)
   const didInit = useRef(false)
   // Live handle onto the editor, for palette-driven go-to-definition (reads the
   // cursor while the editor is unfocused behind the palette).
@@ -167,44 +139,16 @@ export default function App() {
   // The whole explorer-pins map (project root → paths), loaded from settings.
   const allExplorerPinsRef = useRef<Record<string, string[]>>({})
 
-  // The doc handed to the editor — keyed on the active tab only, so typing (which
-  // mutates the buffer in the ref) never re-loads the editor. Switching tabs
-  // recomputes and loads that tab's live buffer.
-  const doc = useMemo<EditorDoc | null>(
-    () =>
-      activePath && !isImageFile(activePath)
-        ? { uri: activePath, text: activeLoadText }
-        : null,
-    [activePath, activeLoadText]
-  )
-
-  // A writer-asset:// URL when the active file is an image (shown in ImageView).
-  const activeImageUrl = useMemo(() => {
-    if (!project || !activePath || !isImageFile(activePath)) return null
-    const rel = projectRelative(project.root, activePath)
-    return `writer-asset://asset/${rel.split('/').map(encodeURIComponent).join('/')}`
-  }, [project, activePath])
-
-  const dirty = activePath ? dirtyPaths.has(activePath) : false
-
-  // The active file's project-relative folder — resolves `![](src)` image paths
-  // and lets us insert a file-relative path when importing.
-  const assetDir = useMemo(
-    () =>
-      project && activePath ? posixDir(projectRelative(project.root, activePath)) : '',
-    [project, activePath]
-  )
-
   // Insert an imported image (given its project-relative path) at the cursor, as
   // a path relative to the current file; refresh the tree so assets/ shows.
   const insertProjectImage = useCallback(
     (projectRelPath: string) => {
-      const src = posixRelativePath(assetDir, projectRelPath)
+      const src = posixRelativePath(documents.assetDir, projectRelPath)
       const alt = basename(projectRelPath).replace(/\.[^.]+$/, '')
       editorHandle.current?.insertImage(alt, src)
       void window.api.readTree().then(setTree)
     },
-    [assetDir]
+    [documents.assetDir]
   )
 
   const insertImageFromPicker = useCallback(async () => {
@@ -337,83 +281,6 @@ export default function App() {
     setNotice('Reloaded from disk.')
   }, [refreshEntities])
 
-  const fireReveal = useCallback((reveal: Reveal) => {
-    revealNonce.current += 1
-    setRevealTarget({ ...reveal, nonce: revealNonce.current })
-  }, [])
-
-  // --- tabs: open / switch / close (M13) ---
-
-  /** Make a tab active and load its live buffer into the editor. */
-  const switchTo = useCallback((path: string) => {
-    setActivePath(path)
-    setActiveLoadText(docsRef.current.get(path)?.current ?? '')
-    // Recency (MRU, for Quick Open) + back/forward history. A back/forward jump
-    // sets `navigating` so the target isn't re-pushed onto the stack.
-    setRecentFiles((prev) => [path, ...prev.filter((p) => p !== path)].slice(0, 20))
-    if (navigating.current) {
-      navigating.current = false
-    } else if (navStack.current[navIndex.current] !== path) {
-      navStack.current.splice(navIndex.current + 1)
-      navStack.current.push(path)
-      navIndex.current = navStack.current.length - 1
-    }
-    setNavState({
-      back: navIndex.current > 0,
-      forward: navIndex.current < navStack.current.length - 1
-    })
-  }, [])
-
-  const clearActive = useCallback(() => {
-    setActivePath(null)
-    setActiveLoadText('')
-  }, [])
-
-  /** Open a file in a tab (or switch to it if already open); optionally reveal a
-   * line. Switching never loses edits — each tab keeps its own live buffer. */
-  const openFile = useCallback(
-    (path: string, reveal?: Reveal) => {
-      if (docsRef.current.has(path)) {
-        switchTo(path)
-        if (reveal) fireReveal(reveal)
-        return
-      }
-      // Images open in the read-only viewer, not the text editor — no text read.
-      if (isImageFile(path)) {
-        docsRef.current.set(path, { saved: '', current: '' })
-        setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
-        switchTo(path)
-        return
-      }
-      void (async () => {
-        const result = await window.api.readFile(path)
-        if (!result.ok) {
-          setNotice(`Couldn't open file: ${result.error}`)
-          return
-        }
-        docsRef.current.set(path, { saved: result.text, current: result.text })
-        setOpenPaths((prev) => (prev.includes(path) ? prev : [...prev, path]))
-        switchTo(path)
-        setNotice(null)
-        if (reveal) fireReveal(reveal)
-      })()
-    },
-    [fireReveal, switchTo]
-  )
-
-  const goBack = useCallback(() => {
-    if (navIndex.current <= 0) return
-    navIndex.current--
-    navigating.current = true
-    openFile(navStack.current[navIndex.current])
-  }, [openFile])
-  const goForward = useCallback(() => {
-    if (navIndex.current >= navStack.current.length - 1) return
-    navIndex.current++
-    navigating.current = true
-    openFile(navStack.current[navIndex.current])
-  }, [openFile])
-
   // Go-to-definition: resolve the entity under a cursor position (a Cmd/Ctrl+click
   // in the editor, or the palette command reading the cursor) and open its profile.
   const goToDefinition = useCallback(
@@ -424,20 +291,10 @@ export default function App() {
         return
       }
       setNotice(null)
-      openFile(entity.path)
+      documents.openFile(entity.path)
     },
-    [entities, openFile]
+    [entities, documents.openFile]
   )
-
-  const markDirty = useCallback((path: string, isDirty: boolean) => {
-    setDirtyPaths((prev) => {
-      if (prev.has(path) === isDirty) return prev
-      const next = new Set(prev)
-      if (isDirty) next.add(path)
-      else next.delete(path)
-      return next
-    })
-  }, [])
 
   // Baseline of each entity's identity surfaces (saved state), for detecting an
   // in-place alias/name rename as you edit the frontmatter.
@@ -464,30 +321,32 @@ export default function App() {
 
   const handleDocChange = useCallback(
     (text: string) => {
-      if (!activePath) return
-      const buffer = docsRef.current.get(activePath)
-      if (!buffer) return
-      buffer.current = text
-      markDirty(activePath, text !== buffer.saved)
+      const path = documents.activePath
+      if (!path) return
+      documents.updateActiveBuffer(text)
       if (commentsOpenRef.current) setDocText(text)
       // Watch entity-file frontmatter for a rename (debounced ~1s).
-      if (entityHeadBaseline.current.has(activePath)) {
+      if (entityHeadBaseline.current.has(path)) {
         if (renameTimer.current) clearTimeout(renameTimer.current)
-        const path = activePath
         renameTimer.current = setTimeout(() => detectAndOfferRename(path, text), 1000)
       }
     },
-    [activePath, markDirty, detectAndOfferRename]
+    [documents.activePath, documents.updateActiveBuffer, detectAndOfferRename]
   )
 
-  // Keep the Comments panel's text current: seed it when the panel opens or the
-  // file switches; live edits flow in via handleDocChange while it's open.
+  // Keep the Comments panel's text current: seed it from the live document buffer
+  // when the panel opens or the file switches; live edits flow in via
+  // handleDocChange while it's open. This is a deliberate external-sync — the
+  // buffer lives in a ref (App doesn't re-render per keystroke), so the panel's
+  // initial text must be pulled in here rather than derived during render.
   useEffect(() => {
     commentsOpenRef.current = panels.open.comments
-    if (panels.open.comments && activePath) {
-      setDocText(docsRef.current.get(activePath)?.current ?? activeLoadText)
+    if (panels.open.comments && documents.activePath) {
+      const seed = documents.currentText(documents.activePath) ?? documents.activeLoadText
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setDocText(seed)
     }
-  }, [panels.open.comments, activePath, activeLoadText])
+  }, [panels.open.comments, documents.activePath, documents.activeLoadText])
 
   // Apply the pending rename: rewrite @{from}→@{to} across files (skipping any
   // open with unsaved edits), reload the touched buffers, and refresh the index.
@@ -495,123 +354,29 @@ export default function App() {
     const p = renamePrompt
     setRenamePrompt(null)
     if (!p) return
-    const dirtyOpen = openPaths.filter((path) => dirtyPaths.has(path))
+    const dirtyOpen = documents.openPaths.filter((path) => documents.dirtyPaths.has(path))
     const result = await window.api.renameMentions(p.from, p.to, dirtyOpen)
     for (const path of result.changed) {
-      if (!docsRef.current.has(path)) continue
       const r = await window.api.readFile(path)
       if (!r.ok) continue
-      docsRef.current.set(path, { saved: r.text, current: r.text })
-      setDirtyPaths((prev) => {
-        const next = new Set(prev)
-        next.delete(path)
-        return next
-      })
-      if (path === activePath) setActiveLoadText(r.text)
+      documents.reloadBuffer(path, r.text)
     }
     refreshEntities()
-    setInspectorRefresh((n) => n + 1)
     setNotice(
       result.skipped.length
         ? `Renamed ${result.count} mention(s). Skipped ${result.skipped.length} file(s) with unsaved edits — update those from Project Health.`
         : `Renamed ${result.count} mention(s) to @{${p.to}}.`
     )
-  }, [renamePrompt, openPaths, dirtyPaths, activePath, refreshEntities])
-
-  const saveTab = useCallback(
-    async (path: string): Promise<boolean> => {
-      if (isImageFile(path)) return true // read-only; never write over the binary
-      const buffer = docsRef.current.get(path)
-      if (!buffer) return true
-      const result = await window.api.writeFile(path, buffer.current)
-      if (!result.ok) {
-        setNotice(`Couldn't save: ${result.error}`)
-        return false
-      }
-      buffer.saved = buffer.current
-      markDirty(path, false)
-      // The Inspector + Companion read from disk; a save is when their view can
-      // change.
-      setInspectorRefresh((n) => n + 1)
-      return true
-    },
-    [markDirty]
-  )
+  }, [renamePrompt, documents, refreshEntities])
 
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
   useEffect(() => {
-    if (!settings.autosave || !activePath || !dirtyPaths.has(activePath)) return
-    const timer = setTimeout(() => void saveTab(activePath), 1000)
+    const path = documents.activePath
+    if (!settings.autosave || !path || !documents.dirtyPaths.has(path)) return
+    const timer = setTimeout(() => void documents.saveTab(path), 1000)
     return () => clearTimeout(timer)
-  }, [settings.autosave, activePath, dirtyPaths, saveTab])
-
-  const doCloseTab = (path: string) => {
-    const idx = openPaths.indexOf(path)
-    const next = openPaths.filter((p) => p !== path)
-    docsRef.current.delete(path)
-    setOpenPaths(next)
-    markDirty(path, false)
-    if (activePath === path) {
-      if (next.length) switchTo(next[Math.min(idx, next.length - 1)])
-      else clearActive()
-    }
-  }
-
-  const closeTab = (path: string) => {
-    if (dirtyPaths.has(path)) {
-      setClosingTab(path)
-      return
-    }
-    doCloseTab(path)
-  }
-
-  const resolveClosing = async (action: 'save' | 'discard') => {
-    const path = closingTab
-    if (!path) return
-    if (action === 'save' && !(await saveTab(path))) {
-      setClosingTab(null)
-      return
-    }
-    setClosingTab(null)
-    doCloseTab(path)
-  }
-
-  // Keep open tabs pointing at a renamed/moved file or folder (content unchanged).
-  const remapOpenDocs = (from: string, to: string) => {
-    const remap = (p: string) =>
-      p === from ? to : isInsideDir(p, from) ? to + p.slice(from.length) : p
-    const map = docsRef.current
-    let changed = false
-    for (const [p, buffer] of [...map.entries()]) {
-      const np = remap(p)
-      if (np !== p) {
-        map.delete(p)
-        map.set(np, buffer)
-        changed = true
-      }
-    }
-    if (!changed) return
-    setOpenPaths((prev) => prev.map(remap))
-    setActivePath((prev) => (prev ? remap(prev) : prev))
-    setDirtyPaths((prev) => new Set([...prev].map(remap)))
-  }
-
-  // Close tabs for a deleted file/folder.
-  const closeDocsUnder = (path: string) => {
-    const affected = [...docsRef.current.keys()].filter(
-      (p) => p === path || isInsideDir(p, path)
-    )
-    if (!affected.length) return
-    affected.forEach((p) => docsRef.current.delete(p))
-    const next = openPaths.filter((p) => !affected.includes(p))
-    setOpenPaths(next)
-    setDirtyPaths((prev) => new Set([...prev].filter((p) => !affected.includes(p))))
-    if (activePath && affected.includes(activePath)) {
-      if (next.length) switchTo(next[next.length - 1])
-      else clearActive()
-    }
-  }
+  }, [settings.autosave, documents.activePath, documents.dirtyPaths, documents.saveTab])
 
   // --- project open ---
 
@@ -627,19 +392,16 @@ export default function App() {
         return
       }
       const nextTree = await window.api.readTree()
-      docsRef.current.clear()
+      documents.reset()
       setProject(result.project)
       setTree(nextTree)
-      setOpenPaths([])
-      setActivePath(null)
-      setDirtyPaths(new Set())
       setNotice(null)
       settings.applyProjectConfig(result.project.config)
       setPinnedPaths(allPinsRef.current[result.project.root] ?? [])
       setExplorerPins(allExplorerPinsRef.current[result.project.root] ?? [])
       refreshEntities()
     },
-    [refreshEntities]
+    [refreshEntities, documents.reset, settings]
   )
 
   const openProject = useCallback(async () => {
@@ -737,7 +499,7 @@ export default function App() {
       if (!written.ok) setNotice(`Couldn't write template: ${written.error}`)
     }
     await refreshTree()
-    if (fileName.endsWith('.md')) openFile(path)
+    if (fileName.endsWith('.md')) documents.openFile(path)
   }
 
   async function createFolderIn(dir: string, name: string) {
@@ -757,7 +519,7 @@ export default function App() {
       setNotice(`Couldn't rename: ${result.error}`)
       return
     }
-    remapOpenDocs(node.path, to)
+    documents.remapOpenDocs(node.path, to)
     await refreshTree()
   }
 
@@ -767,7 +529,7 @@ export default function App() {
       setNotice(`Couldn't delete: ${result.error}`)
       return
     }
-    closeDocsUnder(node.path)
+    documents.closeDocsUnder(node.path)
     await refreshTree()
   }
 
@@ -800,7 +562,7 @@ export default function App() {
       setNotice(`Couldn't move: ${result.error}`)
       return
     }
-    remapOpenDocs(fromPath, to)
+    documents.remapOpenDocs(fromPath, to)
     await refreshTree()
   }
 
@@ -840,7 +602,7 @@ export default function App() {
         setNotice(`Couldn't move: ${moved.error}`)
         return
       }
-      remapOpenDocs(draggedPath, to)
+      documents.remapOpenDocs(draggedPath, to)
     }
     await refreshTree()
   }
@@ -857,6 +619,8 @@ export default function App() {
     forward: () => {}
   })
   useEffect(() => {
+    const { activePath, openPaths, saveTab, closeTab, switchTo, goBack, goForward } =
+      documents
     saveRef.current = () => {
       if (activePath) void saveTab(activePath)
     }
@@ -995,8 +759,13 @@ export default function App() {
   // Command registry (SPEC → command palette). Declared once here; the palette,
   // and later menus/keybindings, draw from it.
   const commands: QuickCommand[] = [
-    { id: 'nav-back', title: 'Go Back', hint: '⌘[', run: () => goBack() },
-    { id: 'nav-forward', title: 'Go Forward', hint: '⌘]', run: () => goForward() },
+    { id: 'nav-back', title: 'Go Back', hint: '⌘[', run: () => documents.goBack() },
+    {
+      id: 'nav-forward',
+      title: 'Go Forward',
+      hint: '⌘]',
+      run: () => documents.goForward()
+    },
     { id: 'new-project', title: 'New Project…', run: () => void newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
     {
@@ -1082,8 +851,8 @@ export default function App() {
       id: 'pin-to-companion',
       title: 'Pin Current File to Companion',
       run: () => {
-        if (activePath) {
-          togglePin(activePath)
+        if (documents.activePath) {
+          togglePin(documents.activePath)
           panels.set('companion', true)
         }
       }
@@ -1173,7 +942,7 @@ export default function App() {
       title: 'Save',
       hint: '⌘S',
       run: () => {
-        if (activePath) void saveTab(activePath)
+        if (documents.activePath) void documents.saveTab(documents.activePath)
       }
     },
     {
@@ -1181,7 +950,7 @@ export default function App() {
       title: 'Close Tab',
       hint: '⌘W',
       run: () => {
-        if (activePath) closeTab(activePath)
+        if (documents.activePath) documents.closeTab(documents.activePath)
       }
     }
   ]
@@ -1189,6 +958,7 @@ export default function App() {
   // The active file's position among its reading-ordered `.md` siblings, for the
   // Inspector — derived from the already-sorted tree (matches the explorer).
   const readingPosition = (() => {
+    const activePath = documents.activePath
     if (!activePath) return null
     const files = siblingsOf(activePath).filter(
       (n) => n.type === 'file' && n.name.endsWith('.md')
@@ -1211,16 +981,16 @@ export default function App() {
           <button
             className="menubar__nav"
             title="Back (⌘[)"
-            disabled={!navState.back}
-            onClick={goBack}
+            disabled={!documents.navState.back}
+            onClick={documents.goBack}
           >
             ‹
           </button>
           <button
             className="menubar__nav"
             title="Forward (⌘])"
-            disabled={!navState.forward}
-            onClick={goForward}
+            disabled={!documents.navState.forward}
+            onClick={documents.goForward}
           >
             ›
           </button>
@@ -1506,11 +1276,11 @@ export default function App() {
               {tree ? (
                 <FileTree
                   root={tree}
-                  activePath={activePath}
+                  activePath={documents.activePath}
                   entityIcons={entityIcons}
                   pinned={explorerPins}
                   onTogglePin={toggleExplorerPin}
-                  onSelect={(path) => openFile(path)}
+                  onSelect={(path) => documents.openFile(path)}
                   onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
                   onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
                   onRename={(node) => setModal({ kind: 'rename', node })}
@@ -1537,30 +1307,30 @@ export default function App() {
               sceneOrder={projectFiles.map((f) => f.path)}
               refreshKey={inspectorRefresh}
               onOpen={(path) => {
-                openFile(path)
+                documents.openFile(path)
                 panels.set('braid', false)
               }}
               onClose={() => panels.set('braid', false)}
             />
           ) : (
             <>
-              {openPaths.length > 0 && (
+              {documents.openPaths.length > 0 && (
                 <div className="tabstrip">
-                  {openPaths.map((p) => (
+                  {documents.openPaths.map((p) => (
                     <div
                       key={p}
-                      className={`tabstrip__tab${p === activePath ? ' tabstrip__tab--active' : ''}`}
+                      className={`tabstrip__tab${p === documents.activePath ? ' tabstrip__tab--active' : ''}`}
                       title={p}
-                      onClick={() => switchTo(p)}
+                      onClick={() => documents.switchTo(p)}
                     >
                       <span className="tabstrip__name">{basename(p)}</span>
-                      {dirtyPaths.has(p) && <span className="tabstrip__dot" />}
+                      {documents.dirtyPaths.has(p) && <span className="tabstrip__dot" />}
                       <button
                         className="tabstrip__close"
                         title="Close (⌘/Ctrl+W)"
                         onClick={(e) => {
                           e.stopPropagation()
-                          closeTab(p)
+                          documents.closeTab(p)
                         }}
                       >
                         ×
@@ -1569,7 +1339,7 @@ export default function App() {
                   ))}
                 </div>
               )}
-              {doc && !settings.vim && (
+              {documents.doc && !settings.vim && (
                 <div className="formatbar" role="toolbar" aria-label="Formatting">
                   <button
                     className="fmt fmt--bold"
@@ -1646,11 +1416,14 @@ export default function App() {
                   </button>
                 </div>
               )}
-              {activeImageUrl ? (
-                <ImageView url={activeImageUrl} name={basename(activePath ?? '')} />
-              ) : doc ? (
+              {documents.activeImageUrl ? (
+                <ImageView
+                  url={documents.activeImageUrl}
+                  name={basename(documents.activePath ?? '')}
+                />
+              ) : documents.doc ? (
                 <Editor
-                  doc={doc}
+                  doc={documents.doc}
                   vimEnabled={settings.vim}
                   vimWrapMotion={settings.vimWrapMotion}
                   diagnosticsEnabled={settings.diagnostics}
@@ -1658,13 +1431,13 @@ export default function App() {
                   onStatus={setStatus}
                   onVimMode={setVimMode}
                   onDocChange={handleDocChange}
-                  revealTarget={revealTarget}
+                  revealTarget={documents.revealTarget}
                   onGoToDefinition={goToDefinition}
                   onResolveMention={(lineText, column) =>
                     mentionRangeAt(lineText, column, entities)
                   }
                   handleRef={editorHandle}
-                  assetDir={assetDir}
+                  assetDir={documents.assetDir}
                   onImageDropped={onImageDropped}
                 />
               ) : (
@@ -1690,7 +1463,9 @@ export default function App() {
         {panels.open.search && (
           <ProjectSearch
             onClose={() => panels.set('search', false)}
-            onOpenMatch={(path, line, column) => openFile(path, { line, column })}
+            onOpenMatch={(path, line, column) =>
+              documents.openFile(path, { line, column })
+            }
           />
         )}
 
@@ -1700,15 +1475,15 @@ export default function App() {
             entityTypes={entityTypes}
             onClose={() => panels.set('refs', false)}
             onOpenRef={(path, line, column, length) =>
-              openFile(path, { line, column, endColumn: column + length })
+              documents.openFile(path, { line, column, endColumn: column + length })
             }
-            onOpenProfile={(entity) => openFile(entity.path)}
+            onOpenProfile={(entity) => documents.openFile(entity.path)}
           />
         )}
 
         {panels.open.inspector && (
           <InspectorPanel
-            path={activePath}
+            path={documents.activePath}
             readingPosition={readingPosition}
             refreshKey={inspectorRefresh}
             entityTypes={entityTypes}
@@ -1718,10 +1493,10 @@ export default function App() {
 
         {panels.open.companion && (
           <CompanionPanel
-            activePath={activePath}
+            activePath={documents.activePath}
             pinnedPaths={pinnedPaths}
             onTogglePin={togglePin}
-            onOpenFull={(path) => openFile(path)}
+            onOpenFull={(path) => documents.openFile(path)}
             refreshKey={inspectorRefresh}
             entityTypes={entityTypes}
             onClose={() => panels.set('companion', false)}
@@ -1730,7 +1505,7 @@ export default function App() {
 
         {panels.open.threads && (
           <ThreadsPanel
-            onOpenBeat={(path) => openFile(path)}
+            onOpenBeat={(path) => documents.openFile(path)}
             refreshKey={inspectorRefresh}
             onClose={() => panels.set('threads', false)}
           />
@@ -1739,7 +1514,7 @@ export default function App() {
         {panels.open.comments && (
           <CommentsPanel
             text={docText}
-            onJump={(line, column) => fireReveal({ line, column })}
+            onJump={(line, column) => documents.fireReveal({ line, column })}
             onClose={() => panels.set('comments', false)}
           />
         )}
@@ -1748,7 +1523,7 @@ export default function App() {
           <HealthPanel
             refreshKey={inspectorRefresh}
             onOpen={(path, line, column, length) =>
-              openFile(path, { line, column, endColumn: column + length })
+              documents.openFile(path, { line, column, endColumn: column + length })
             }
             onClose={() => panels.set('health', false)}
           />
@@ -1825,8 +1600,8 @@ export default function App() {
           </span>
         )}
         <span>
-          {activePath ? basename(activePath) : 'No file open'}
-          {dirty && <span className="statusbar__dot" title="Unsaved changes" />}
+          {documents.activePath ? basename(documents.activePath) : 'No file open'}
+          {documents.dirty && <span className="statusbar__dot" title="Unsaved changes" />}
         </span>
         <span>{status.words} words</span>
         <span>
@@ -1835,7 +1610,7 @@ export default function App() {
         <span className="statusbar__hint">
           {notice ?? (
             <>
-              {dirty ? 'Unsaved' : 'Saved'} ·{' '}
+              {documents.dirty ? 'Unsaved' : 'Saved'} ·{' '}
               <code>{navigator.platform.startsWith('Mac') ? '⌘S' : 'Ctrl+S'}</code> to
               save
             </>
@@ -1898,12 +1673,12 @@ export default function App() {
         />
       )}
 
-      {closingTab && (
+      {documents.closingTab && (
         <UnsavedChangesModal
-          filename={basename(closingTab)}
-          onSave={() => void resolveClosing('save')}
-          onDiscard={() => void resolveClosing('discard')}
-          onCancel={() => setClosingTab(null)}
+          filename={basename(documents.closingTab)}
+          onSave={() => void documents.resolveClosing('save')}
+          onDiscard={() => void documents.resolveClosing('discard')}
+          onCancel={documents.cancelClosing}
         />
       )}
 
@@ -1912,7 +1687,7 @@ export default function App() {
           files={projectFiles}
           commands={commands}
           initialQuery={quickInput}
-          recentFiles={recentFiles}
+          recentFiles={documents.recentFiles}
           recentCommands={recentCommands}
           onRunCommand={(id) =>
             setRecentCommands((prev) =>
@@ -1922,7 +1697,7 @@ export default function App() {
           onClose={() => setQuickInput(null)}
           // Reveal line 1 so the editor takes focus — land in the file ready to
           // type, not back in the quick-input.
-          onOpenFile={(path) => openFile(path, { line: 1, column: 1 })}
+          onOpenFile={(path) => documents.openFile(path, { line: 1, column: 1 })}
         />
       )}
 
