@@ -63,6 +63,8 @@
     "@lezer/highlight": "^1.2.3",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@replit/codemirror-vim": "^6.3.0",
+    "jszip": "^3.10.1",
+    "marked": "^18.0.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "yaml": "^2.9.0",

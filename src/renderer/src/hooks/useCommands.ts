@@ -17,8 +17,10 @@ export interface CommandContext {
   editorHandle: RefObject<EditorHandle | null>
   newProject: () => void
   openProject: () => void
-  /** Compile the manuscript and save it to a file. */
+  /** Compile the manuscript and save it to a single Markdown file. */
   exportManuscript: () => void
+  /** Compile the manuscript to an EPUB and save it. */
+  exportEpub: () => void
   forceRefresh: () => void
   goToDefinition: (lineText: string, column: number) => void
   togglePin: (path: string) => void
@@ -51,8 +53,13 @@ export function useCommands(ctx: CommandContext): QuickCommand[] {
     { id: 'open-project', title: 'Open Project…', run: () => ctx.openProject() },
     {
       id: 'export-manuscript',
-      title: 'Export Manuscript…',
+      title: 'Export Manuscript (Markdown)…',
       run: () => ctx.exportManuscript()
+    },
+    {
+      id: 'export-epub',
+      title: 'Export to EPUB…',
+      run: () => ctx.exportEpub()
     },
     {
       id: 'format-bold',

@@ -288,6 +288,16 @@ export default function App() {
     }
   }, [project, setNotice])
 
+  // Export to EPUB: one chapter per ordered scene, editorial marks stripped.
+  const exportEpub = useCallback(async () => {
+    const result = await window.api.exportEpub()
+    if (result.ok) {
+      setNotice(`Exported ${result.chapters} chapter(s) → ${result.path}`)
+    } else if (!result.canceled) {
+      setNotice(`EPUB export failed: ${result.error ?? 'unknown error'}`)
+    }
+  }, [setNotice])
+
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
   useEffect(() => {
@@ -614,6 +624,7 @@ export default function App() {
     newProject,
     openProject,
     exportManuscript,
+    exportEpub,
     forceRefresh: reloadFromDisk,
     goToDefinition: projectData.goToDefinition,
     togglePin: projectData.togglePin,

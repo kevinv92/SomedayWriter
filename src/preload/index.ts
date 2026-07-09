@@ -4,6 +4,7 @@ import type {
   CompanionEntry,
   Entity,
   EntityRef,
+  ExportEpubResult,
   ExportManuscriptResult,
   ExportSaveResult,
   FileInspection,
@@ -105,6 +106,9 @@ const api = {
   /** Write a compiled manuscript to disk via a native Save dialog. */
   exportSave: (text: string, defaultName: string): Promise<ExportSaveResult> =>
     ipcRenderer.invoke('export:save', text, defaultName),
+
+  /** Compile the manuscript as an EPUB and save it via a native dialog. */
+  exportEpub: (): Promise<ExportEpubResult> => ipcRenderer.invoke('export:epub'),
 
   /** Story entities (characters, …) from the project's profile files (Phase 5). */
   storyEntities: (): Promise<Entity[]> => ipcRenderer.invoke('story:entities'),

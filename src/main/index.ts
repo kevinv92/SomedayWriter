@@ -9,6 +9,7 @@ import type {
   EntityRef,
   ExportManuscriptResult,
   ExportSaveResult,
+  ExportEpubResult,
   FileInspection,
   FileReadResult,
   GrammarMatch,
@@ -50,8 +51,15 @@ import {
 import { writeOrder } from './frontmatter'
 import { writeDefaultAgentsDoc } from './agents-doc'
 import { findMatches, replaceAll } from './search'
+import { randomUUID } from 'crypto'
 import { gatherManuscript } from './export'
-import { compileManuscript, countManuscriptWords } from '../shared/manuscript'
+import { buildEpub } from './epub'
+import {
+  compileManuscript,
+  countManuscriptWords,
+  stripEditorial,
+  stripFrontmatter
+} from '../shared/manuscript'
 
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
@@ -726,6 +734,44 @@ function registerIpc(): void {
       }
     }
   )
+
+  // Compile the manuscript as an EPUB (one chapter per scene, editorial marks
+  // stripped) and save it via a native dialog.
+  ipcMain.handle('export:epub', async (): Promise<ExportEpubResult> => {
+    if (!currentProject) return { ok: false, error: 'No project open.' }
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    try {
+      const scenes = await gatherManuscript(currentProject.root, ignore)
+      if (!scenes.length) {
+        return {
+          ok: false,
+          error:
+            'No ordered manuscript scenes found — add `order:` frontmatter to your scenes.'
+        }
+      }
+      const chapters = scenes.map((s) => ({
+        title: s.title,
+        markdown: stripEditorial(stripFrontmatter(s.text))
+      }))
+      const buffer = await buildEpub(
+        { title: currentProject.name, identifier: `urn:uuid:${randomUUID()}` },
+        chapters
+      )
+      const win = BrowserWindow.getFocusedWindow()
+      const opts = {
+        defaultPath: `${currentProject.name}.epub`,
+        filters: [{ name: 'EPUB', extensions: ['epub'] }]
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, opts)
+        : await dialog.showSaveDialog(opts)
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true }
+      await fs.writeFile(result.filePath, buffer)
+      return { ok: true, path: result.filePath, chapters: chapters.length }
+    } catch (err) {
+      return { ok: false, error: messageOf(err) }
+    }
+  })
 }
 
 app.whenReady().then(() => {

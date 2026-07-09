@@ -351,3 +351,8 @@ export type ExportManuscriptResult =
 /** Result of writing an exported manuscript to disk via the save dialog. */
 export type ExportSaveResult =
   { ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }
+
+/** Result of compiling + saving the manuscript as an EPUB. */
+export type ExportEpubResult =
+  | { ok: true; path: string; chapters: number }
+  | { ok: false; canceled?: boolean; error?: string }
