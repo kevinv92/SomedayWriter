@@ -20,7 +20,13 @@ import {
   type DecorationSet,
   type ViewUpdate
 } from '@codemirror/view'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentLess,
+  insertTab
+} from '@codemirror/commands'
 import { HighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
 import { markdown } from '@codemirror/lang-markdown'
@@ -30,7 +36,9 @@ import {
 } from '@codemirror/lint'
 import {
   autocompletion,
+  acceptCompletion,
   completionKeymap,
+  completionStatus,
   type CompletionContext as CmCompletionContext,
   type CompletionResult
 } from '@codemirror/autocomplete'
@@ -140,6 +148,10 @@ class CodeMirrorAdapter implements EditorAdapter {
   /** Put DOM focus on the editor (without moving the caret). */
   focus(): void {
     this.view?.focus()
+  }
+
+  hasFocus(): boolean {
+    return this.view?.hasFocus ?? false
   }
 
   focusLine(line: number, column = 1, endColumn?: number): void {
@@ -543,7 +555,20 @@ class CodeMirrorAdapter implements EditorAdapter {
         keymap.of([
           { key: 'Mod-b', run: () => (this.format('bold'), true) },
           { key: 'Mod-i', run: () => (this.format('italic'), true) },
-          { key: 'Mod-k', run: () => (this.format('link'), true) }
+          { key: 'Mod-k', run: () => (this.format('link'), true) },
+          // Tab inserts an indent in the prose (CodeMirror leaves Tab for focus
+          // navigation by default, which surprised writers). When the completion
+          // popup is open, Tab accepts the suggestion instead. Shift-Tab dedents.
+          // (Vim owns Tab in its own keymap when enabled, so this only applies to
+          // the plain editor.)
+          {
+            key: 'Tab',
+            run: (view) =>
+              completionStatus(view.state) === 'active'
+                ? acceptCompletion(view)
+                : insertTab(view),
+            shift: indentLess
+          }
         ]),
         keymap.of([
           ...defaultKeymap,

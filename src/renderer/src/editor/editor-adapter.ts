@@ -69,6 +69,9 @@ export interface EditorAdapter {
   /** Put DOM focus on the editor without moving the caret. */
   focus(): void
 
+  /** Whether the editor currently holds DOM focus. */
+  hasFocus(): boolean
+
   getCursor(): CursorPosition
 
   /** The cursor line's full text plus the 1-based cursor column — enough to

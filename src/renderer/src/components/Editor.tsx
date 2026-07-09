@@ -180,12 +180,23 @@ export function Editor({
     // (line/column) to match where we landed.
     emitStatus()
     // A caret-only reveal (no endColumn) means we're landing here to type — Quick
-    // Open or a comment jump. The overlay that triggered it is unmounting this
-    // same commit, and its focused input can steal focus on removal; re-assert
-    // editor focus next frame so the writer can type immediately. (Search /
-    // references reveals pass endColumn and keep panel focus, so skip those.)
-    if (revealTarget.endColumn == null) {
-      const raf = requestAnimationFrame(() => adapter?.focus())
+    // Open or a comment jump. The overlay that triggered it is unmounting around
+    // this commit, and its focused input steals focus back on removal — but the
+    // exact frame it does so is timing-dependent (a single next-frame re-focus
+    // wins on a fast machine and loses on a slow one, which is why "I have to
+    // click the editor" kept recurring). So re-assert focus every frame across a
+    // short window, re-grabbing whenever the editor isn't focused, until it
+    // sticks. (Search / reference reveals pass endColumn and keep panel focus, so
+    // skip those.)
+    if (revealTarget.endColumn == null && adapter) {
+      let raf = 0
+      let frames = 0
+      const MAX_FRAMES = 12 // ~200ms at 60fps — long enough to outlast the steal
+      const grab = (): void => {
+        if (!adapter.hasFocus()) adapter.focus()
+        if (++frames < MAX_FRAMES) raf = requestAnimationFrame(grab)
+      }
+      grab()
       return () => cancelAnimationFrame(raf)
     }
     return
