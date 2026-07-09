@@ -17,6 +17,8 @@ export interface CommandContext {
   editorHandle: RefObject<EditorHandle | null>
   newProject: () => void
   openProject: () => void
+  /** Compile the manuscript and save it to a file. */
+  exportManuscript: () => void
   forceRefresh: () => void
   goToDefinition: (lineText: string, column: number) => void
   togglePin: (path: string) => void
@@ -47,6 +49,11 @@ export function useCommands(ctx: CommandContext): QuickCommand[] {
     },
     { id: 'new-project', title: 'New Project…', run: () => ctx.newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => ctx.openProject() },
+    {
+      id: 'export-manuscript',
+      title: 'Export Manuscript…',
+      run: () => ctx.exportManuscript()
+    },
     {
       id: 'format-bold',
       title: 'Bold',

@@ -7,6 +7,8 @@ import type {
   CompanionEntry,
   Entity,
   EntityRef,
+  ExportManuscriptResult,
+  ExportSaveResult,
   FileInspection,
   FileReadResult,
   GrammarMatch,
@@ -48,6 +50,8 @@ import {
 import { writeOrder } from './frontmatter'
 import { writeDefaultAgentsDoc } from './agents-doc'
 import { findMatches, replaceAll } from './search'
+import { gatherManuscript } from './export'
+import { compileManuscript, countManuscriptWords } from '../shared/manuscript'
 
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
@@ -662,6 +666,61 @@ function registerIpc(): void {
         }
         if (changedFiles > 0) invalidateStoryIndex()
         return { ok: true, files: changedFiles, replacements: total }
+      } catch (err) {
+        return { ok: false, error: messageOf(err) }
+      }
+    }
+  )
+
+  // --- export / compile (Phase: manuscript export) ---
+
+  // Compile the ordered manuscript scenes into one clean prose string (editorial
+  // marks stripped, tracked changes accepted). Returns the text + a scene summary
+  // so the renderer can report what it exported and offer to save it.
+  ipcMain.handle('export:manuscript', async (): Promise<ExportManuscriptResult> => {
+    if (!currentProject) return { ok: false, error: 'No project open.' }
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    try {
+      const scenes = await gatherManuscript(currentProject.root, ignore)
+      if (!scenes.length) {
+        return {
+          ok: false,
+          error:
+            'No ordered manuscript scenes found — add `order:` frontmatter to your scenes.'
+        }
+      }
+      const text = compileManuscript(scenes)
+      return {
+        ok: true,
+        text,
+        scenes: scenes.map((s) => ({ title: s.title, order: s.order, path: s.path })),
+        wordCount: countManuscriptWords(text)
+      }
+    } catch (err) {
+      return { ok: false, error: messageOf(err) }
+    }
+  })
+
+  // Write a compiled manuscript to disk via a native Save dialog. Separate from
+  // the compile step so the renderer can compile/preview without a dialog.
+  ipcMain.handle(
+    'export:save',
+    async (_e, text: string, defaultName: string): Promise<ExportSaveResult> => {
+      const win = BrowserWindow.getFocusedWindow()
+      const opts = {
+        defaultPath: defaultName,
+        filters: [
+          { name: 'Markdown', extensions: ['md'] },
+          { name: 'Plain Text', extensions: ['txt'] }
+        ]
+      }
+      const result = win
+        ? await dialog.showSaveDialog(win, opts)
+        : await dialog.showSaveDialog(opts)
+      if (result.canceled || !result.filePath) return { ok: false, canceled: true }
+      try {
+        await fs.writeFile(result.filePath, text, 'utf8')
+        return { ok: true, path: result.filePath }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
       }

@@ -4,6 +4,8 @@ import type {
   CompanionEntry,
   Entity,
   EntityRef,
+  ExportManuscriptResult,
+  ExportSaveResult,
   FileInspection,
   FileReadResult,
   GrammarMatch,
@@ -94,6 +96,15 @@ const api = {
     opts: SearchOptions
   ): Promise<ReplaceResult> =>
     ipcRenderer.invoke('project:replace', query, replacement, opts),
+
+  /** Compile the ordered manuscript into one clean prose string (editorial marks
+   *  stripped). Returns the text plus a scene summary. */
+  exportManuscript: (): Promise<ExportManuscriptResult> =>
+    ipcRenderer.invoke('export:manuscript'),
+
+  /** Write a compiled manuscript to disk via a native Save dialog. */
+  exportSave: (text: string, defaultName: string): Promise<ExportSaveResult> =>
+    ipcRenderer.invoke('export:save', text, defaultName),
 
   /** Story entities (characters, …) from the project's profile files (Phase 5). */
   storyEntities: (): Promise<Entity[]> => ipcRenderer.invoke('story:entities'),

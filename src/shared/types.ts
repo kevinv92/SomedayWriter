@@ -335,3 +335,19 @@ export type SearchFileResult = {
 /** Outcome of a project-wide replace-all. */
 export type ReplaceResult =
   { ok: true; files: number; replacements: number } | { ok: false; error: string }
+
+/** One scene in a compiled manuscript (for the export summary). */
+export interface ExportScene {
+  title: string
+  order: number
+  path: string
+}
+
+/** Result of compiling the manuscript (export:manuscript). */
+export type ExportManuscriptResult =
+  | { ok: true; text: string; scenes: ExportScene[]; wordCount: number }
+  | { ok: false; error: string }
+
+/** Result of writing an exported manuscript to disk via the save dialog. */
+export type ExportSaveResult =
+  { ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }

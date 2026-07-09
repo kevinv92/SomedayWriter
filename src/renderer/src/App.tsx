@@ -269,6 +269,25 @@ export default function App() {
     )
   }, [projectData.forceRefresh, documents, setNotice])
 
+  // Export/compile: gather the ordered scenes into one clean manuscript (editorial
+  // marks stripped, tracked changes accepted) and save it via a native dialog.
+  const exportManuscript = useCallback(async () => {
+    const result = await window.api.exportManuscript()
+    if (!result.ok) {
+      setNotice(result.error)
+      return
+    }
+    const defaultName = `${project?.name ?? 'Manuscript'}.md`
+    const saved = await window.api.exportSave(result.text, defaultName)
+    if (saved.ok) {
+      setNotice(
+        `Exported ${result.scenes.length} scene(s), ${result.wordCount.toLocaleString()} words → ${saved.path}`
+      )
+    } else if (!saved.canceled) {
+      setNotice(`Export failed: ${saved.error ?? 'unknown error'}`)
+    }
+  }, [project, setNotice])
+
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
   useEffect(() => {
@@ -594,6 +613,7 @@ export default function App() {
     editorHandle,
     newProject,
     openProject,
+    exportManuscript,
     forceRefresh: reloadFromDisk,
     goToDefinition: projectData.goToDefinition,
     togglePin: projectData.togglePin,
