@@ -869,22 +869,18 @@ export default function App() {
                       Wrapped-line motion (j/k)
                     </button>
                   )}
-
-                  <div className="menu-pop__sep" />
-                  <button
-                    className="menu-pop__row"
-                    onClick={() => {
-                      panels.set('help', true)
-                      setMenuOpen(null)
-                    }}
-                  >
-                    <span className="menu-pop__check" />
-                    Help
-                  </button>
                 </div>
               </>
             )}
           </div>
+
+          <button
+            className={`menubar__item${panels.open.help ? ' menubar__item--active' : ''}`}
+            title="Help — features, shortcuts, and connecting Claude"
+            onClick={() => panels.set('help', true)}
+          >
+            Help
+          </button>
         </nav>
 
         <div className="menubar__right">
