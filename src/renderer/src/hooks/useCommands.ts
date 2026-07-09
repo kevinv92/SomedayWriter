@@ -217,8 +217,8 @@ export function useCommands(ctx: CommandContext): QuickCommand[] {
       run: () => ctx.insertImageFromPicker()
     },
     {
-      id: 'syntax-reference',
-      title: 'Markdown & Syntax Reference',
+      id: 'help',
+      title: 'Help',
       run: () => panels.set('help', true)
     },
     {

@@ -26,7 +26,7 @@ import { QuickInput } from './components/QuickInput'
 import { TabStrip } from './components/TabStrip'
 import { ProjectSettings } from './components/ProjectSettings'
 import { Icon } from './components/Icon'
-import { SyntaxHelp } from './components/SyntaxHelp'
+import { Help } from './components/Help'
 import type {
   OpenProjectResult,
   ProjectConfig,
@@ -879,7 +879,7 @@ export default function App() {
                     }}
                   >
                     <span className="menu-pop__check" />
-                    Markdown &amp; syntax reference
+                    Help
                   </button>
                 </div>
               </>
@@ -1073,7 +1073,7 @@ export default function App() {
                   </button>
                   <button
                     className="fmt fmt--help"
-                    title="Markdown & syntax reference"
+                    title="Help"
                     onClick={() => panels.set('help', true)}
                   >
                     ?
@@ -1368,7 +1368,13 @@ export default function App() {
         />
       )}
 
-      {panels.open.help && <SyntaxHelp onClose={() => panels.set('help', false)} />}
+      {panels.open.help && (
+        <Help
+          projectRoot={project.root}
+          projectName={project.name}
+          onClose={() => panels.set('help', false)}
+        />
+      )}
 
       {settingsOpen && (
         <ProjectSettings

@@ -26,6 +26,9 @@ import type {
 const api = {
   ping: (): Promise<string> => ipcRenderer.invoke('ping'),
 
+  /** The app's install directory, for building the MCP connection config in Help. */
+  getAppDir: (): Promise<string> => ipcRenderer.invoke('app:dir'),
+
   /** Prompt for a folder and open it as a project (reads `project.json`). */
   openProject: (): Promise<OpenProjectResult> => ipcRenderer.invoke('project:open'),
   newProject: (): Promise<OpenProjectResult> => ipcRenderer.invoke('project:new'),

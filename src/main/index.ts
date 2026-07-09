@@ -1,5 +1,5 @@
-import { promises as fs } from 'fs'
-import { basename, extname, join, resolve, sep } from 'path'
+import { existsSync, promises as fs } from 'fs'
+import { basename, dirname, extname, join, resolve, sep } from 'path'
 import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
@@ -197,6 +197,20 @@ function messageOf(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
 }
 
+/** The repo root — the nearest ancestor that actually holds `src/mcp/server.ts`,
+ * so the Help's MCP config points at the right place in dev or a built run.
+ * Falls back to the process cwd. */
+function repoRoot(): string {
+  let dir = __dirname
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(dir, 'src', 'mcp', 'server.ts'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return process.cwd()
+}
+
 function isNotFound(err: unknown): boolean {
   return (err as NodeJS.ErrnoException)?.code === 'ENOENT'
 }
@@ -310,6 +324,10 @@ const OUTSIDE_ERR = {
 function registerIpc(): void {
   // Phase 0: prove the bridge round-trips.
   ipcMain.handle('ping', () => 'pong')
+
+  // The repo root — used to build a ready-to-paste MCP config in the in-app Help
+  // (points a client at this repo's `src/mcp/server.ts`, which runs from source).
+  ipcMain.handle('app:dir', (): string => repoRoot())
 
   ipcMain.handle('project:open', (): Promise<OpenProjectResult> => openProject())
 
