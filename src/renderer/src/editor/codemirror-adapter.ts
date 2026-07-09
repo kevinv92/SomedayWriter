@@ -215,10 +215,16 @@ class CodeMirrorAdapter implements EditorAdapter {
     this.syncVimListener()
   }
 
-  /** Vim-mode editor extensions. Vim keys must sit first so its keymap wins;
-   * line numbers ride along so `:42` / `42G` jumps have visible targets. */
+  /** Mode-dependent editor extensions, reconfigured whenever Vim toggles.
+   * When Vim is ON: its keymap must sit first so it wins, and line numbers ride
+   * along so `:42` / `42G` jumps have visible targets.
+   * When Vim is OFF: enable selection-match highlighting (VS Code-style — all
+   * occurrences of the current selection light up). We deliberately drop it
+   * under Vim: visual mode always holds a selection, so it would highlight every
+   * matching occurrence constantly, which reads as noise; Vim users navigate
+   * with `*`/`#` instead. */
   private vimBundle(): Extension {
-    return this.vimEnabled ? [vim(), lineNumbers()] : []
+    return this.vimEnabled ? [vim(), lineNumbers()] : [highlightSelectionMatches()]
   }
 
   /** Make Vim `j`/`k` (and ↓/↑) move by display line (gj/gk) rather than logical
@@ -548,7 +554,8 @@ class CodeMirrorAdapter implements EditorAdapter {
         // In-document find/replace (Cmd/Ctrl+F) — M5. `top` puts the panel above
         // the text rather than at the bottom, which reads better for prose.
         search({ top: true }),
-        highlightSelectionMatches(),
+        // NB: selection-match highlighting lives in the vim compartment
+        // (vimBundle) so it's disabled under Vim — see there for why.
         autocompletion({ override: [this.completionDelegate], activateOnTyping: true }),
         // Writer-friendly formatting shortcuts (sit first so they win). They
         // insert the Markdown so writers needn't know the syntax.
