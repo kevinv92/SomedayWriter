@@ -18,7 +18,7 @@
     "format:check": "prettier --check .",
     "pack:ai": "repomix",
     "package": "electron-vite build && electron-builder",
-    "dist:mac": "electron-vite build && electron-builder --mac dmg",
+    "dist:mac": "electron-vite build && electron-builder --mac dmg --publish never",
     "mcp": "tsx src/mcp/server.ts"
   },
   "lint-staged": {
