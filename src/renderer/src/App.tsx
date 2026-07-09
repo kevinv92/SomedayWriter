@@ -22,15 +22,10 @@ import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
-import { QuickInput, type QuickFile } from './components/QuickInput'
+import { QuickInput } from './components/QuickInput'
 import { Icon } from './components/Icon'
 import { SyntaxHelp } from './components/SyntaxHelp'
-import { AnalysisService } from './analysis/analysis-service'
-import { createEntityProvider } from './analysis/providers/entity-provider'
-import { createFrontmatterProvider } from './analysis/providers/frontmatter-provider'
-import { createSpellProvider } from './analysis/providers/spell-provider'
 import type {
-  Entity,
   OpenProjectResult,
   ProjectMeta,
   RecentProject,
@@ -42,11 +37,12 @@ import { ACCENTS, useSettings } from './hooks/useSettings'
 import { useDocuments } from './hooks/useDocuments'
 import { useCommands } from './hooks/useCommands'
 import { useLayout } from './hooks/useLayout'
-import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
+import { useProject } from './hooks/useProject'
+import { entityTypeMeta } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, joinPath, parentDir, posixRelativePath } from './lib/paths'
 import { ImageView } from './components/ImageView'
-import { entityAt, mentionRangeAt } from './lib/mentions'
+import { mentionRangeAt } from './lib/mentions'
 import { parseEntityHead, detectRename, type EntityHead } from './lib/rename'
 
 // Resolve an editor.font value to a CSS font-family: a preset keyword, or a
@@ -70,7 +66,6 @@ type ModalState =
 export default function App() {
   const [project, setProject] = useState<ProjectMeta | null>(null)
   const [recents, setRecents] = useState<RecentProject[]>([])
-  const [tree, setTree] = useState<TreeNode | null>(null)
 
   const [notice, setNotice] = useState<string | null>(null)
   const [modal, setModal] = useState<ModalState>(null)
@@ -102,13 +97,14 @@ export default function App() {
     setNotice,
     onAfterSave: bumpInspector
   })
-  // Companion pins for the current project (paths); the full per-project map lives
-  // in allPinsRef so persisting one project never clobbers another's.
-  const [pinnedPaths, setPinnedPaths] = useState<string[]>([])
-  // Explorer-pinned files for the current project (quick access, top of the tree).
-  const [explorerPins, setExplorerPins] = useState<string[]>([])
-  // Story entities (StoryIndex), for the references panel + go-to-definition.
-  const [entities, setEntities] = useState<Entity[]>([])
+  // The open project's data domain: file tree, story index (entities) + analysis,
+  // entity types, and per-project pins — see useProject.
+  const projectData = useProject({
+    project,
+    openFile: documents.openFile,
+    setNotice,
+    bumpInspector
+  })
   // null = closed; otherwise the initial query ('' = Quick Open, '>' = palette).
   const [quickInput, setQuickInput] = useState<string | null>(null)
   // Live Vim mode from the editor ('normal'|'insert'|'visual'|'replace', or ''
@@ -135,10 +131,6 @@ export default function App() {
   // Live handle onto the editor, for palette-driven go-to-definition (reads the
   // cursor while the editor is unfocused behind the palette).
   const editorHandle = useRef<EditorHandle | null>(null)
-  // The whole Companion pins map (project root → paths), loaded from settings.
-  const allPinsRef = useRef<Record<string, string[]>>({})
-  // The whole explorer-pins map (project root → paths), loaded from settings.
-  const allExplorerPinsRef = useRef<Record<string, string[]>>({})
 
   // Insert an imported image (given its project-relative path) at the cursor, as
   // a path relative to the current file; refresh the tree so assets/ shows.
@@ -147,9 +139,9 @@ export default function App() {
       const src = posixRelativePath(documents.assetDir, projectRelPath)
       const alt = basename(projectRelPath).replace(/\.[^.]+$/, '')
       editorHandle.current?.insertImage(alt, src)
-      void window.api.readTree().then(setTree)
+      void projectData.reloadTree()
     },
-    [documents.assetDir]
+    [documents.assetDir, projectData.reloadTree]
   )
 
   const insertImageFromPicker = useCallback(async () => {
@@ -167,144 +159,15 @@ export default function App() {
     [insertProjectImage]
   )
 
-  // The analysis facade + its providers (Phase 4). Created once; the editor
-  // talks only to this, never to a provider (SPEC seam).
-  const entityProvider = useMemo(() => createEntityProvider(), [])
-  const frontmatterProvider = useMemo(() => createFrontmatterProvider(), [])
-  const analysis = useMemo(() => {
-    const service = new AnalysisService()
-    service.register(entityProvider.provider)
-    service.register(frontmatterProvider.provider)
-    service.register(createSpellProvider())
-    return service
-  }, [entityProvider, frontmatterProvider])
-  useEffect(() => () => analysis.dispose(), [analysis])
-
-  // Load story entities (characters, locations, items, …) from StoryIndex;
-  // refresh after edits. Feeds the completion provider, references/
-  // go-to-definition, and (via the refresh nonce) the disk-based Inspector +
-  // Companion scene detection.
-  const refreshEntities = useCallback(() => {
-    void window.api.storyEntities().then((next) => {
-      entityProvider.setEntities(next)
-      frontmatterProvider.setEntities(next)
-      setEntities(next)
-    })
-    setInspectorRefresh((n) => n + 1)
-  }, [entityProvider, frontmatterProvider])
-
-  // Pin/unpin a Companion reference for the current project, persisting the whole
-  // per-project map so other projects' pins are preserved.
-  const togglePin = useCallback(
-    (path: string) => {
-      if (!project) return
-      const current = allPinsRef.current[project.root] ?? []
-      const next = current.includes(path)
-        ? current.filter((p) => p !== path)
-        : [...current, path]
-      allPinsRef.current = { ...allPinsRef.current, [project.root]: next }
-      setPinnedPaths(next)
-      void window.api.updateSettings({ pins: allPinsRef.current })
-    },
-    [project]
-  )
-
-  // Pin/unpin a file to the explorer's quick-access section (per project).
-  const toggleExplorerPin = useCallback(
-    (path: string) => {
-      if (!project) return
-      const current = allExplorerPinsRef.current[project.root] ?? []
-      const next = current.includes(path)
-        ? current.filter((p) => p !== path)
-        : [...current, path]
-      allExplorerPinsRef.current = { ...allExplorerPinsRef.current, [project.root]: next }
-      setExplorerPins(next)
-      void window.api.updateSettings({ explorerPins: allExplorerPinsRef.current })
-    },
-    [project]
-  )
-
-  // Flat list of the project's .md files for Quick Open (Cmd/Ctrl+P). `rel` is
-  // the file's directory relative to the project root ('' at the root), shown as
-  // a dimmed hint so the full file name always reads.
-  const projectFiles = useMemo<QuickFile[]>(() => {
-    const rootLen = project ? project.root.length + 1 : 0
-    const out: QuickFile[] = []
-    const walk = (node: TreeNode) => {
-      if (node.type === 'file') {
-        if (node.name.endsWith('.md')) {
-          const relPath = node.path.slice(rootLen)
-          const slash = relPath.lastIndexOf('/')
-          out.push({
-            path: node.path,
-            name: node.name,
-            rel: slash >= 0 ? relPath.slice(0, slash) : ''
-          })
-        }
-      } else node.children?.forEach(walk)
-    }
-    tree?.children?.forEach(walk)
-    return out
-  }, [tree, project])
-
-  // Registered entity types (Phase 7, M18): built-in defaults with this project's
-  // `entityTypes` merged over them. Drives type badges, frontmatter intellisense,
-  // and new-file templates — one source of truth for every "what is a location?".
-  const entityTypes = useMemo(() => resolveEntityTypes(project?.config), [project])
-
-  // Feed the registry to the frontmatter completer (M19) so `type:`/field
-  // suggestions track the open project's schema.
-  useEffect(() => {
-    frontmatterProvider.setEntityTypes(entityTypes)
-  }, [frontmatterProvider, entityTypes])
-
-  // Icon per profile file, so the tree can badge a location vs. an item. Keyed by
-  // path off the entity list (only files with a `type:` appear).
-  const entityIcons = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const e of entities)
-      map.set(e.path, entityTypeMeta(e.type, entityTypes).iconName)
-    return map
-  }, [entities, entityTypes])
-
-  const refreshTree = async () => {
-    setTree(await window.api.readTree())
-    refreshEntities()
-  }
-
-  // Manual "Reload from Disk": drop the main-process index cache, re-read the
-  // tree + entities, and nudge the panels to refetch. For changes made outside
-  // the app (another editor, a git checkout) that the app can't see.
-  const forceRefresh = useCallback(async () => {
-    await window.api.refreshIndex()
-    setTree(await window.api.readTree())
-    refreshEntities()
-    setNotice('Reloaded from disk.')
-  }, [refreshEntities])
-
-  // Go-to-definition: resolve the entity under a cursor position (a Cmd/Ctrl+click
-  // in the editor, or the palette command reading the cursor) and open its profile.
-  const goToDefinition = useCallback(
-    (lineText: string, column: number) => {
-      const entity = entityAt(lineText, column, entities)
-      if (!entity) {
-        setNotice('No entity under the cursor.')
-        return
-      }
-      setNotice(null)
-      documents.openFile(entity.path)
-    },
-    [entities, documents.openFile]
-  )
-
   // Baseline of each entity's identity surfaces (saved state), for detecting an
   // in-place alias/name rename as you edit the frontmatter.
   useEffect(() => {
     const map = new Map<string, EntityHead>()
-    for (const e of entities) map.set(e.path, { name: e.name, aliases: e.aliases })
+    for (const e of projectData.entities)
+      map.set(e.path, { name: e.name, aliases: e.aliases })
     entityHeadBaseline.current = map
     dismissedRenames.current.clear()
-  }, [entities])
+  }, [projectData.entities])
 
   // Debounced: when an entity file's frontmatter renames a surface, offer to
   // update its `@{…}` mentions across the manuscript (Phase 9 rename refactor).
@@ -362,13 +225,13 @@ export default function App() {
       if (!r.ok) continue
       documents.reloadBuffer(path, r.text)
     }
-    refreshEntities()
+    projectData.refreshEntities()
     setNotice(
       result.skipped.length
         ? `Renamed ${result.count} mention(s). Skipped ${result.skipped.length} file(s) with unsaved edits — update those from Project Health.`
         : `Renamed ${result.count} mention(s) to @{${p.to}}.`
     )
-  }, [renamePrompt, documents, refreshEntities])
+  }, [renamePrompt, documents, projectData.refreshEntities])
 
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
@@ -392,17 +255,14 @@ export default function App() {
         }
         return
       }
-      const nextTree = await window.api.readTree()
       documents.reset()
       setProject(result.project)
-      setTree(nextTree)
       setNotice(null)
       settings.applyProjectConfig(result.project.config)
-      setPinnedPaths(allPinsRef.current[result.project.root] ?? [])
-      setExplorerPins(allExplorerPinsRef.current[result.project.root] ?? [])
-      refreshEntities()
+      // Load this project's pins + re-read tree + entities.
+      await projectData.onOpen(result.project)
     },
-    [refreshEntities, documents.reset, settings]
+    [documents.reset, settings, projectData.onOpen]
   )
 
   const openProject = useCallback(async () => {
@@ -430,8 +290,7 @@ export default function App() {
       setRecents(loaded.recentProjects)
       layout.hydrate(loaded)
       settings.hydrate(loaded)
-      allPinsRef.current = loaded.pins ?? {}
-      allExplorerPinsRef.current = loaded.explorerPins ?? {}
+      projectData.hydratePins(loaded)
       const last = loaded.recentProjects[0]
       if (last) await openRecent(last.path)
     })()
@@ -449,11 +308,11 @@ export default function App() {
     }
     // Seed a chosen entity type's frontmatter skeleton (M20); blank otherwise.
     if (entityType) {
-      const def = entityTypeMeta(entityType, entityTypes)
+      const def = entityTypeMeta(entityType, projectData.entityTypes)
       const written = await window.api.writeFile(path, entityTemplate(def, name))
       if (!written.ok) setNotice(`Couldn't write template: ${written.error}`)
     }
-    await refreshTree()
+    await projectData.refreshTree()
     if (fileName.endsWith('.md')) documents.openFile(path)
   }
 
@@ -463,7 +322,7 @@ export default function App() {
       setNotice(`Couldn't create folder: ${result.error}`)
       return
     }
-    await refreshTree()
+    await projectData.refreshTree()
   }
 
   async function renameNode(node: TreeNode, newName: string) {
@@ -475,7 +334,7 @@ export default function App() {
       return
     }
     documents.remapOpenDocs(node.path, to)
-    await refreshTree()
+    await projectData.refreshTree()
   }
 
   async function deleteNode(node: TreeNode) {
@@ -485,7 +344,7 @@ export default function App() {
       return
     }
     documents.closeDocsUnder(node.path)
-    await refreshTree()
+    await projectData.refreshTree()
   }
 
   // --- manuscript order + move (M6) ---
@@ -500,7 +359,7 @@ export default function App() {
       }
       return null
     }
-    return tree ? (search(tree) ?? []) : []
+    return projectData.tree ? (search(projectData.tree) ?? []) : []
   }
 
   const renormalize = async (files: TreeNode[]) => {
@@ -518,7 +377,7 @@ export default function App() {
       return
     }
     documents.remapOpenDocs(fromPath, to)
-    await refreshTree()
+    await projectData.refreshTree()
   }
 
   async function handleDrop(draggedPath: string, target: TreeNode) {
@@ -559,7 +418,7 @@ export default function App() {
       }
       documents.remapOpenDocs(draggedPath, to)
     }
-    await refreshTree()
+    await projectData.refreshTree()
   }
 
   // --- keyboard shortcuts ---
@@ -664,17 +523,19 @@ export default function App() {
     documents,
     panels,
     settings,
-    entityTypes,
+    entityTypes: projectData.entityTypes,
     editorHandle,
     newProject,
     openProject,
-    forceRefresh,
-    goToDefinition,
-    togglePin,
+    forceRefresh: projectData.forceRefresh,
+    goToDefinition: projectData.goToDefinition,
+    togglePin: projectData.togglePin,
     insertImageFromPicker,
     onNewFile: (entityType) =>
-      tree && setModal({ kind: 'newFile', dir: tree.path, entityType }),
-    onNewFolder: () => tree && setModal({ kind: 'newFolder', dir: tree.path })
+      projectData.tree &&
+      setModal({ kind: 'newFile', dir: projectData.tree.path, entityType }),
+    onNewFolder: () =>
+      projectData.tree && setModal({ kind: 'newFolder', dir: projectData.tree.path })
   })
 
   if (!project) {
@@ -912,7 +773,7 @@ export default function App() {
                   <button
                     className="menu-pop__row"
                     onClick={() => {
-                      void forceRefresh()
+                      void projectData.forceRefresh()
                       setMenuOpen(null)
                     }}
                   >
@@ -1032,7 +893,10 @@ export default function App() {
                   <button
                     className="icon-btn icon-btn--action"
                     aria-label="New file"
-                    onClick={() => tree && setModal({ kind: 'newFile', dir: tree.path })}
+                    onClick={() =>
+                      projectData.tree &&
+                      setModal({ kind: 'newFile', dir: projectData.tree.path })
+                    }
                   >
                     <Icon name="file-plus" size={17} />
                     <span className="icon-btn__tip">New file</span>
@@ -1041,7 +905,8 @@ export default function App() {
                     className="icon-btn icon-btn--action"
                     aria-label="New folder"
                     onClick={() =>
-                      tree && setModal({ kind: 'newFolder', dir: tree.path })
+                      projectData.tree &&
+                      setModal({ kind: 'newFolder', dir: projectData.tree.path })
                     }
                   >
                     <Icon name="folder-plus" size={17} />
@@ -1049,13 +914,13 @@ export default function App() {
                   </button>
                 </div>
               </div>
-              {tree ? (
+              {projectData.tree ? (
                 <FileTree
-                  root={tree}
+                  root={projectData.tree}
                   activePath={documents.activePath}
-                  entityIcons={entityIcons}
-                  pinned={explorerPins}
-                  onTogglePin={toggleExplorerPin}
+                  entityIcons={projectData.entityIcons}
+                  pinned={projectData.explorerPins}
+                  onTogglePin={projectData.toggleExplorerPin}
                   onSelect={(path) => documents.openFile(path)}
                   onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
                   onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
@@ -1080,7 +945,7 @@ export default function App() {
         <main className="main" style={editorStyle}>
           {panels.open.braid ? (
             <BraidView
-              sceneOrder={projectFiles.map((f) => f.path)}
+              sceneOrder={projectData.projectFiles.map((f) => f.path)}
               refreshKey={inspectorRefresh}
               onOpen={(path) => {
                 documents.openFile(path)
@@ -1203,14 +1068,14 @@ export default function App() {
                   vimEnabled={settings.vim}
                   vimWrapMotion={settings.vimWrapMotion}
                   diagnosticsEnabled={settings.diagnostics}
-                  analysis={analysis}
+                  analysis={projectData.analysis}
                   onStatus={setStatus}
                   onVimMode={setVimMode}
                   onDocChange={handleDocChange}
                   revealTarget={documents.revealTarget}
-                  onGoToDefinition={goToDefinition}
+                  onGoToDefinition={projectData.goToDefinition}
                   onResolveMention={(lineText, column) =>
-                    mentionRangeAt(lineText, column, entities)
+                    mentionRangeAt(lineText, column, projectData.entities)
                   }
                   handleRef={editorHandle}
                   assetDir={documents.assetDir}
@@ -1247,8 +1112,8 @@ export default function App() {
 
         {panels.open.refs && (
           <ReferencesPanel
-            entities={entities}
-            entityTypes={entityTypes}
+            entities={projectData.entities}
+            entityTypes={projectData.entityTypes}
             onClose={() => panels.set('refs', false)}
             onOpenRef={(path, line, column, length) =>
               documents.openFile(path, { line, column, endColumn: column + length })
@@ -1262,7 +1127,7 @@ export default function App() {
             path={documents.activePath}
             readingPosition={readingPosition}
             refreshKey={inspectorRefresh}
-            entityTypes={entityTypes}
+            entityTypes={projectData.entityTypes}
             onClose={() => panels.set('inspector', false)}
           />
         )}
@@ -1270,11 +1135,11 @@ export default function App() {
         {panels.open.companion && (
           <CompanionPanel
             activePath={documents.activePath}
-            pinnedPaths={pinnedPaths}
-            onTogglePin={togglePin}
+            pinnedPaths={projectData.pinnedPaths}
+            onTogglePin={projectData.togglePin}
             onOpenFull={(path) => documents.openFile(path)}
             refreshKey={inspectorRefresh}
-            entityTypes={entityTypes}
+            entityTypes={projectData.entityTypes}
             onClose={() => panels.set('companion', false)}
           />
         )}
@@ -1398,7 +1263,10 @@ export default function App() {
         <NewFileModal
           options={[
             { value: '', label: 'Blank Markdown' },
-            ...entityTypes.map((t) => ({ value: t.type, label: `${t.icon} ${t.label}` }))
+            ...projectData.entityTypes.map((t) => ({
+              value: t.type,
+              label: `${t.icon} ${t.label}`
+            }))
           ]}
           initialType={modal.entityType}
           onCancel={() => setModal(null)}
@@ -1460,7 +1328,7 @@ export default function App() {
 
       {quickInput !== null && (
         <QuickInput
-          files={projectFiles}
+          files={projectData.projectFiles}
           commands={commands}
           initialQuery={quickInput}
           recentFiles={documents.recentFiles}
