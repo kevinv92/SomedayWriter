@@ -60,9 +60,21 @@ export function createFrontmatterProvider(): {
       return entityTypes.map((t) => ({ label: t.type, detail: t.label, type: 'enum' }))
     }
     if (key === 'threads') {
-      return entities
-        .filter((e) => e.type === 'thread')
-        .map((e) => ({ label: e.name.toLowerCase(), detail: 'thread', type: 'enum' }))
+      // Threads are referenced by any of their surfaces — a kebab alias
+      // (`the-case`) or the display name (`The Case`). Offer each so a match
+      // appears whichever form the writer types; deduped case-insensitively.
+      const out: Completion[] = []
+      const seen = new Set<string>()
+      for (const e of entities) {
+        if (e.type !== 'thread') continue
+        for (const surface of [...e.aliases, e.name]) {
+          const s = surface.trim()
+          if (!s || seen.has(s.toLowerCase())) continue
+          seen.add(s.toLowerCase())
+          out.push({ label: s, detail: 'thread', type: 'enum' })
+        }
+      }
+      return out
     }
     const field = fieldsFor(text).find((f) => f.name === key)
     return (field?.values ?? []).map((v) => ({ label: v, detail: key, type: 'enum' }))
