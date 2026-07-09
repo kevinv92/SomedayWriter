@@ -32,6 +32,8 @@ export type IconName =
   | 'comment'
   | 'activity'
   | 'spool'
+  | 'save'
+  | 'check'
 
 /**
  * ICON RULE (keep it consistent): **dimensional/glossy = domain content**
@@ -132,7 +134,17 @@ const LINE: Partial<Record<IconName, ReactNode>> = {
       <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1L20.5 8" />
       <path d="M20.5 3.5V8H16" />
     </>
-  )
+  ),
+  // Floppy disk — the universal "save" glyph (body with folded corner, top
+  // shutter slot, bottom label).
+  save: (
+    <>
+      <path d="M5 4.5h10.5L19 8v11.5H5z" />
+      <path d="M8 4.5v4.5h6V4.5" />
+      <path d="M8 19.5V13h8v6.5" />
+    </>
+  ),
+  check: <path d="M5 12.5l4.5 4.5L19 6.5" />
 }
 
 export function Icon({

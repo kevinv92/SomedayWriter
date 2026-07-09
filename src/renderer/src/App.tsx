@@ -28,6 +28,7 @@ import { TabStrip } from './components/TabStrip'
 import { ProjectSettings } from './components/ProjectSettings'
 import { Icon } from './components/Icon'
 import { Logo } from './components/Logo'
+import { SaveStatus } from './components/SaveStatus'
 import { Help } from './components/Help'
 import type {
   OpenProjectResult,
@@ -716,14 +717,6 @@ export default function App() {
           >
             Find
           </button>
-          <button
-            className="menubar__item menubar__item--icon"
-            title="Reload from disk — pick up edits made outside the app (⌘/Ctrl+P → Reload)"
-            aria-label="Reload from disk"
-            onClick={() => void reloadFromDisk()}
-          >
-            <Icon name="reload" size={15} />
-          </button>
           <span className="menubar__sep" role="separator" />
           <div className="menu">
             <button
@@ -939,6 +932,24 @@ export default function App() {
         </nav>
 
         <div className="menubar__right">
+          <SaveStatus
+            hasFile={documents.activePath != null && !isImageFile(documents.activePath)}
+            dirty={documents.dirty}
+            unsavedCount={documents.dirtyPaths.size}
+            autosave={settings.autosave}
+            onSave={() => {
+              if (documents.activePath) void documents.saveTab(documents.activePath)
+            }}
+          />
+          <button
+            className="menubar__item menubar__item--icon"
+            title="Reload from disk — pick up edits made outside the app (⌘/Ctrl+P → Reload)"
+            aria-label="Reload from disk"
+            onClick={() => void reloadFromDisk()}
+          >
+            <Icon name="reload" size={15} />
+          </button>
+          <span className="menubar__sep" role="separator" />
           <button
             className="ptog ptog--left"
             data-on={!layout.sidebarHidden}

@@ -404,6 +404,67 @@ body {
   color: var(--fg);
 }
 
+/* Save-state control (menubar right): at a glance says Saved / Unsaved /
+   Autosave; when there are edits it's a clickable Save button. */
+.menubar__save {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font: inherit;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--fg-3);
+  cursor: default;
+  white-space: nowrap;
+}
+
+.menubar__save .icon {
+  flex: none;
+}
+
+/* Unsaved — amber, actionable (click or ⌘/Ctrl+S). */
+.menubar__save[data-state='unsaved'] {
+  color: var(--warning);
+  border-color: color-mix(in oklch, var(--warning) 45%, transparent);
+  background: color-mix(in oklch, var(--warning) 12%, transparent);
+  cursor: pointer;
+}
+
+.menubar__save[data-state='unsaved']:hover {
+  background: color-mix(in oklch, var(--warning) 22%, transparent);
+}
+
+/* Saving… — autosave is about to write; muted with a soft pulse. */
+.menubar__save[data-state='saving'] {
+  cursor: pointer;
+  animation: save-pulse 1.1s ease-in-out infinite;
+}
+
+/* Autosave on — calm sage, informational only. */
+.menubar__save[data-state='autosave'] {
+  color: var(--success);
+  border-color: color-mix(in oklch, var(--success) 35%, transparent);
+}
+
+/* Saved — neutral, low emphasis. */
+.menubar__save[data-state='saved'] {
+  color: var(--fg-3);
+}
+
+@keyframes save-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
 /* Panel-toggle icons (left = explorer, right = companion). */
 .ptog {
   display: inline-flex;
