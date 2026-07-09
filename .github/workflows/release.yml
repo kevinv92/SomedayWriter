@@ -1,0 +1,60 @@
+name: Release
+
+# Push a version tag (e.g. `v0.1.0`) to build the macOS DMG and publish a
+# GitHub Release with it attached. Or run manually (workflow_dispatch) for a
+# dry-run: it builds the DMG and uploads it as a workflow artifact, without
+# creating a release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: Build macOS DMG
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build DMG (unsigned)
+        run: npm run dist:mac
+
+      - name: Show artifacts
+        run: ls -lh dist/*.dmg
+
+      # Dry-run (manual trigger): keep the DMG as a downloadable artifact so the
+      # build can be verified without publishing a release.
+      - name: Upload DMG artifact
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: SomedayWriter-macos-dmg
+          path: dist/*.dmg
+          if-no-files-found: error
+
+      # Real release (tag push): publish a GitHub Release with the DMG attached.
+      - name: Publish Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.dmg
+          generate_release_notes: true
+          body: |
+            ### SomedayWriter ${{ github.ref_name }}
+
+            macOS build for **Apple Silicon (arm64)**.
+
+            > **This build is unsigned.** On first launch macOS Gatekeeper will
+            > refuse it — right-click **SomedayWriter.app** and choose **Open**,
+            > or run `xattr -cr /Applications/SomedayWriter.app` after installing.
