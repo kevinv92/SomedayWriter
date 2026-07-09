@@ -1644,6 +1644,86 @@ body {
   background: #dc2626;
 }
 
+/* --- Project Settings form --- */
+.modal--settings {
+  width: min(34rem, calc(100vw - 2rem));
+}
+
+.settings__scroll {
+  max-height: min(70vh, 34rem);
+  overflow-y: auto;
+  padding-right: 0.4rem;
+}
+
+.settings__group {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem 0.8rem;
+  margin: 0 0 0.9rem;
+}
+
+.settings__group legend {
+  padding: 0 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.settings__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.7rem;
+}
+
+.settings__label {
+  font-size: 0.82rem;
+  color: var(--fg);
+}
+
+.settings__help {
+  font-size: 0.72rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.settings__help code,
+.settings__note code {
+  font-size: 0.7rem;
+  padding: 0.05rem 0.25rem;
+  border-radius: 4px;
+  background: var(--bg-2, var(--bg));
+}
+
+.settings__check {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  margin-bottom: 0.55rem;
+  cursor: pointer;
+}
+
+.settings__textarea {
+  resize: vertical;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.8rem;
+}
+
+.settings__note {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.settings__error {
+  margin: 0.6rem 0 0;
+  font-size: 0.8rem;
+  color: #dc2626;
+}
+
 .tree:focus {
   outline: none;
 }

@@ -12,11 +12,13 @@ import type {
   GrammarMatch,
   Thread,
   OpenProjectResult,
+  ProjectConfig,
   ProjectMeta,
   ReplaceResult,
   SearchFileResult,
   SearchOptions,
   TreeNode,
+  WriteConfigResult,
   WriteResult
 } from '../shared/types'
 import {
@@ -327,6 +329,25 @@ function registerIpc(): void {
     }
     return s
   })
+
+  // Write an edited project.json back (the Project Settings form). Callers pass
+  // the full config so unknown keys (themes, entityTypes) are preserved.
+  ipcMain.handle(
+    'project:writeConfig',
+    async (_e, config: ProjectConfig): Promise<WriteConfigResult> => {
+      if (!currentProject) return { ok: false, error: 'No project is open.' }
+      const name = config?.project?.name
+      if (typeof name !== 'string' || !name.trim()) {
+        return { ok: false, error: 'A project name is required.' }
+      }
+      try {
+        await writeProjectConfig(currentProject.root, config)
+        return { ok: true, project: setCurrentProject(currentProject.root, config) }
+      } catch (e) {
+        return { ok: false, error: messageOf(e) }
+      }
+    }
+  )
 
   // --- external analysis (Phase 10) ---
 

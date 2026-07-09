@@ -7,7 +7,9 @@ import type {
   FileInspection,
   FileReadResult,
   GrammarMatch,
+  ProjectConfig,
   Thread,
+  WriteConfigResult,
   OpenProjectResult,
   ReplaceResult,
   SearchFileResult,
@@ -122,6 +124,11 @@ const api = {
   /** Import a known image file (e.g. dragged in) into assets/; returns its path. */
   importImageFile: (sourcePath: string): Promise<{ path: string } | null> =>
     ipcRenderer.invoke('image:importFile', sourcePath),
+
+  /** Write an edited project.json back (the Project Settings form). Pass the full
+   * config so unknown keys are preserved; returns the refreshed project. */
+  writeProjectConfig: (config: ProjectConfig): Promise<WriteConfigResult> =>
+    ipcRenderer.invoke('project:writeConfig', config),
 
   /** Grammar/style check (Phase 10) — routed to LanguageTool in main. Returns
    * offset-based hits; `[]` when the checker is off/unconfigured. */

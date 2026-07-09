@@ -25,6 +25,8 @@ export interface CommandContext {
   onNewFile: (entityType?: string) => void
   /** Open the New-Folder modal at the project root. */
   onNewFolder: () => void
+  /** Open the Project Settings form. */
+  onProjectSettings: () => void
 }
 
 /**
@@ -123,6 +125,11 @@ export function useCommands(ctx: CommandContext): QuickCommand[] {
       id: 'reload-from-disk',
       title: 'Reload from Disk',
       run: () => ctx.forceRefresh()
+    },
+    {
+      id: 'project-settings',
+      title: 'Project Settings…',
+      run: () => ctx.onProjectSettings()
     },
     {
       id: 'pin-to-companion',

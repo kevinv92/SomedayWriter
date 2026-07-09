@@ -24,10 +24,12 @@ import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
 import { QuickInput } from './components/QuickInput'
 import { TabStrip } from './components/TabStrip'
+import { ProjectSettings } from './components/ProjectSettings'
 import { Icon } from './components/Icon'
 import { SyntaxHelp } from './components/SyntaxHelp'
 import type {
   OpenProjectResult,
+  ProjectConfig,
   ProjectMeta,
   RecentProject,
   TreeNode
@@ -113,6 +115,8 @@ export default function App() {
   const [vimMode, setVimMode] = useState('')
   // Menubar: which dropdown is open (null = none).
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  // Project Settings form (edits project.json via controlled fields).
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [status, setStatus] = useState<EditorStatus>({
     words: 0,
     cursor: { line: 1, column: 1 }
@@ -279,6 +283,24 @@ export default function App() {
       await applyOpenResult(await window.api.openRecent(path))
     },
     [applyOpenResult]
+  )
+
+  // Save the Project Settings form: write project.json, then apply the new config
+  // (theme/editor prefs) and re-read the tree (ignore globs may have changed).
+  const saveProjectConfig = useCallback(
+    async (next: ProjectConfig) => {
+      const res = await window.api.writeProjectConfig(next)
+      if (!res.ok) {
+        setNotice(`Couldn't save settings: ${res.error}`)
+        return
+      }
+      setProject(res.project)
+      settings.applyProjectConfig(res.project.config)
+      setSettingsOpen(false)
+      await projectData.refreshTree()
+      setNotice('Project settings saved.')
+    },
+    [settings, projectData.refreshTree]
   )
 
   // On first mount: load settings, restore the sidebar width, and reopen the
@@ -536,7 +558,8 @@ export default function App() {
       projectData.tree &&
       setModal({ kind: 'newFile', dir: projectData.tree.path, entityType }),
     onNewFolder: () =>
-      projectData.tree && setModal({ kind: 'newFolder', dir: projectData.tree.path })
+      projectData.tree && setModal({ kind: 'newFolder', dir: projectData.tree.path }),
+    onProjectSettings: () => setSettingsOpen(true)
   })
 
   if (!project) {
@@ -771,6 +794,16 @@ export default function App() {
                   </button>
 
                   <div className="menu-pop__sep" />
+                  <button
+                    className="menu-pop__row"
+                    onClick={() => {
+                      setSettingsOpen(true)
+                      setMenuOpen(null)
+                    }}
+                  >
+                    <span className="menu-pop__check" />
+                    Project settings…
+                  </button>
                   <button
                     className="menu-pop__row"
                     onClick={() => {
@@ -1332,6 +1365,18 @@ export default function App() {
       )}
 
       {panels.open.help && <SyntaxHelp onClose={() => panels.set('help', false)} />}
+
+      {settingsOpen && (
+        <ProjectSettings
+          config={project.config}
+          themeOptions={[
+            ...BUILTIN_THEME_OPTIONS,
+            ...settings.availableThemes.map((t) => ({ id: t.id, name: t.name }))
+          ]}
+          onSave={(next) => void saveProjectConfig(next)}
+          onCancel={() => setSettingsOpen(false)}
+        />
+      )}
 
       {renamePrompt && (
         <ConfirmModal

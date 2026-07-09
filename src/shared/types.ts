@@ -98,6 +98,10 @@ export type ProjectMeta = {
   config: ProjectConfig
 }
 
+/** Result of writing an edited `project.json` back (the Project Settings form). */
+export type WriteConfigResult =
+  { ok: true; project: ProjectMeta } | { ok: false; error: string }
+
 /** One node in the file-explorer tree. Directories carry `children`; files
  * don't. `path` is absolute and is also the document id (`EditorDoc.uri`). */
 export type TreeNode = {
