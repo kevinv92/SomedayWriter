@@ -174,14 +174,21 @@ export function Editor({
   // the doc is in place; `nonce` in the dep re-fires it for repeat targets.
   useEffect(() => {
     if (!revealTarget) return
-    adapterRef.current?.focusLine(
-      revealTarget.line,
-      revealTarget.column,
-      revealTarget.endColumn
-    )
+    const adapter = adapterRef.current
+    adapter?.focusLine(revealTarget.line, revealTarget.column, revealTarget.endColumn)
     // The jump moves the cursor without a doc change, so refresh the status bar
     // (line/column) to match where we landed.
     emitStatus()
+    // A caret-only reveal (no endColumn) means we're landing here to type — Quick
+    // Open or a comment jump. The overlay that triggered it is unmounting this
+    // same commit, and its focused input can steal focus on removal; re-assert
+    // editor focus next frame so the writer can type immediately. (Search /
+    // references reveals pass endColumn and keep panel focus, so skip those.)
+    if (revealTarget.endColumn == null) {
+      const raf = requestAnimationFrame(() => adapter?.focus())
+      return () => cancelAnimationFrame(raf)
+    }
+    return
   }, [revealTarget, emitStatus])
 
   // React to the Vim toggle.

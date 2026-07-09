@@ -137,6 +137,11 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.focus()
   }
 
+  /** Put DOM focus on the editor (without moving the caret). */
+  focus(): void {
+    this.view?.focus()
+  }
+
   focusLine(line: number, column = 1, endColumn?: number): void {
     const view = this.requireView()
     const { doc } = view.state

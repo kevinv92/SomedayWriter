@@ -66,6 +66,9 @@ export interface EditorAdapter {
    * (jump-to-reference); otherwise just place the caret (jump-to-search-match). */
   focusLine(line: number, column?: number, endColumn?: number): void
 
+  /** Put DOM focus on the editor without moving the caret. */
+  focus(): void
+
   getCursor(): CursorPosition
 
   /** The cursor line's full text plus the 1-based cursor column — enough to
