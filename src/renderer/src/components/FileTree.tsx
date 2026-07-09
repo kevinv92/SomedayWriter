@@ -31,10 +31,13 @@ function isEditable(node: TreeNode): boolean {
   return node.type === 'file' && node.name.endsWith('.md')
 }
 
-/** Files that open when clicked: Markdown (edit) + images (read-only viewer).
- * Everything else is greyed and inert. */
+/** Files that open when clicked: Markdown (edit), images (read-only viewer), and
+ * `project.json` (opens the Project Settings form). Everything else is inert. */
 function isOpenable(node: TreeNode): boolean {
-  return node.type === 'file' && (node.name.endsWith('.md') || isImageFile(node.name))
+  return (
+    node.type === 'file' &&
+    (node.name.endsWith('.md') || isImageFile(node.name) || node.name === 'project.json')
+  )
 }
 
 /** Where a new file/folder created "on" this node should land. */

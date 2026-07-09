@@ -955,7 +955,11 @@ export default function App() {
                   entityIcons={projectData.entityIcons}
                   pinned={projectData.explorerPins}
                   onTogglePin={projectData.toggleExplorerPin}
-                  onSelect={(path) => documents.openFile(path)}
+                  onSelect={(path) =>
+                    path === joinPath(project.root, 'project.json')
+                      ? setSettingsOpen(true)
+                      : documents.openFile(path)
+                  }
                   onNewFile={(dir) => setModal({ kind: 'newFile', dir })}
                   onNewFolder={(dir) => setModal({ kind: 'newFolder', dir })}
                   onRename={(node) => setModal({ kind: 'rename', node })}
