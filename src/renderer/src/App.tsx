@@ -953,6 +953,43 @@ export default function App() {
             )}
           </div>
 
+          <div className="menu">
+            <button
+              className={`menubar__item${menuOpen === 'export' ? ' menubar__item--open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen === 'export'}
+              onClick={() => setMenuOpen((m) => (m === 'export' ? null : 'export'))}
+            >
+              Export ▾
+            </button>
+            {menuOpen === 'export' && (
+              <>
+                <div className="menu__backdrop" onClick={() => setMenuOpen(null)} />
+                <div className="menu-pop" role="menu">
+                  {(
+                    [
+                      ['Manuscript (Markdown)…', exportManuscript],
+                      ['EPUB…', exportEpub]
+                    ] as [string, () => void][]
+                  ).map(([label, run]) => (
+                    <button
+                      key={label}
+                      className="menu-pop__row"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(null)
+                        void run()
+                      }}
+                    >
+                      <span className="menu-pop__check" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
           <button
             className={`menubar__item${panels.open.help ? ' menubar__item--active' : ''}`}
             title="Help — features, shortcuts, and connecting Claude"

@@ -51,6 +51,13 @@ neither.
 
 ## See it in action
 
+**Jump anywhere in a keystroke.** Quick Open (`⌘P`) fuzzy-matches by file name
+_and_ folder path; a command palette (`⌘⇧P`) runs everything else.
+
+<div align="center">
+<img src="docs/images/demo-quickopen.gif" width="820" alt="Quick Open fuzzy-matching files by name and path, then jumping in" />
+</div>
+
 **Real Vim mode.** Modal editing with a status-bar mode chip and a mode-colored
 cursor — and mentions reveal their `@{…}` braces only where your selection lands.
 
@@ -170,6 +177,11 @@ nothing drifts.
 - Both **strip your scaffolding on the way out**: frontmatter, `%%` notes,
   `{>>comments<<}`, thread markers — gone; `{==highlights==}` and `@{mentions}`
   unwrapped; tracked changes accepted.
+- Find them in the **Export** menu (or the command palette).
+
+<div align="center">
+<img src="docs/images/export-menu.png" width="720" alt="The Export menu with Manuscript (Markdown) and EPUB options" />
+</div>
 
 ### Look & feel
 
