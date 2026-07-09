@@ -1,0 +1,26 @@
+appId: com.somedaywriter.app
+productName: SomedayWriter
+
+directories:
+  buildResources: build
+  output: dist
+
+# electron-vite emits the app into out/; ship that, not the sources.
+files:
+  - out/**
+  - package.json
+
+# Local, unsigned build for now — skip code signing + notarization. When we set
+# up real distribution, drop `identity: null` and add a Developer ID.
+mac:
+  target:
+    - dmg
+  category: public.app-category.productivity
+  icon: build/icon.png
+  identity: null
+
+dmg:
+  title: ${productName}
+
+# No native modules, so nothing to rebuild.
+npmRebuild: false
