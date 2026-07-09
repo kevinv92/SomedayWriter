@@ -49,22 +49,48 @@ neither.
 
 ---
 
-## A look around
+## See it in action
 
-**Trace your storylines.** The Project Threads · Timeline lays out one lane per
-thread, with the dots and branches showing exactly where plots cross and merge.
+**Real Vim mode.** Modal editing with a status-bar mode chip and a mode-colored
+cursor — and mentions reveal their `@{…}` braces only where your selection lands.
 
 <div align="center">
-<img src="docs/images/threads-timeline.png" width="820" alt="Project Threads Timeline — one lane per thread with intersections and branch/merge topology" />
+<img src="docs/images/demo-vim.gif" width="820" alt="Vim mode: NORMAL, VISUAL and INSERT with a live selection" />
 </div>
 
-**Keyboard-first, always.** Quick Open, a command palette, and clear document
-state at a glance.
+**`@`-mention autocomplete from your real cast.** Type `@` and pick from your
+actual characters, locations and threads — aliases and all.
 
 <div align="center">
-<img src="docs/images/export.png" width="600" alt="Command palette showing Export to EPUB and Export Manuscript commands" />
-&nbsp;&nbsp;
-<img src="docs/images/save-states.png" width="300" alt="Save-state button showing Unsaved" />
+<img src="docs/images/demo-autocomplete.gif" width="820" alt="Typing @ and getting completion from real project entities" />
+</div>
+
+**Go-to-definition, for prose.** `⌘`-click any mention to jump straight to that
+character's page.
+
+<div align="center">
+<img src="docs/images/demo-mentions.gif" width="820" alt="Cmd-clicking a mention to open the character profile" />
+</div>
+
+**Trace your storylines.** The Threads · Timeline lays out one lane per thread;
+pick a thread to follow and the lanes refocus around it.
+
+<div align="center">
+<img src="docs/images/demo-threads.gif" width="820" alt="Threads timeline reordering as you follow different threads" />
+</div>
+
+**Catch mistakes as you type.** Opt-in spelling/grammar diagnostics squiggle
+under the problem — quietly, and only when you turn them on.
+
+<div align="center">
+<img src="docs/images/demo-diagnostics.gif" width="820" alt="Inline diagnostics squiggles under misspelled words" />
+</div>
+
+**Never lose your place.** Live typing in a warm serif column, with the save
+state always clear in the menubar.
+
+<div align="center">
+<img src="docs/images/demo-writing.gif" width="820" alt="Typing prose; the save button goes from Saved to Unsaved to Saved" />
 </div>
 
 ---
