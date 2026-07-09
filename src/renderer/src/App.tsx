@@ -22,7 +22,7 @@ import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
 import { ReferencesPanel } from './components/ReferencesPanel'
 import { ThreadsPanel } from './components/ThreadsPanel'
-import { QuickInput, type QuickCommand, type QuickFile } from './components/QuickInput'
+import { QuickInput, type QuickFile } from './components/QuickInput'
 import { Icon } from './components/Icon'
 import { SyntaxHelp } from './components/SyntaxHelp'
 import { AnalysisService } from './analysis/analysis-service'
@@ -40,6 +40,7 @@ import { BUILTIN_THEME_OPTIONS } from './lib/theme'
 import { usePanels } from './hooks/usePanels'
 import { ACCENTS, useSettings } from './hooks/useSettings'
 import { useDocuments } from './hooks/useDocuments'
+import { useCommands } from './hooks/useCommands'
 import { entityTypeMeta, resolveEntityTypes } from '@shared/entity-types'
 import { entityTemplate } from './lib/entity-template'
 import { basename, joinPath, parentDir, posixRelativePath } from './lib/paths'
@@ -702,6 +703,26 @@ export default function App() {
     }
   }, [])
 
+  // Command registry (SPEC → command palette). The palette, menus, and
+  // keybindings all draw from this one list — see useCommands. Built before the
+  // no-project early return so the hook order is stable.
+  const commands = useCommands({
+    documents,
+    panels,
+    settings,
+    entityTypes,
+    editorHandle,
+    newProject,
+    openProject,
+    forceRefresh,
+    goToDefinition,
+    togglePin,
+    insertImageFromPicker,
+    onNewFile: (entityType) =>
+      tree && setModal({ kind: 'newFile', dir: tree.path, entityType }),
+    onNewFolder: () => tree && setModal({ kind: 'newFolder', dir: tree.path })
+  })
+
   if (!project) {
     return (
       <div className="welcome">
@@ -755,205 +776,6 @@ export default function App() {
     '--editor-font-size': ed?.fontSize ? `${ed.fontSize}px` : '16px',
     '--editor-line-height': ed?.lineHeight ? String(ed.lineHeight) : '1.7'
   } as CSSProperties
-
-  // Command registry (SPEC → command palette). Declared once here; the palette,
-  // and later menus/keybindings, draw from it.
-  const commands: QuickCommand[] = [
-    { id: 'nav-back', title: 'Go Back', hint: '⌘[', run: () => documents.goBack() },
-    {
-      id: 'nav-forward',
-      title: 'Go Forward',
-      hint: '⌘]',
-      run: () => documents.goForward()
-    },
-    { id: 'new-project', title: 'New Project…', run: () => void newProject() },
-    { id: 'open-project', title: 'Open Project…', run: () => void openProject() },
-    {
-      id: 'format-bold',
-      title: 'Bold',
-      hint: '⌘B',
-      run: () => editorHandle.current?.format('bold')
-    },
-    {
-      id: 'format-italic',
-      title: 'Italic',
-      hint: '⌘I',
-      run: () => editorHandle.current?.format('italic')
-    },
-    {
-      id: 'format-link',
-      title: 'Insert Link',
-      hint: '⌘K',
-      run: () => editorHandle.current?.format('link')
-    },
-    {
-      id: 'new-file',
-      title: 'New File',
-      run: () => tree && setModal({ kind: 'newFile', dir: tree.path })
-    },
-    // One "New <Type>" per registered entity type (M20) — opens the New-File
-    // modal with that type preselected, seeding its frontmatter skeleton.
-    ...entityTypes.map((t) => ({
-      id: `new-${t.type}`,
-      title: `New ${t.label}`,
-      run: () => tree && setModal({ kind: 'newFile', dir: tree.path, entityType: t.type })
-    })),
-    {
-      id: 'new-folder',
-      title: 'New Folder',
-      run: () => tree && setModal({ kind: 'newFolder', dir: tree.path })
-    },
-    {
-      id: 'find-in-project',
-      title: 'Find in Project',
-      hint: '⌘⇧F',
-      run: () => panels.toggle('search')
-    },
-    {
-      id: 'find-references',
-      title: 'Find References…',
-      run: () => panels.set('refs', true)
-    },
-    {
-      id: 'go-to-definition',
-      title: 'Go to Definition',
-      run: () => {
-        const ctx = editorHandle.current?.cursorContext()
-        if (ctx) goToDefinition(ctx.lineText, ctx.column)
-      }
-    },
-    {
-      id: 'toggle-inspector',
-      title: 'Toggle Inspector',
-      run: () => panels.toggle('inspector')
-    },
-    {
-      id: 'toggle-companion',
-      title: 'Toggle Companion',
-      run: () => panels.toggle('companion')
-    },
-    {
-      id: 'toggle-threads',
-      title: 'Toggle Threads',
-      run: () => panels.toggle('threads')
-    },
-    {
-      id: 'toggle-braid',
-      title: 'Toggle Thread Braid',
-      run: () => panels.toggle('braid')
-    },
-    {
-      id: 'reload-from-disk',
-      title: 'Reload from Disk',
-      run: () => void forceRefresh()
-    },
-    {
-      id: 'pin-to-companion',
-      title: 'Pin Current File to Companion',
-      run: () => {
-        if (documents.activePath) {
-          togglePin(documents.activePath)
-          panels.set('companion', true)
-        }
-      }
-    },
-    {
-      id: 'toggle-vim',
-      title: `Toggle Vim (${settings.vim ? 'on' : 'off'})`,
-      run: () => settings.toggleVim()
-    },
-    {
-      id: 'toggle-diagnostics',
-      title: `Toggle Diagnostics (${settings.diagnostics ? 'on' : 'off'})`,
-      run: () => settings.toggleDiagnostics()
-    },
-    {
-      id: 'toggle-autosave',
-      title: `Toggle Autosave (${settings.autosave ? 'on' : 'off'})`,
-      run: () => settings.toggleAutosave()
-    },
-    {
-      id: 'theme-light',
-      title: 'Theme: Warm Paper (Light)',
-      run: () => settings.changeTheme('light')
-    },
-    {
-      id: 'theme-dark',
-      title: 'Theme: Warm Dusk (Dark)',
-      run: () => settings.changeTheme('dark')
-    },
-    {
-      id: 'theme-auto',
-      title: 'Theme: Match System',
-      run: () => settings.changeTheme('auto')
-    },
-    {
-      id: 'cycle-accent',
-      title: `Cycle Accent (${settings.accent})`,
-      run: () => settings.cycleAccent()
-    },
-    {
-      id: 'toggle-focus',
-      title: `Toggle Focus Mode (${settings.focusMode ? 'on' : 'off'})`,
-      run: () => settings.toggleFocus()
-    },
-    {
-      id: 'add-comment',
-      title: 'Add Comment',
-      run: () => editorHandle.current?.format('comment')
-    },
-    {
-      id: 'suggest-delete',
-      title: 'Suggest Deletion (track change)',
-      run: () => editorHandle.current?.format('suggest-delete')
-    },
-    {
-      id: 'suggest-insert',
-      title: 'Suggest Insertion (track change)',
-      run: () => editorHandle.current?.format('suggest-insert')
-    },
-    {
-      id: 'accept-change',
-      title: 'Accept Change at Cursor',
-      run: () => editorHandle.current?.resolveChange(true)
-    },
-    {
-      id: 'reject-change',
-      title: 'Reject Change at Cursor',
-      run: () => editorHandle.current?.resolveChange(false)
-    },
-    {
-      id: 'format-table',
-      title: 'Format Table (align columns)',
-      run: () => editorHandle.current?.formatTable()
-    },
-    {
-      id: 'insert-image',
-      title: 'Insert Image…',
-      run: () => void insertImageFromPicker()
-    },
-    {
-      id: 'syntax-reference',
-      title: 'Markdown & Syntax Reference',
-      run: () => panels.set('help', true)
-    },
-    {
-      id: 'save',
-      title: 'Save',
-      hint: '⌘S',
-      run: () => {
-        if (documents.activePath) void documents.saveTab(documents.activePath)
-      }
-    },
-    {
-      id: 'close-tab',
-      title: 'Close Tab',
-      hint: '⌘W',
-      run: () => {
-        if (documents.activePath) documents.closeTab(documents.activePath)
-      }
-    }
-  ]
 
   // The active file's position among its reading-ordered `.md` siblings, for the
   // Inspector — derived from the already-sorted tree (matches the explorer).
