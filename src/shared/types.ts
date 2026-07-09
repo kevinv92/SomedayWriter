@@ -186,6 +186,18 @@ export type GrammarSettings = {
   /** Premium cloud credentials. Live only in main; never sent to the renderer. */
   apiKey?: string
   username?: string
+  /** Attach a real language server over LSP (Phase 10, M27) instead of the HTTP
+   * checker — e.g. `ltex-ls` for LanguageTool. `command` is the server argv
+   * (`["ltex-ls"]` or `["java","-jar","…/ltex-ls.jar"]`). When set (and
+   * `enabled`), the LSP engine supersedes the HTTP `url`. Diagnostics arrive as
+   * push notifications, so this is a live connection, not a per-edit request. */
+  lsp?: {
+    command: string[]
+    /** Overrides the top-level `language` for the server's config. */
+    language?: string
+    /** Workspace root the server sees; defaults to the file's directory. */
+    rootUri?: string
+  }
 }
 
 /** One grammar/style hit from the external checker (Phase 10), in the offset form

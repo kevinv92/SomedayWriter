@@ -32,6 +32,7 @@ import {
 } from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
 import { checkGrammar } from './grammar'
+import { lspSync, lspClose, shutdownLsp, setLspDiagnosticsSink } from './lsp'
 import {
   DEFAULT_IGNORE,
   defaultProjectConfig,
@@ -47,6 +48,9 @@ import { findMatches, replaceAll } from './search'
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
 let currentProject: ProjectMeta | null = null
+
+// The single app window, kept so main can push (e.g. LSP diagnostics) to it.
+let mainWindow: BrowserWindow | null = null
 
 // A privileged scheme so the sandboxed renderer can display project images
 // without file:// access. `writer-asset://asset/<project-relative path>` serves
@@ -166,6 +170,10 @@ function createWindow(): void {
     }
   })
 
+  mainWindow = win
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null
+  })
   win.on('ready-to-show', () => win.show())
 
   // Open external links in the OS browser, never in-app.
@@ -322,10 +330,17 @@ function registerIpc(): void {
 
   // --- external analysis (Phase 10) ---
 
-  // Grammar/style check via LanguageTool; config (incl. any key) read in main.
+  // Grammar/style check via LanguageTool HTTP; config (incl. any key) read in main.
   ipcMain.handle('analysis:grammar', (_e, text: string): Promise<GrammarMatch[]> =>
     checkGrammar(text)
   )
+
+  // Language-server engine (M27): sync a doc / close it. Diagnostics come back
+  // asynchronously over the 'lsp:diagnostics' push channel (below).
+  ipcMain.handle('lsp:sync', (_e, path: string, text: string): Promise<void> =>
+    lspSync(path, text)
+  )
+  ipcMain.handle('lsp:close', (_e, path: string): void => lspClose(path))
 
   // --- story intelligence (Phase 5) ---
 
@@ -591,12 +606,19 @@ function registerIpc(): void {
 app.whenReady().then(() => {
   registerAssetProtocol()
   registerIpc()
+  // Push LSP diagnostics (M27) to the renderer as the server publishes them.
+  setLspDiagnosticsSink((uri, matches) => {
+    mainWindow?.webContents.send('lsp:diagnostics', uri, matches)
+  })
   createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+// Stop any language server before exit so no child process is orphaned.
+app.on('will-quit', () => shutdownLsp())
 
 app.on('window-all-closed', () => {
   // macOS apps typically stay alive until Cmd+Q.

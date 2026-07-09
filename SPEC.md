@@ -1228,7 +1228,34 @@ The network call runs in **main**; `apiKey`/`username` are **stripped from
 `settings:get`** so they never reach the renderer. Unconfigured / disabled / any
 error → `[]`, so a down checker can never break the editor. Text size limits +
 per-request throttling (cloud free-tier) and quick-fix from `replacements` are
-follow-ups. **M27 (real LSP via `ltex-ls`) still open.**
+follow-ups.
+
+**Built — M27 (real LSP):** `src/main/lsp.ts` is a minimal LSP client — main
+spawns a language server, speaks JSON-RPC over its stdio (Content-Length framing,
+`initialize`/`initialized`, full-sync `didOpen`/`didChange`, `workspace/
+configuration` echo for ltex), and forwards the server's **push**
+`publishDiagnostics` up to the renderer. LSP `Position`s are converted to editor
+offsets in main (it mirrors each doc's text), and the mapped `GrammarMatch[]` are
+pushed over a `lsp:diagnostics` channel to the renderer `createLspProvider`
+(registered behind the facade next to spell + the HTTP checker). Config extends
+the same `grammar` block — set `lsp.command` (the server argv) and it **supersedes
+the HTTP `url`**; `ltex-ls` gives LanguageTool:
+
+```jsonc
+"grammar": {
+  "enabled": true,
+  "language": "en-US",
+  "lsp": { "command": ["ltex-ls"] }   // or ["java","-jar",".../ltex-ls.jar"]
+}
+```
+
+The server is spawned **lazily on the first sync** (which only happens while
+diagnostics are on — nothing spawns when grammar is off), reused across edits,
+restarted on a command change, and stopped on `will-quit`. Because it's push, a
+live edit re-publishes without a per-edit request. Verified end-to-end against a
+mock LSP server (a warning squiggle from a `publishDiagnostics` notification, no
+orphaned child on quit). Still open: server crash/backoff UX, `codeAction`
+quick-fixes, and surfacing config errors to the user.
 
 ### Phase 11 — MCP server (committed)
 

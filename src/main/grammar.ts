@@ -37,6 +37,9 @@ type LtMatch = {
 export async function checkGrammar(text: string): Promise<GrammarMatch[]> {
   if (!text.trim()) return []
   const cfg: GrammarSettings = (await readSettings()).grammar ?? {}
+  // A configured language server (M27) takes precedence — it pushes diagnostics
+  // over its own channel, so the HTTP engine stays quiet to avoid duplicates.
+  if (cfg.lsp?.command?.length) return []
   if (!cfg.enabled || !cfg.url) return []
 
   const body = new URLSearchParams({

@@ -8,6 +8,7 @@ import { createEntityProvider } from '../analysis/providers/entity-provider'
 import { createFrontmatterProvider } from '../analysis/providers/frontmatter-provider'
 import { createSpellProvider } from '../analysis/providers/spell-provider'
 import { createLanguageToolProvider } from '../analysis/providers/languagetool-provider'
+import { createLspProvider } from '../analysis/providers/lsp-provider'
 import { entityAt } from '../lib/mentions'
 
 /** Per-project pin maps keyed by project root — persisted whole so one project's
@@ -83,6 +84,7 @@ export function useProject(options: UseProjectOptions): ProjectApi {
     service.register(frontmatterProvider.provider)
     service.register(createSpellProvider())
     service.register(createLanguageToolProvider())
+    service.register(createLspProvider())
     return service
   }, [entityProvider, frontmatterProvider])
   useEffect(() => () => analysis.dispose(), [analysis])

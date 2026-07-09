@@ -126,7 +126,24 @@ const api = {
   /** Grammar/style check (Phase 10) — routed to LanguageTool in main. Returns
    * offset-based hits; `[]` when the checker is off/unconfigured. */
   checkGrammar: (text: string): Promise<GrammarMatch[]> =>
-    ipcRenderer.invoke('analysis:grammar', text)
+    ipcRenderer.invoke('analysis:grammar', text),
+
+  /** Sync a document to the language server (M27). No-op unless the LSP engine
+   * is configured; diagnostics come back via `onGrammarDiagnostics`. */
+  lspSync: (path: string, text: string): Promise<void> =>
+    ipcRenderer.invoke('lsp:sync', path, text),
+  /** Tell the language server a document closed (M27). */
+  lspClose: (path: string): Promise<void> => ipcRenderer.invoke('lsp:close', path),
+  /** Subscribe to pushed grammar diagnostics from the language server (M27).
+   * Returns an unsubscribe. */
+  onGrammarDiagnostics: (
+    cb: (uri: string, matches: GrammarMatch[]) => void
+  ): (() => void) => {
+    const listener = (_e: unknown, uri: string, matches: GrammarMatch[]): void =>
+      cb(uri, matches)
+    ipcRenderer.on('lsp:diagnostics', listener)
+    return () => ipcRenderer.removeListener('lsp:diagnostics', listener)
+  }
 }
 
 export type Api = typeof api
