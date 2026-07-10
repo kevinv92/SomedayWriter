@@ -208,9 +208,20 @@ export function Editor({
     if (revealTarget.endColumn == null && adapter) {
       let raf = 0
       let frames = 0
-      const MAX_FRAMES = 12 // ~200ms at 60fps — long enough to outlast the steal
+      let stable = 0
+      // Re-grab focus until it *holds* for a few consecutive frames — the overlay
+      // input steals it back on unmount, and on a slow (dev) build that steal can
+      // land well after a fixed ~200ms window, so a frame count alone kept losing
+      // the race. Stop once focus sticks (~100ms) or a generous ceiling (~0.75s).
+      const MAX_FRAMES = 45
+      const STABLE_NEEDED = 6
       const grab = (): void => {
-        if (!adapter.hasFocus()) adapter.focus()
+        if (adapter.hasFocus()) {
+          if (++stable >= STABLE_NEEDED) return
+        } else {
+          adapter.focus()
+          stable = 0
+        }
         if (++frames < MAX_FRAMES) raf = requestAnimationFrame(grab)
       }
       grab()
