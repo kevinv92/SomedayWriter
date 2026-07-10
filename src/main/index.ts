@@ -198,6 +198,30 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
+  // The renderer is a single-page app — it must **never** navigate the window
+  // away from itself. Without this, dropping a drag onto the window (e.g. after
+  // panning the Threads braid) makes the browser navigate to the dragged
+  // content and **blanks the whole app**. Block any navigation off the current
+  // page; send real external URLs to the OS browser instead. Same-origin
+  // navigations (e.g. a dev full-reload) are allowed through.
+  win.webContents.on('will-navigate', (event, url) => {
+    const current = win.webContents.getURL()
+    if (url === current) return // a plain reload of the same page
+    // In dev the app is served over http://localhost — allow same-origin
+    // navigations (Vite HMR / full reload). Everything else (a file:// drop, an
+    // external link) is blocked so it can't replace and blank the app; real
+    // http(s) URLs open in the OS browser.
+    try {
+      const u = new URL(url)
+      const c = new URL(current)
+      if (u.protocol.startsWith('http') && u.origin === c.origin) return
+    } catch {
+      /* unparseable → block below */
+    }
+    event.preventDefault()
+    if (/^https?:\/\//i.test(url)) shell.openExternal(url)
+  })
+
   // electron-vite sets this in dev; in prod we load the built file.
   const devUrl = process.env['ELECTRON_RENDERER_URL']
   if (devUrl) {

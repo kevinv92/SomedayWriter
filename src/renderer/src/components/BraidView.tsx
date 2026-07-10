@@ -101,6 +101,9 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
 
   // --- pan / zoom ---
   const onPointerDown = (e: React.MouseEvent) => {
+    // Don't let the drag start a native text-selection / element drag — that's
+    // what could end in a drop that navigates the window and blanks the app.
+    e.preventDefault()
     pan.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty }
   }
   const onPointerMove = (e: React.MouseEvent) => {
