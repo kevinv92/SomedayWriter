@@ -180,15 +180,56 @@ The Woman ●───●────●─────────────�
 
 The fat middle (Ch3) now _looks_ fat and thin beats compress — so a **saggy
 middle** or a **rushed climax** (a payoff sitting in a sliver of a column) shows
-at a glance. Faint per-column word counts (toggleable), exact on hover. Reuses the
-scenes' existing positions — only x-spacing changes, so it's cheap. Pairs with #4
-(intensity → lane _height_): width = page-time, height = intensity.
+at a glance. Faint per-column word counts (toggleable), exact on hover. Pairs with
+#4 (intensity → lane _height_): width = page-time, height = intensity.
+
+**Design (resolved).**
+
+- **Data it needs (new):** per-scene word counts, which the thread model doesn't
+  carry today. Add a small IPC **`story:manuscriptScenes` → `{ path, order, words }[]`**
+  (the scene spine + word counts — the same list Slice C's `neglectedThreads`
+  already computes internally; lift it into a shared helper and reuse it for the
+  minimap #8 too). BraidView fetches it alongside `storyThreads()`.
+- **X mapping:** in _By length_ mode, a column's centre is the **cumulative word
+  count** to that scene (scaled to a min/max column width so a 50-word aside is
+  still clickable and a 5k-word chapter doesn't run off). In _Even_ mode, today's
+  uniform `COL_W`. A `colXWeighted(path)` swaps in for `colX`; everything else
+  (nodes, crossings, links, #4 offsets) already routes through `colX`, so the swap
+  is localized.
+- **Control:** a `Spacing: Even | By length` toggle in the header, beside `Order:`.
+- **Open (minor):** clamp/normalise extreme scene lengths; whether to show the
+  faint word-count labels by default.
+
+_Status: designed — gated on the `story:manuscriptScenes` helper (shared with #8)._
 
 ### 4. Beat intensity → lane shape
 
 Let a beat mark its role — `setup` / `rise` / `climax` / `fall` / `resolve` — and
-drive the lane's height or colour from it. Now the braid **looks like a story's
-shape** (rising action, convergence, denouement), not a flat dotted grid.
+drive the lane's shape from it. Now the braid **looks like a story's shape**
+(rising action, convergence, denouement), not a flat dotted grid.
+
+**Design (resolved).** Map intensity to a **vertical offset within the lane band**,
+so the lane becomes a _tension curve_ that peaks at the climax:
+
+| intensity                  | offset (up from lane baseline) |
+| -------------------------- | ------------------------------ |
+| `setup` / `resolve` / none | 0 (baseline)                   |
+| `rise` / `fall`            | −½ band                        |
+| `climax`                   | −full band                     |
+
+- Each beat node moves to `y = laneY(row) − offset(intensity)`; the lane line
+  becomes a **polyline** through the offset nodes (not a straight line), so an arc
+  visibly rises into its `climax` and falls to `resolve`. Node **radius** scales a
+  little too (climax largest) as a secondary cue.
+- The offset stays **inside the lane's band** (`LANE_H`), so lanes never collide;
+  a beat with no intensity sits on the baseline (unchanged from today).
+- Reads straight off the existing `intensity` field (Foundations) — no data or IPC
+  change; purely a render change in `BraidView` (compute per-beat y + swap the lane
+  `<line>` for a `<polyline>`).
+- **Open (minor):** colour ramp as an _additional_ cue (climax more saturated) —
+  deferred; the vertical shape carries it. Widening `LANE_H` if peaks feel cramped.
+
+_Status: designed — ready to build after #3 (they both touch the lane render)._
 
 ### 5. Thread lifecycle — `state: opens | closes | touches`
 
@@ -325,7 +366,31 @@ dense climax cluster"), which is exactly the value the other improvements add.
 Should it just _be_ the word-weighted pacing chart (#3) rather than a separate
 strip? Horizontal-only, or a 2-D mini-braid when the lane count is also tall?
 
----
+**Design (resolved).**
+
+- **A 2-D mini-braid**, not a 1-D strip — the board scrolls both ways, so the
+  viewport is a rectangle in x _and_ y. Render a second small SVG (~64px tall,
+  full width, fixed at the bottom of the pane) drawing the **whole board at a
+  fit-scale**: lanes as thin coloured lines, beats as 1px marks, act ticks. No
+  labels, no per-node detail — it's a shape, not a reader.
+- **Shared geometry:** factor the board layout (`colX`/`laneY`/bounds) so the
+  minimap renders from the _same_ functions at a different scale — it inherits
+  #3's word-weighting and #4's intensity offsets for free (so it really is the
+  story's silhouette).
+- **Viewport rect + sync (the crux):** the braid already holds `view = {tx, ty, k}`
+  and the SVG size. The visible board rect is
+  `[-tx/k, -ty/k]  size  [W/k, H/k]`; draw that as a rectangle on the minimap at
+  fit-scale. Dragging the rect (or clicking) inverse-maps back to `tx/ty`; panning
+  the main board moves the rect — one shared `view` state, two views. **Two-way for
+  free.**
+- **Fit/zoom:** a fit-scale is computed from the board bounds; the existing ⤢
+  reset covers "fit". No separate zoom control for v1.
+- **Density guard:** on a huge board the thin lines suffice; if beats-as-marks get
+  noisy past ~150 scenes, drop the marks and keep lanes (log it, per the no-silent-
+  caps rule).
+
+_Status: designed — best built last (it reflects #3/#4); depends on the shared
+board-geometry + `story:manuscriptScenes` from #3._
 
 ## Data-model sketch (for discussion, not committed)
 
@@ -432,14 +497,24 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
       `<main>`); ideally `Timeline | List` modes of one Threads view.
 - [ ] Per-thread stats table (count, words, first/last, gaps, open/closed).
 
-### Not ready — needs a design pass first
+### Designed — ready to build (was "not ready")
 
-- ⛬ **#4 intensity → lane shape** — authoring is trivial (an enum), but the
-  _visual_ mapping (lane height? colour ramp? both?) needs a design pass.
-- ⛬ **#3 word-weighted axis** — a spacing toggle + column width ∝ word count
-  (Foundations supplies the counts); pin down the even↔weighted interaction.
-- ⛬ **#8 minimap / scrubber** — density, a fit/zoom control, and 2-D vs horizontal
-  are open (see #8 above).
+All three now have a resolved **Design** section in their entry above. Build order
+and the one shared dependency:
+
+- **#3 word-weighted axis** → needs a new **`story:manuscriptScenes`**
+  (`{ path, order, words }[]`) helper — lift the scene-words scan Slice C already
+  does into a shared function. Swap `colX` → `colXWeighted` behind an `Even | By
+length` toggle. _Build first — it unblocks #8._
+- **#4 intensity → lane shape** → pure render change: per-beat vertical offset
+  (climax peaks) + a `<polyline>` lane; no new data. _Build with/after #3 (both
+  touch the lane render)._
+- **#8 minimap / scrubber** → a 2-D mini-braid from shared board geometry + a
+  viewport rect bound to the existing `view {tx,ty,k}` (two-way sync for free).
+  _Build last — it reflects #3 + #4._
+
+Shared prerequisite for #3 and #8: factor the board layout (`colX`/`laneY`/bounds)
+and the scene-words scan into reusable helpers first.
 
 ### On landing (every slice)
 
