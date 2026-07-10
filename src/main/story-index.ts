@@ -5,7 +5,9 @@ import type {
   EntityRef,
   FileInspection,
   Thread,
-  ThreadBeat
+  ThreadBeat,
+  ThreadIntensity,
+  ThreadState
 } from '../shared/types'
 import { listMarkdownFiles } from './fs-project'
 import {
@@ -376,20 +378,61 @@ export async function sceneEntities(
   return out
 }
 
-/** Parse a scene's `threads:` frontmatter (M9). Supports the plain form
- * `[rebellion, romance]` and the per-beat-order form
- * `[{ name: rebellion, order: 3 }]`; ignores malformed entries. */
-function parseThreadTags(value: unknown): { tag: string; order: number | null }[] {
+/** A membership parsed from a scene's `threads:` frontmatter (or an inline
+ * marker) — the raw material for a beat before it's placed on a thread. */
+type ParsedTag = {
+  tag: string
+  /** Per-thread position, from the `pos` key (Threads v2, renamed from `order`). */
+  order: number | null
+  summary: string | null
+  intensity: ThreadIntensity | null
+  state: ThreadState
+}
+
+const INTENSITIES: readonly ThreadIntensity[] = [
+  'setup',
+  'rise',
+  'climax',
+  'fall',
+  'resolve'
+]
+const STATES: readonly ThreadState[] = ['opens', 'closes', 'touches']
+
+/** Parse a scene's `threads:` frontmatter (M9; extended in Threads v2). Supports
+ * the plain form `[rebellion, romance]` and the object form
+ * `[{ name: rebellion, pos: 3, summary: '…', intensity: setup, state: opens }]`.
+ * `pos` is the per-thread order (renamed from `order`); unknown enum values are
+ * dropped and `state` defaults to `touches`. Malformed entries are ignored.
+ * Exported for unit tests. */
+export function parseThreadTags(value: unknown): ParsedTag[] {
   if (!Array.isArray(value)) return []
-  const out: { tag: string; order: number | null }[] = []
+  const out: ParsedTag[] = []
   for (const item of value) {
     if (typeof item === 'string' && item.trim()) {
-      out.push({ tag: item.trim(), order: null })
+      out.push({
+        tag: item.trim(),
+        order: null,
+        summary: null,
+        intensity: null,
+        state: 'touches'
+      })
     } else if (item && typeof item === 'object') {
-      const name = (item as { name?: unknown }).name
-      const order = (item as { order?: unknown }).order
+      const o = item as Record<string, unknown>
+      const name = o.name
       if (typeof name === 'string' && name.trim()) {
-        out.push({ tag: name.trim(), order: typeof order === 'number' ? order : null })
+        const summary =
+          typeof o.summary === 'string' && o.summary.trim() ? o.summary.trim() : null
+        out.push({
+          tag: name.trim(),
+          order: typeof o.pos === 'number' ? o.pos : null,
+          summary,
+          intensity: INTENSITIES.includes(o.intensity as ThreadIntensity)
+            ? (o.intensity as ThreadIntensity)
+            : null,
+          state: STATES.includes(o.state as ThreadState)
+            ? (o.state as ThreadState)
+            : 'touches'
+        })
       }
     }
   }
@@ -398,18 +441,24 @@ function parseThreadTags(value: unknown): { tag: string; order: number | null }[
 
 /** Inline thread markers (Phase 9, M25b): an `<!-- thread:x -->` opening tag in a
  * scene body scopes part of the scene to thread `x`. Here they add the scene to
- * thread `x`'s membership (deduped, unordered); splitting into sub-scene beats at
- * the marker offsets is future work. */
-function parseInlineThreadTags(text: string): { tag: string; order: number | null }[] {
+ * thread `x`'s membership (deduped, unordered, no beat fields); splitting into
+ * sub-scene beats at the marker offsets is future work. */
+function parseInlineThreadTags(text: string): ParsedTag[] {
   const re = /<!--\s*thread:([\w-]+)\s*-->/g
   const seen = new Set<string>()
-  const out: { tag: string; order: number | null }[] = []
+  const out: ParsedTag[] = []
   let m: RegExpExecArray | null
   while ((m = re.exec(text)) !== null) {
     const key = m[1].toLowerCase()
     if (!seen.has(key)) {
       seen.add(key)
-      out.push({ tag: m[1], order: null })
+      out.push({
+        tag: m[1],
+        order: null,
+        summary: null,
+        intensity: null,
+        state: 'touches'
+      })
     }
   }
   return out
@@ -461,7 +510,7 @@ export async function buildThreads(
     }
     const { data } = parseFrontmatter(text)
     // Frontmatter `threads:` + inline `<!-- thread:x -->` markers (M25b), deduped.
-    const byKey = new Map<string, { tag: string; order: number | null }>()
+    const byKey = new Map<string, ParsedTag>()
     for (const t of [...parseThreadTags(data.threads), ...parseInlineThreadTags(text)]) {
       if (!byKey.has(t.tag.toLowerCase())) byKey.set(t.tag.toLowerCase(), t)
     }
@@ -469,14 +518,22 @@ export async function buildThreads(
     if (!tags.length) continue
     const title = deriveTitle(text, path)
     const manuscriptOrder = readOrder(text)
-    for (const { tag, order } of tags) {
+    for (const { tag, order, summary, intensity, state } of tags) {
       const key = tag.toLowerCase()
       let group = groups.get(key)
       if (!group) {
         group = { tag, beats: [] }
         groups.set(key, group)
       }
-      group.beats.push({ path, title, manuscriptOrder, threadOrder: order })
+      group.beats.push({
+        path,
+        title,
+        manuscriptOrder,
+        threadOrder: order,
+        summary,
+        intensity,
+        state
+      })
     }
   }
 

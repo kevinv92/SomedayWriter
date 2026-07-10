@@ -54,6 +54,10 @@ const WRITER: SyntaxRow[] = [
   },
   { syntax: 'aliases: [Irene, the woman]', desc: 'Other names a mention can match.' },
   { syntax: 'threads: [the-case]', desc: 'Storylines a scene belongs to.' },
+  {
+    syntax: '- { name: the-case, summary: … }',
+    desc: 'A thread with a one-line beat summary (shown on the braid; pos: sets its order on that thread).'
+  },
   { syntax: 'order: 10', desc: "A scene's manuscript position." }
 ]
 

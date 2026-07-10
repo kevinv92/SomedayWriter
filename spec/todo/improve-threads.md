@@ -3,7 +3,9 @@
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _needs design_ (drafting the shape; nothing committed).
+**Status:** _in progress_ — **Foundations + Slice A (`summary`) shipped** (beat
+data model + parse/build + the braid hover summary + Scandal example); #2–#8 are
+still design-drafting. See the Tasks section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -355,32 +357,32 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
 
 ### Foundations — the beat data model (blocks the rest)
 
-- [ ] **Shared types** (`src/shared/types.ts`): add optional fields to the beat
-      shape carried on `Thread` — `summary?: string`,
-      `intensity?: 'setup' | 'rise' | 'climax' | 'fall' | 'resolve'`,
-      `state?: 'opens' | 'closes' | 'touches'`.
-- [ ] **Parse** (`parseThreadTags`, `src/main/story-index.ts`): **rename the
-      per-thread `order` key → `pos`** (clean break — preview; drop the old key);
-      read `summary` / `intensity` / `state` off the object form; default `state`
-      → `touches`; drop unknown enum values; keep the bare-id form working.
-- [ ] **Build** (`buildThreads`): attach the three fields to each beat; they ride
-      the existing `story:threads` IPC — no new channel.
+- [x] **Shared types** (`src/shared/types.ts`): `summary` / `intensity` /
+      `state` (+ `ThreadIntensity`, `ThreadState`) on `ThreadBeat`. ✅ `9f92a08`→
+- [x] **Parse** (`parseThreadTags`, `src/main/story-index.ts`): renamed the
+      per-thread `order` key → `pos` (clean break); reads `summary` / `intensity`
+      / `state`; defaults `state` → `touches`; drops unknown enums; bare-id form
+      kept. Exported for tests. ✅
+- [x] **Build** (`buildThreads`): attaches the three fields to each beat; rides
+      the existing `story:threads` IPC. ✅
 - [ ] **Per-scene word count** into the index (reuse the shared `countWords` over
-      the scene body) — needed by the gap lint (#2) and weighted axis (#3).
-- [ ] **Tests** (Vitest, main): `parseThreadTags` — each field, enum-invalid
-      dropped, `state` default, full back-compat; `buildThreads` carries them.
+      the scene body) — needed by the gap lint (#2) and weighted axis (#3). _(not
+      needed for Slice A; do with #2/#3.)_
+- [x] **Tests** (`src/main/story-index.test.ts`): `parseThreadTags` — each field,
+      `pos`-not-`order`, enum-invalid dropped, `state` default, back-compat. ✅
 
-### Slice A — `summary` [#1] · _smallest real win; do first_
+### Slice A — `summary` [#1] · _shipped (core)_
 
-- [ ] Braid: hover a beat dot → tooltip with its `summary`.
-- [ ] Follow-thread order: render `summary` as each row's caption (the arc outline).
-- [ ] Authoring: intellisense (`frontmatter-provider`/`-context`) offers `summary`
-      inside a `threads:` object; thread/scene templates (`entity-template`) +
-      registry know it; frontmatter help lists it.
-- [ ] Help & docs: syntax reference gains `threads: [{ name, order, summary }]`;
-      README "Story intelligence" bullet; in-app Help line.
-- [ ] Example: add `summary` to a handful of Scandal scenes (keep `sample-project`
-      minimal).
+- [x] Braid: hover a beat dot → its `summary` in the node tooltip
+      (`Title — summary`). ✅ (CDP-verified on the Scandal the-case arc.)
+- [x] Help & docs: syntax reference (in-app Help) gains the `{ name, summary }`
+      form; README "Story intelligence" bullet. ✅
+- [x] Example: `summary` added to the-case across five Scandal scenes. ✅
+- [ ] **Follow-up:** intellisense (`frontmatter-provider`/`-context`) offering
+      `summary`/`pos`/`intensity`/`state` inside a `threads:` object, + templates
+      (`entity-template`) — a bigger change (nested-object completion); ships next.
+- [ ] **Follow-up:** a dedicated "arc outline" list rendering (beyond the hover)
+      lands with the Companion thread-mode (#7) / dashboard (#6).
 
 ### Slice B — `state` lifecycle + branch/merge [#5]
 

@@ -154,10 +154,11 @@ nothing drifts.
   false positives.
 - **Find references** and **go-to-definition** (Cmd/Ctrl-click a mention) — "find
   usages / jump to definition," for prose.
-- **Panels** — an **Inspector** (what the app parses from a file), a **Companion**
-  that auto-follows the current scene's entities (with pin-to-freeze), a
-  **References** browser, **Threads**, and a **Project Threads · Timeline** braid
-  visualiser (one lane per thread, intersections, branch/merge topology).
+- **Panels** — a **Debug info** pane (what the app parses from a file), a
+  **Companion** that auto-follows the current scene's entities (with pin-to-freeze),
+  a **References** browser, **Threads**, and a **Project Threads · Timeline** braid
+  visualiser (one lane per thread, intersections, branch/merge topology). Give a
+  scene's thread a one-line **summary** and it shows on the braid beat.
 - **Project Health** — every `@{surface}` that no longer resolves (a dead
   reference from a rename or typo), click-to-jump.
 - **Alias rename refactor** — rename a character in its frontmatter and the app

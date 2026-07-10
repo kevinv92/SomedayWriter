@@ -1,6 +1,10 @@
 ---
 order: 40
-threads: [the-case, holmes-and-watson, the-disguise, royal-scandal]
+threads:
+  - { name: the-case, summary: 'the smoke-rocket plan is set' }
+  - holmes-and-watson
+  - the-disguise
+  - royal-scandal
 ---
 
 # The Plan

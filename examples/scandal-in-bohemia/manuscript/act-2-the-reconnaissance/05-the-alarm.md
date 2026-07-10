@@ -1,6 +1,8 @@
 ---
 order: 50
-threads: [the-case, the-disguise]
+threads:
+  - { name: the-case, summary: "the photograph's hiding spot is revealed" }
+  - the-disguise
 ---
 
 # The Alarm of Fire

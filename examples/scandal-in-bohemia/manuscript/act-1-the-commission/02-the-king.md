@@ -1,6 +1,8 @@
 ---
 order: 20
-threads: [the-case, royal-scandal]
+threads:
+  - { name: the-case, summary: 'Holmes is hired to recover the photograph' }
+  - royal-scandal
 ---
 
 # The King of Bohemia

@@ -1,6 +1,10 @@
 ---
 order: 70
-threads: [the-case, the-woman, royal-scandal, the-outwitting]
+threads:
+  - { name: the-case, summary: 'Irene has fled; the case is lost but resolved' }
+  - the-woman
+  - royal-scandal
+  - the-outwitting
 ---
 
 # The Empty Nest

@@ -278,11 +278,23 @@ export type FileInspection = {
 /** One scene on a thread (Phase 5, M9). `threadOrder` is the explicit per-thread
  * beat position when the scene declares one; otherwise it's null and the beat
  * falls back to `manuscriptOrder` (then title) for sequencing. */
+/** How intense a beat is on its thread — drives the lane's shape (Threads v2). */
+export type ThreadIntensity = 'setup' | 'rise' | 'climax' | 'fall' | 'resolve'
+
+/** A beat's lifecycle role on its thread: `opens` starts/branches it, `closes`
+ * ends/merges it, `touches` (default) is a normal mid-thread beat (Threads v2). */
+export type ThreadState = 'opens' | 'closes' | 'touches'
+
 export type ThreadBeat = {
   path: string
   title: string
   manuscriptOrder: number | null
+  /** Position within this thread — from the `pos` key (renamed from `order`). */
   threadOrder: number | null
+  /** One-line note of what the thread does in this scene (Threads v2). */
+  summary: string | null
+  intensity: ThreadIntensity | null
+  state: ThreadState
 }
 
 /** A story thread (Phase 5, M9): a storyline running across scenes. Membership +

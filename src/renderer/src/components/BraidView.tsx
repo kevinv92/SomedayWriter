@@ -253,7 +253,7 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
                         onMouseDown={(e) => e.stopPropagation()}
                         onClick={() => onOpen(b.path)}
                       >
-                        <title>{b.title}</title>
+                        <title>{b.summary ? `${b.title} — ${b.summary}` : b.title}</title>
                       </circle>
                     )
                   })}

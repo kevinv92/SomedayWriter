@@ -1,6 +1,9 @@
 ---
 order: 30
-threads: [the-case, the-woman, the-disguise]
+threads:
+  - { name: the-case, summary: 'scouts Briony Lodge and finds the hiding place' }
+  - the-woman
+  - the-disguise
 ---
 
 # Briony Lodge
