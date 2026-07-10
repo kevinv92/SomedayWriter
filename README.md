@@ -85,8 +85,13 @@ character's page.
 <img src="docs/images/demo-mentions.gif" width="820" alt="Cmd-clicking a mention to open the character profile" />
 </div>
 
-**Trace your storylines.** The Threads · Timeline lays out one lane per thread;
-pick a thread to follow and the lanes refocus around it.
+**Trace your storylines.** The **Threads Dashboard** lays out one lane per thread
+(`Timeline`) or a per-thread stats table (`List`). Tag a scene's beat with an
+`intensity` and the lane rises and falls with the arc's tension; flip the axis to
+**By length** and columns re-space by word count, so the timeline reads as pacing;
+a minimap scrubs a large board. The **List** shows each thread's scenes, words,
+span and status, and Project Health flags any thread that's gone quiet without
+resolving.
 
 <div align="center">
 <img src="docs/images/demo-threads.gif" width="820" alt="Threads timeline reordering as you follow different threads" />
@@ -156,9 +161,12 @@ nothing drifts.
   usages / jump to definition," for prose.
 - **Panels** — a **Debug info** pane (what the app parses from a file), a
   **Companion** that auto-follows the current scene's entities (with pin-to-freeze),
-  a **References** browser, **Threads**, and a **Project Threads · Timeline** braid
-  visualiser (one lane per thread, intersections, branch/merge topology). Give a
-  scene's thread a one-line **summary** and it shows on the braid beat.
+  a **References** browser, **Threads**, and a **Threads Dashboard** with a
+  `Timeline` braid (one lane per thread; intensity-shaped lanes, a word-weighted
+  axis toggle, open/close + branch/merge topology, and a minimap) and a `List` of
+  per-thread stats. Give a beat a one-line **summary**, `intensity`, and `state`
+  in its `threads:` frontmatter (with completion for all three); opening a thread
+  file shows its arc in the Companion.
 - **Project Health** — every `@{surface}` that no longer resolves (a dead
   reference from a rename or typo), click-to-jump.
 - **Alias rename refactor** — rename a character in its frontmatter and the app

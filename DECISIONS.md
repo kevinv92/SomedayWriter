@@ -338,3 +338,28 @@ initial design conversation.)
     strip machinery in Phase 5, the feature rides Phase 9's editorial-marks
     toolbox. _Why:_ file-level threads (M9, done) already feed the M10 braid, so
     inline is a low-priority refinement best built where its machinery lives.
+47. **The beat's descriptive field is `summary`, not `beat`.** In the thread
+    model a **beat** _is_ a scene's appearance on a thread — one node on that
+    thread's lane. The one-line note describing what the thread does there is a
+    field **on** that beat, named **`summary`**. _Why:_ calling the field `beat`
+    collided with the noun (a beat is the dot; you'd be putting a "beat" on a
+    beat). `summary` reads correctly in the frontmatter and in the follow-a-thread
+    outline. Part of Threads v2 (improvement #1).
+48. **Thread lifecycle is a per-beat `state`; branch/merge are inferred, not
+    declared.** A beat carries `state: opens | closes | touches` (default
+    `touches`) in its `threads:` object. `opens` starts an arc, `closes` resolves
+    it. **Branch and merge are derived** from topology — where an `opens`/`closes`
+    beat co-occurs (same scene) with another thread's beats — rather than from
+    explicit `branches-from` / `merges-into` fields. _Why:_ one small, local field
+    per beat is easier to author and keeps the relationship in the scene where it
+    happens; the braid already knows co-occurrence, so it can infer the connectors
+    for free. Powers the open/close caps, branch/merge connectors, and the
+    "opened-but-never-closed" pacing lint. Threads v2 (#5, #2).
+49. **The per-thread order key is `pos`, renamed from `order`.** A membership's
+    position within one thread is **`pos`** (`{ name: the-case, pos: 3 }`), not
+    `order`. Root frontmatter `order` stays the one narrative/reading-order axis
+    (tree sort, export spine, braid default x-axis). _Why:_ two different `order`s
+    on the same scene (read-order vs thread-local position) were a constant source
+    of confusion; `pos` ends the collision. A clean break (no back-compat for the
+    old per-thread `order`), taken while the app is pre-1.0. See
+    [manuscript.md](./spec/manuscript.md) → "Three sequencing axes". Threads v2.

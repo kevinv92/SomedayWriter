@@ -133,63 +133,81 @@ because a subplot's beats may be scattered:
 between consecutive beats, and show a file's thread memberships + nearby
 intersections. All deterministic — reads `StoryIndex`, no editor/facade changes.
 
-### Thread visualiser
+**Beat fields (Threads v2).** Beyond membership + `pos`, each **beat** (a scene's
+appearance on a thread) can carry three optional fields in the object form — all
+sparse and back-compatible with the bare-id form:
 
-A visual overview of how threads run through the manuscript — a "braid" view —
-that is **also an editor**. You rearrange the story by dragging on the board, and
-the changes are written back to the files. The files stay the source of truth;
-the board is a two-way view onto them.
+- **`summary`** — a one-line note of what the thread _does_ in this scene
+  ("Holmes is hired", "first real doubt"). Turns the "follow a thread" view into
+  a readable outline. (A _beat_ is the dot/appearance; `summary` is the line
+  describing it — named `summary`, **not** `beat`, on purpose. Decision #47.)
+- **`intensity`** — `setup | rise | climax | fall | resolve`, the beat's place in
+  the arc's tension; drives the braid lane's vertical shape.
+- **`state`** — `opens | closes | touches` (default `touches`). `opens` starts a
+  thread, `closes` resolves it; **branch and merge are inferred** from where an
+  `opens`/`closes` co-occurs with another thread's beats — there are no explicit
+  `branches-from` / `merges-into` fields (decision #48).
 
-**Layout / read side**
+  ```md
+  ---
+  order: 30
+  threads:
+    - { name: the-case, pos: 3, intensity: rise, summary: 'finds the hiding place' }
+    - { name: the-disguise, state: opens, summary: 'a disguise scheme takes shape' }
+  ---
+  ```
 
-- **Layout** — one horizontal **lane per thread**; the shared x-axis is
-  manuscript order (chapters/scenes left→right). A beat renders as a node on its
-  lane at the position where it occurs.
-- **Intersections** — where a scene belongs to multiple threads, the lanes are
-  linked at that x (a marker / crossing), making convergences and collisions
-  visible at a glance.
-- **Ordering toggle** — view by **manuscript order** (default) or follow a single
-  thread in its **own order**, highlighting that lane and dimming the rest.
-- **Navigation** — click a node → open that file/scene in the editor; the view is
-  a navigator, not just a picture.
+The editor offers **frontmatter intellisense** for all of this: inside a
+`threads:` object it completes the inner keys and the `intensity` / `state`
+enums, and `name:` autocompletes thread surfaces.
 
-**Edit side (drag to rearrange) — _stretch / at risk_**
+### Thread views
 
-> Editing the braid is now a **stretch goal, not a committed requirement.**
-> Tree-drag reordering + `@`-lane frontmatter already let a writer rearrange
-> structure and membership without it, so this ships only if the read-only braid
-> proves people want to edit _from the board_. Kept here as the intended design
-> if it does.
+The thread model surfaces through several deterministic, read-side views — all
+**navigators** onto the files, none of which edit a hidden store. `StoryIndex`
+re-derives from the files as tags change, so every view (and any open editor)
+stays consistent.
 
-This is the intended way to set order and membership — no hand-typed order
-numbers.
+**Threads Dashboard (main pane).** One view with two modes — a `Timeline | List`
+toggle — opened from View → "Threads Dashboard" (it swaps the editor in the main
+pane, like an open file):
 
-- **Drag a node along its lane** → reorder that beat **within the thread** (sets
-  its per-thread order).
-- **Drag a node between lanes** → **change thread membership** (move it to another
-  thread); drop onto empty space in a second lane to **add** a membership so a
-  scene sits on multiple threads.
-- **Drag off / delete key** → remove a thread membership (the file and its text
-  are untouched — only the tag goes).
-- **Reorder in manuscript order** → dragging in the manuscript-order view updates
-  the scene's position in the binder/tree.
+- **Timeline (the braid)** — one horizontal **lane per thread**; the x-axis is
+  manuscript order, or a single thread's own order via the **Order** toggle
+  (highlighting that lane, dimming the rest). Beats are nodes; a scene on
+  multiple threads draws a vertical **crossing**. Layered reads:
+  - **intensity → lane shape** — each beat lifts by its `intensity`, so the lane
+    traces the arc's tension (a climax peaks); a thread with no intensities stays
+    flat.
+  - **word-weighted axis** — a `Width: Even | By length` toggle sizes each column
+    by its scene's word count, so the timeline reads as **pacing** (where the
+    manuscript lingers vs rushes).
+  - **open/close caps + branch/merge connectors** drawn from `state`.
+  - a **minimap / scrubber** strip maps the whole braid into a band with a
+    draggable viewport rect, to navigate a large board.
 
-**Write-back & safety**
+  Drag to pan, wheel to zoom; click a beat to open its scene.
 
-- Edits are applied by rewriting the affected files' **thread tags** (frontmatter),
-  through the normal `window.api.writeFile` path — the board never edits a
-  hidden store.
-- `StoryIndex` re-derives from the changed files, so the board, `ThreadProvider`,
-  and any open editor stay consistent.
-- **Undoable** and non-destructive: dragging only ever moves tags/order, never
-  prose. A dropped edit can be reverted.
+- **List** — a per-thread **stats table**: scenes, words, span (first → last
+  appearance), status (active / open / resolved, each with hover help) and a
+  "silent N" pacing hint. Rows open the thread's file.
 
-**Live** — rebuilds incrementally as tags change, whether the change came from a
-drag on the board or a hand-edit in the text.
+**Companion thread-mode.** Opening a `type: thread` file shows its **arc** in the
+Companion pane — the beats in order (title · state · intensity · summary ·
+click-to-open) plus arc stats (`N beats · resolved/open/active`) — instead of the
+usual scene references. The first case of the Companion rendering by the active
+file's `type`.
 
-Lives as a togglable panel/view (e.g. replacing or overlaying the editor pane),
-not always-on. Ships after the deterministic `ThreadProvider` — read-only braid
-first, drag-to-edit second.
+**Pacing lint.** The Project Health panel flags **neglected threads**: a thread
+that never `closes` and has gone quiet for `threads.gapScenes` scenes (default 3,
+a `project.json` setting) before the manuscript ends, with click-to-jump to its
+last beat, and a `dangling` mark for opened-but-never-closed threads.
+
+**Deferred — drag-to-edit the braid (M11).** Rearranging structure by dragging
+beats between/along lanes (writing membership + `pos` back to files) is designed
+but not built: tree-drag reordering + hand-editing the `threads:` frontmatter
+(with intellisense) already cover rearrangement. Kept as future work — see
+`spec/todo/improve-threads.md`.
 
 ## Debug info (file details) pane
 

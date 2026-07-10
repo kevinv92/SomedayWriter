@@ -24,7 +24,8 @@ _before_ they're built. It's deliberately separate from the two neighbours:
 ## Feature design docs
 
 - [improve-threads.md](./improve-threads.md) — Threads v2: from _membership_ to
-  _movement_ (per-scene beats, pacing/gap signal, weighted axis, intensity).
+  _movement_ — **shipped & graduated** into [story-model.md](../story-model.md)
+  (the file is now a short record + remaining follow-ups).
 - [story-timeline.md](./story-timeline.md) — Story-time timeline: chronology &
   flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
 - [frontmatter-help.md](./frontmatter-help.md) — an in-editor, schema-aware help

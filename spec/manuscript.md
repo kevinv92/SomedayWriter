@@ -25,9 +25,8 @@ Rule of thumb: **root `order` = the order it's _read_; per-thread `pos` = the or
 it happens _on that thread_; `when` = the order it _happens in the story_.** The
 per-thread order lives in [story-model.md](./story-model.md) → threads; `when` is a
 proposal in [todo/story-timeline.md](./todo/story-timeline.md). The per-thread key
-is **`pos`**, renamed from `order` to end the collision with root `order` (decided
-in [todo/improve-threads.md](./todo/improve-threads.md); a clean break while in
-preview).
+is **`pos`**, renamed from `order` to end the collision with root `order`
+(decision #49; a clean break while in preview).
 
 ### Storage
 
