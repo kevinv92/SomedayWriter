@@ -358,6 +358,11 @@ export default function App() {
     [applyOpenResult]
   )
 
+  const clearRecents = useCallback(async () => {
+    await window.api.updateSettings({ recentProjects: [] })
+    setRecents([])
+  }, [])
+
   // Save the Project Settings form: write project.json, then apply the new config
   // (theme/editor prefs) and re-read the tree (ignore globs may have changed).
   const saveProjectConfig = useCallback(
@@ -787,6 +792,22 @@ export default function App() {
                         {r.name}
                       </button>
                     ))
+                  )}
+                  {recents.length > 0 && (
+                    <>
+                      <div className="menu-pop__sep" />
+                      <button
+                        className="menu-pop__row"
+                        role="menuitem"
+                        onClick={() => {
+                          setMenuOpen(null)
+                          void clearRecents()
+                        }}
+                      >
+                        <span className="menu-pop__check" />
+                        Clear recent projects
+                      </button>
+                    </>
                   )}
                 </div>
               </>
