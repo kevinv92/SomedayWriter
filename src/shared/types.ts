@@ -314,6 +314,16 @@ export type Thread = {
   beats: ThreadBeat[]
 }
 
+/** A manuscript scene (an ordered `.md` file that isn't an entity), with its
+ *  approximate word count. The scene spine — reused by the braid's word-weighted
+ *  axis, the threads dashboard, and the minimap (Threads v2, #3/#6/#8). */
+export type ManuscriptScene = {
+  path: string
+  order: number
+  title: string
+  words: number
+}
+
 /** A thread the pacing lint flags as neglected (Threads v2, #2): it never
  *  `closes` yet has gone quiet for a while before the manuscript ends. */
 export type NeglectedThread = {

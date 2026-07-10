@@ -10,6 +10,7 @@ import type {
   FileInspection,
   FileReadResult,
   GrammarMatch,
+  ManuscriptScene,
   NeglectedThread,
   ProjectConfig,
   Thread,
@@ -136,6 +137,9 @@ const api = {
   /** Pacing lint: threads that went quiet without closing (Threads v2, #2). */
   storyNeglectedThreads: (): Promise<NeglectedThread[]> =>
     ipcRenderer.invoke('story:neglectedThreads'),
+  /** The ordered manuscript scene spine (Threads v2, #3/#6/#8). */
+  storyManuscriptScenes: (): Promise<ManuscriptScene[]> =>
+    ipcRenderer.invoke('story:manuscriptScenes'),
   countMentions: (surface: string): Promise<{ count: number; files: number }> =>
     ipcRenderer.invoke('story:countMentions', surface),
   renameMentions: (

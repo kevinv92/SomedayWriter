@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Thread } from '@shared/types'
+import type { ManuscriptScene, Thread } from '@shared/types'
 import { inferThreadLinks } from '../lib/thread-links'
+import { threadStats } from '../lib/thread-stats'
 
 interface BraidViewProps {
   /** Manuscript scene paths in reading order — the x-axis source. Only threaded
@@ -32,7 +33,11 @@ const short = (s: string, n = 16) => (s.length > n ? s.slice(0, n - 1) + '…' :
  * to that scene. */
 export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidViewProps) {
   const [threads, setThreads] = useState<Thread[]>([])
+  const [scenes, setScenes] = useState<ManuscriptScene[]>([])
   const [loaded, setLoaded] = useState(false)
+  // View mode: the timeline braid or the per-thread stats list — two modes of the
+  // one Threads view (Threads v2, #6).
+  const [mode, setMode] = useState<'timeline' | 'list'>('timeline')
   // Order mode: null = manuscript order; otherwise the tag of the followed thread.
   const [follow, setFollow] = useState<string | null>(null)
   const [view, setView] = useState({ tx: 0, ty: 0, k: 1 })
@@ -50,6 +55,19 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
       cancelled = true
     }
   }, [refreshKey])
+
+  // The manuscript scene spine — powers the List mode's word counts + silence.
+  useEffect(() => {
+    let cancelled = false
+    void window.api.storyManuscriptScenes().then((s) => {
+      if (!cancelled) setScenes(s)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [refreshKey])
+
+  const stats = useMemo(() => threadStats(threads, scenes), [threads, scenes])
 
   const orderIndex = useMemo(() => {
     const m = new Map<string, number>()
@@ -114,12 +132,15 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
     pan.current = { x: e.clientX, y: e.clientY, tx: view.tx, ty: view.ty }
   }
   const onPointerMove = (e: React.MouseEvent) => {
-    if (!pan.current) return
-    setView((v) => ({
-      ...v,
-      tx: pan.current!.tx + (e.clientX - pan.current!.x),
-      ty: pan.current!.ty + (e.clientY - pan.current!.y)
-    }))
+    // Capture the pan start BEFORE setView: `pan.current` can be nulled by endPan
+    // (mouseup / mouseleave) before this async updater runs — reading it inside
+    // the updater threw "Cannot read properties of null (reading 'tx')" and
+    // crashed the braid during a fast drag out of bounds.
+    const start = pan.current
+    if (!start) return
+    const dx = e.clientX - start.x
+    const dy = e.clientY - start.y
+    setView((v) => ({ ...v, tx: start.tx + dx, ty: start.ty + dy }))
   }
   const endPan = () => {
     pan.current = null
@@ -139,33 +160,51 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
   return (
     <div className="braid">
       <div className="braid__header">
-        <span className="braid__title">Project Threads · Timeline</span>
-        <div className="braid__order">
-          <span className="braid__order-label">Order:</span>
+        <span className="braid__title">Project Threads</span>
+        <div className="braid__modes">
           <button
-            className={`braid__chip${follow === null ? ' braid__chip--on' : ''}`}
-            onClick={() => setFollow(null)}
+            className={`braid__chip${mode === 'timeline' ? ' braid__chip--on' : ''}`}
+            onClick={() => setMode('timeline')}
           >
-            Manuscript
+            Timeline
           </button>
-          {threads.map((t) => (
-            <button
-              key={t.tag}
-              className={`braid__chip${follow === t.tag ? ' braid__chip--on' : ''}`}
-              onClick={() => setFollow(t.tag)}
-            >
-              {t.name}
-            </button>
-          ))}
+          <button
+            className={`braid__chip${mode === 'list' ? ' braid__chip--on' : ''}`}
+            onClick={() => setMode('list')}
+          >
+            List
+          </button>
         </div>
+        {mode === 'timeline' && (
+          <div className="braid__order">
+            <span className="braid__order-label">Order:</span>
+            <button
+              className={`braid__chip${follow === null ? ' braid__chip--on' : ''}`}
+              onClick={() => setFollow(null)}
+            >
+              Manuscript
+            </button>
+            {threads.map((t) => (
+              <button
+                key={t.tag}
+                className={`braid__chip${follow === t.tag ? ' braid__chip--on' : ''}`}
+                onClick={() => setFollow(t.tag)}
+              >
+                {t.name}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="braid__actions">
-          <button
-            className="icon-btn"
-            title="Reset view"
-            onClick={() => setView({ tx: 0, ty: 0, k: 1 })}
-          >
-            ⤢
-          </button>
+          {mode === 'timeline' && (
+            <button
+              className="icon-btn"
+              title="Reset view"
+              onClick={() => setView({ tx: 0, ty: 0, k: 1 })}
+            >
+              ⤢
+            </button>
+          )}
           <button className="icon-btn" title="Close" onClick={onClose}>
             ✕
           </button>
@@ -175,6 +214,57 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
       {loaded && threads.length === 0 ? (
         <div className="braid__empty">
           No threads yet. Tag scenes with <code>threads: [name]</code>.
+        </div>
+      ) : mode === 'list' ? (
+        <div className="braid__list">
+          <table className="thread-table">
+            <thead>
+              <tr>
+                <th>Thread</th>
+                <th className="thread-table__num">Scenes</th>
+                <th className="thread-table__num">Words</th>
+                <th>Span</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {stats.map((s) => {
+                const target =
+                  s.path ?? threads.find((t) => t.tag === s.tag)?.beats[0]?.path ?? null
+                const span =
+                  s.lastTitle && s.lastTitle !== s.firstTitle
+                    ? `${s.firstTitle} → ${s.lastTitle}`
+                    : s.firstTitle
+                return (
+                  <tr
+                    key={s.tag}
+                    className={`thread-row${target ? '' : ' thread-row--flat'}`}
+                    onClick={() => target && onOpen(target)}
+                    title={target ? `Open ${s.name}` : undefined}
+                  >
+                    <td className="thread-row__name">
+                      <span
+                        className="thread-row__swatch"
+                        style={{ background: s.color ?? 'var(--muted)' }}
+                      />
+                      {s.name}
+                    </td>
+                    <td className="thread-table__num">{s.beats}</td>
+                    <td className="thread-table__num">{s.words.toLocaleString()}</td>
+                    <td className="thread-row__span">{span}</td>
+                    <td>
+                      <span className={`thread-badge thread-badge--${s.status}`}>
+                        {s.status}
+                      </span>
+                      {s.silent > 0 && s.status !== 'resolved' && (
+                        <span className="thread-row__silent"> · silent {s.silent}</span>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       ) : (
         <svg

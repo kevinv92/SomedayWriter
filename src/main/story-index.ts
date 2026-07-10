@@ -4,6 +4,7 @@ import type {
   Entity,
   EntityRef,
   FileInspection,
+  ManuscriptScene,
   NeglectedThread,
   Thread,
   ThreadBeat,
@@ -597,15 +598,18 @@ export function computeNeglected(
   return out.sort((a, b) => b.scenes - a.scenes)
 }
 
-/** Read the manuscript scenes (ordered, with word counts) and run the pacing
- *  lint over `threads`. */
-export async function neglectedThreads(
+/**
+ * The manuscript scene spine (Threads v2, #3/#6/#8): every ordered `.md` that is
+ * NOT an entity (`type:`), with its path, order, title, and approximate word
+ * count, sorted by reading order. The shared source for the pacing lint, the
+ * threads dashboard's per-thread stats, and the word-weighted braid axis.
+ */
+export async function manuscriptScenes(
   root: string,
-  ignore: string[],
-  threads: Thread[]
-): Promise<NeglectedThread[]> {
+  ignore: string[]
+): Promise<ManuscriptScene[]> {
   const files = await listMarkdownFiles(root, ignore)
-  const scenes: SceneGap[] = []
+  const scenes: ManuscriptScene[] = []
   for (const path of files) {
     let text: string
     try {
@@ -617,8 +621,24 @@ export async function neglectedThreads(
     if (order == null) continue
     const fm = parseFrontmatter(text)
     if (typeof fm.data.type === 'string') continue // entity, not a scene
-    scenes.push({ order, words: countManuscriptWords(fm.body) })
+    scenes.push({
+      path,
+      order,
+      title: deriveTitle(text, path),
+      words: countManuscriptWords(fm.body)
+    })
   }
+  return scenes.sort((a, b) => a.order - b.order)
+}
+
+/** Read the manuscript scenes (ordered, with word counts) and run the pacing
+ *  lint over `threads`. */
+export async function neglectedThreads(
+  root: string,
+  ignore: string[],
+  threads: Thread[]
+): Promise<NeglectedThread[]> {
+  const scenes = await manuscriptScenes(root, ignore)
   return computeNeglected(threads, scenes)
 }
 

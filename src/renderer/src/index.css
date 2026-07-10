@@ -2592,6 +2592,112 @@ body {
   cursor: grabbing;
 }
 
+.braid__modes {
+  display: flex;
+  gap: 0.25rem;
+}
+
+/* --- Threads dashboard: List mode (Threads v2, #6) --- */
+.braid__list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0.5rem 0.7rem 1rem;
+}
+
+.thread-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.thread-table thead th {
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+}
+
+.thread-table__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.thread-row {
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+
+.thread-row td {
+  padding: 0.35rem 0.6rem;
+  vertical-align: middle;
+}
+
+.thread-row:hover {
+  background: var(--bg-2);
+}
+
+.thread-row--flat {
+  cursor: default;
+}
+
+.thread-row--flat:hover {
+  background: transparent;
+}
+
+.thread-row__name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-weight: 500;
+}
+
+.thread-row__swatch {
+  width: 11px;
+  height: 11px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.thread-row__span {
+  color: var(--muted);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-badge {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  text-transform: capitalize;
+}
+
+.thread-badge--resolved {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.thread-badge--open {
+  color: #c26a2b;
+  border-color: #c26a2b;
+}
+
+.thread-row__silent {
+  font-size: 0.72rem;
+  color: #c26a2b;
+}
+
 .braid-col {
   fill: var(--muted);
   font-size: 12px;

@@ -13,6 +13,7 @@ import type {
   FileInspection,
   FileReadResult,
   GrammarMatch,
+  ManuscriptScene,
   NeglectedThread,
   Thread,
   OpenProjectResult,
@@ -33,6 +34,7 @@ import {
   deadReferences,
   inspectFile,
   loadCompanionEntry,
+  manuscriptScenes,
   neglectedThreads,
   referencesTo,
   renameMentions,
@@ -503,6 +505,13 @@ function registerIpc(): void {
     if (!currentProject) return []
     const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
     return neglectedThreads(currentProject.root, ignore, await getThreads())
+  })
+
+  // The ordered manuscript scene spine (Threads v2, #3/#6/#8 — dashboard stats).
+  ipcMain.handle('story:manuscriptScenes', async (): Promise<ManuscriptScene[]> => {
+    if (!currentProject) return []
+    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
+    return manuscriptScenes(currentProject.root, ignore)
   })
 
   ipcMain.handle(

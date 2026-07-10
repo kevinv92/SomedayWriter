@@ -860,7 +860,7 @@ export default function App() {
                         () => panels.toggle('threads')
                       ],
                       [
-                        'Project Threads · Timeline',
+                        'Threads Dashboard',
                         panels.open.braid,
                         () => panels.toggle('braid')
                       ],
