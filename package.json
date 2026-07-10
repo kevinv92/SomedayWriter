@@ -1,7 +1,7 @@
 {
   "name": "writer-gui",
   "productName": "SomedayWriter",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A desktop Markdown writing tool for prose projects",
   "author": "Kevin Varela",
   "license": "MIT",
