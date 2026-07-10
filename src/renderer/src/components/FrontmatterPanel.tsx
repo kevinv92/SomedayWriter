@@ -417,6 +417,92 @@ export function FrontmatterPanel({
     )
   }
 
+  const emptyNoFile = (): ReactElement => (
+    <div className="fm-empty">
+      <p>No file open.</p>
+    </div>
+  )
+
+  const emptyNoBlock = (): ReactElement => (
+    <div className="fm-empty">
+      <p>This file has no frontmatter block yet.</p>
+      <button
+        className="fm-add fm-add--primary"
+        onClick={() => {
+          const seeds = type ? [] : ['title', 'type']
+          setVersion((v) => v + 1)
+          onApply(addFrontmatter(text, seeds))
+        }}
+      >
+        ＋ Add frontmatter
+      </button>
+      <p className="fm-empty__note">
+        Inserts a <code>---</code> block with the common fields.
+      </p>
+    </div>
+  )
+
+  const renderForm = (): ReactElement => (
+    <div className="fm-form">
+      {doc.errors.length > 0 && (
+        <div className="fm-banner" role="alert">
+          ⚠ This block has a YAML error — some fields may be missing. Fix it in the
+          editor.
+        </div>
+      )}
+      {presentSchema.map((f) => (
+        <div className="fm-field" key={f.name}>
+          <span className="fm-label">{f.label ?? f.name}</span>
+          {renderControl(f)}
+        </div>
+      ))}
+
+      {customKeys.length > 0 && (
+        <>
+          <div className="fm-sec">Kept as-is</div>
+          {customKeys.map((key) => (
+            <div className="fm-field" key={key}>
+              <span className="fm-label">{key}</span>
+              <input
+                key={version}
+                className="fm-ctl"
+                defaultValue={data[key] == null ? '' : String(data[key])}
+                onBlur={(e) =>
+                  setPlain(key, e.target.value === '' ? undefined : e.target.value)
+                }
+              />
+            </div>
+          ))}
+        </>
+      )}
+
+      {absentSchema.length > 0 && (
+        <select
+          className="fm-add fm-addfield"
+          value=""
+          onChange={(e) => {
+            const f = absentSchema.find((x) => x.name === e.target.value)
+            if (f) setPlain(f.name, emptyFor(resolveFieldKind(f), f))
+          }}
+        >
+          <option value="">＋ Add field…</option>
+          {absentSchema.map((f) => (
+            <option key={f.name} value={f.name}>
+              {f.label ?? f.name}
+            </option>
+          ))}
+        </select>
+      )}
+    </div>
+  )
+
+  // Which view the pane shows — early returns beat a nested ternary in the JSX.
+  const renderBody = (): ReactElement => {
+    if (!path) return emptyNoFile()
+    if (!hasBlock) return emptyNoBlock()
+    return renderForm()
+  }
+
   return (
     <div className="search-panel">
       <div className="search-panel__header">
@@ -436,80 +522,7 @@ export function FrontmatterPanel({
       </datalist>
 
       <div className="search-panel__results" key={path ?? 'none'}>
-        {!path ? (
-          <div className="fm-empty">
-            <p>No file open.</p>
-          </div>
-        ) : !hasBlock ? (
-          <div className="fm-empty">
-            <p>This file has no frontmatter block yet.</p>
-            <button
-              className="fm-add fm-add--primary"
-              onClick={() => {
-                const seeds = type ? [] : ['title', 'type']
-                setVersion((v) => v + 1)
-                onApply(addFrontmatter(text, seeds))
-              }}
-            >
-              ＋ Add frontmatter
-            </button>
-            <p className="fm-empty__note">
-              Inserts a <code>---</code> block with the common fields.
-            </p>
-          </div>
-        ) : (
-          <div className="fm-form">
-            {doc.errors.length > 0 && (
-              <div className="fm-banner" role="alert">
-                ⚠ This block has a YAML error — some fields may be missing. Fix it in the
-                editor.
-              </div>
-            )}
-            {presentSchema.map((f) => (
-              <div className="fm-field" key={f.name}>
-                <span className="fm-label">{f.label ?? f.name}</span>
-                {renderControl(f)}
-              </div>
-            ))}
-
-            {customKeys.length > 0 && (
-              <>
-                <div className="fm-sec">Kept as-is</div>
-                {customKeys.map((key) => (
-                  <div className="fm-field" key={key}>
-                    <span className="fm-label">{key}</span>
-                    <input
-                      key={version}
-                      className="fm-ctl"
-                      defaultValue={data[key] == null ? '' : String(data[key])}
-                      onBlur={(e) =>
-                        setPlain(key, e.target.value === '' ? undefined : e.target.value)
-                      }
-                    />
-                  </div>
-                ))}
-              </>
-            )}
-
-            {absentSchema.length > 0 && (
-              <select
-                className="fm-add fm-addfield"
-                value=""
-                onChange={(e) => {
-                  const f = absentSchema.find((x) => x.name === e.target.value)
-                  if (f) setPlain(f.name, emptyFor(resolveFieldKind(f), f))
-                }}
-              >
-                <option value="">＋ Add field…</option>
-                {absentSchema.map((f) => (
-                  <option key={f.name} value={f.name}>
-                    {f.label ?? f.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
+        {renderBody()}
       </div>
     </div>
   )
