@@ -11,6 +11,10 @@ export type FrontmatterContext =
   | { in: false }
   | { in: true; kind: 'key'; prefix: string }
   | { in: true; kind: 'value'; key: string; prefix: string }
+  // Inside a `threads:` beat object — `- { name: …, intensity: … }` — completing
+  // one of its inner keys (Threads v2). `present` are the keys already in the
+  // object, so the completer can drop them.
+  | { in: true; kind: 'threadKey'; prefix: string; present: string[] }
 
 type Line = { start: number; text: string }
 
@@ -99,6 +103,40 @@ export function frontmatterContextAt(text: string, offset: number): FrontmatterC
 
   const line = ls[idx].text
   const before = text.slice(ls[idx].start, offset)
+
+  // A `threads:` beat object in flow form — `  - { name: the-case, intensity: … `.
+  // Classify by the pair being typed: no colon → an inner key; colon → that key's
+  // value (so `intensity:`/`state:` get their enums, `name:` gets thread names).
+  const flow = before.match(/^(\s*)-\s*\{(.*)$/)
+  if (flow) {
+    const indent = flow[1].length
+    let owner = ''
+    for (let i = idx - 1; i >= body.first; i--) {
+      const m = ls[i].text.match(/^(\s*)([A-Za-z0-9_-]+):\s*$/)
+      if (m && m[1].length < indent) {
+        owner = m[2]
+        break
+      }
+    }
+    if (owner === 'threads') {
+      const pairs = flow[2].split(',')
+      const lastPair = pairs[pairs.length - 1]
+      const ci = lastPair.indexOf(':')
+      if (ci === -1) {
+        const present = pairs
+          .slice(0, -1)
+          .map((p) => p.split(':')[0].trim())
+          .filter(Boolean)
+        return { in: true, kind: 'threadKey', prefix: lastPair.trim(), present }
+      }
+      return {
+        in: true,
+        kind: 'value',
+        key: lastPair.slice(0, ci).trim(),
+        prefix: inlineValuePrefix(lastPair.slice(ci + 1))
+      }
+    }
+  }
 
   // Block sequence item (`  - value`): the value of the nearest owning key above.
   const seq = before.match(/^(\s*)-\s+(.*)$/)
