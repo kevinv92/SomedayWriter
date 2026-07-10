@@ -195,6 +195,9 @@ when:**
 - You **finish a phase or milestone** → mark it done (`✅`) and update the
   **Status** line at the top of the Phases section in
   [spec/roadmap.md](spec/roadmap.md) (what's done, what's next).
+- You hit a feature that **needs design before coding** (open _how_ questions) →
+  add or update an entry in [spec/TODO.md](spec/TODO.md); close it when the design
+  lands (a section + a DECISIONS entry).
 - You **make a non-trivial decision** (a choice with a trade-off, a scope
   change, a reversal) → append a numbered entry to **[DECISIONS.md](DECISIONS.md)** with the
   _why_. Never silently contradict an existing entry — add a new one that

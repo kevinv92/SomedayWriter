@@ -47,4 +47,5 @@ standards in [../AGENTS.md](../AGENTS.md).
 | [mcp.md](./mcp.md)                     | The MCP server that exposes the project to Claude                           |
 | [ai.md](./ai.md)                       | Deferred AI features (continuity, thread inference)                         |
 | [roadmap.md](./roadmap.md)             | Core-feature list, phases, and the deferred backlog                         |
+| [TODO.md](./TODO.md)                   | Design backlog — open questions / specs still to write                      |
 | [terminology.md](./terminology.md)     | Glossary                                                                    |
