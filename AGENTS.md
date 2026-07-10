@@ -216,6 +216,15 @@ Handing an unstyled component to an agent works well _because_ of this system:
 point it at `index.css` and a sibling component, and say "style with our tokens,
 matching `<X>`."
 
+**Showing a visual change to a human.** Screenshots you capture — via the Read
+tool, CDP `Page.captureScreenshot`, or headless Chrome — render for **your own**
+verification only; they do **not** appear in the reviewer's chat. To actually
+_show_ someone a UI result, publish an **Artifact** (a hosted link they open) or
+give them a `! open <path>` command for the local file. Never assume an image you
+"looked at" reached them. (UI work is still designed through the Claude Design
+project first and verified in the running app; this is just about how the result
+gets in front of a person.)
+
 ## Contributing — workflow & keeping docs in sync
 
 Code is only half the job; the docs are the memory that survives across sessions.
