@@ -96,6 +96,16 @@ export function Editor({
   const onResolveMentionRef = useRef(onResolveMention)
   const onImageDroppedRef = useRef(onImageDropped)
   const docUriRef = useRef(doc.uri)
+  // Current Vim prefs, so a (re)mounted adapter can apply them immediately — the
+  // separate `[vimEnabled]` effect below only fires on *change*, so without this a
+  // fresh adapter (e.g. a StrictMode dev remount) would default to Vim-off while
+  // settings say on. Kept in refs to avoid remounting the editor on every toggle.
+  const vimEnabledRef = useRef(vimEnabled)
+  const vimWrapMotionRef = useRef(vimWrapMotion)
+  useEffect(() => {
+    vimEnabledRef.current = vimEnabled
+    vimWrapMotionRef.current = vimWrapMotion
+  })
 
   // Keep the latest callbacks without re-subscribing the editor.
   useEffect(() => {
@@ -128,6 +138,9 @@ export function Editor({
     const adapter = createCodeMirrorAdapter()
     adapterRef.current = adapter
     adapter.mount(hostRef.current as HTMLElement)
+    // Apply the current Vim prefs to the fresh adapter (it defaults to off).
+    adapter.setVimMode(vimEnabledRef.current)
+    adapter.setVimWrapMotion(vimWrapMotionRef.current)
     adapter.setCompletionSource(analysis.completionSource)
     adapter.setGoToDefinition((ctx) =>
       onGoToDefinitionRef.current?.(ctx.lineText, ctx.column)
