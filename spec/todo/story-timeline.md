@@ -10,9 +10,10 @@ events are _told_ (narrative order) and the order they _happen_ (story-time) —
 a writer mixing flashbacks, flash-forwards, or parallel timelines can actually see
 and trust the chronology instead of holding it in their head.
 
-Grew out of [improve-threads.md](./improve-threads.md) #2; split into its own doc
-because it stands on its own beyond threads (it's about _all_ scenes, threaded or
-not).
+Came out of the threads/timeline design ([improve-threads.md](./improve-threads.md)),
+but it's a **separate feature**: it's about _all_ scenes, threaded or not, so the
+threads doc explicitly scopes it out and points here. The two share the timeline
+_surface_ — design them together — but neither owns the other.
 
 ---
 

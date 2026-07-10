@@ -38,6 +38,12 @@ of contents, not a story. Everything below is about closing that gap.
 
 Roughly in writer-value order. Each is a candidate; not all need to ship together.
 
+> **Out of scope here:** _story-time / chronology_ (flashbacks, flash-forwards,
+> non-linear narrative) is **not** a threads improvement — it's its own feature
+> with its own doc, [story-timeline.md](./story-timeline.md). It shares the
+> timeline _surface_ (design the two together so they don't reinvent axis logic),
+> but it is **not scoped into Threads v2** and adds no fields here.
+
 ### 1. A one-line summary for each beat
 
 **First, what a "beat" _is_ (existing term).** In the thread model a **beat** is a
@@ -109,7 +115,7 @@ The Case
 **Declaration & data.** This rides the **existing** `threads:` contract (see
 [story-model.md](../story-model.md) → threads). The only change is one optional
 key on the object form: **`summary:`** (this item), which pairs with `intensity:`
-from #5 below — the same beat, annotated with two fields. Bare ids and
+from #4 below — the same beat, annotated with two fields. Bare ids and
 `{ name, order }` keep working untouched, so no project must adopt it. (Named
 `summary`, **not** `beat`, on purpose: a _beat_ is the appearance/dot; the
 `summary` is the line describing it.) Inline `<!-- thread:x -->` markers stay for
@@ -119,33 +125,25 @@ _mid-scene_ scoping and carry no summary (for now).
 two distinct things to one arc)? Where it renders — dot tooltip, lane caption, or
 a dedicated "arc outline" list.
 
-### 2. Story-time axis — track flashbacks & non-linear narrative
-
-The braid's x-axis is **narrative order**; a writer mixing flashbacks /
-flash-forwards / parallel timelines also needs **story-time** (when events happen,
-vs when they're told). This shares the timeline surface but stands on its own — it
-has its own design doc: **[story-timeline.md](./story-timeline.md)**. Design it
-together with the braid so the two don't reinvent axis logic.
-
-### 3. Pacing / gap signal
+### 2. Pacing / gap signal
 
 Flag when a thread has gone **silent** too long — N scenes or M words since its
 last beat. A "Project Health"-style lint for **neglected arcs** (Chekhov's gun
 left on the mantel). Ride the existing health/lint surface.
 
-### 4. Word-weighted axis (toggle)
+### 3. Word-weighted axis (toggle)
 
 Scenes are equal-width columns today, so a 3,000-word scene and a 200-word aside
 look identical. An optional mode sizes columns by scene length so the braid's
 **shape reflects real pacing**.
 
-### 5. Beat intensity → lane shape
+### 4. Beat intensity → lane shape
 
 Let a beat mark its role — `setup` / `rise` / `climax` / `fall` / `resolve` — and
 drive the lane's height or colour from it. Now the braid **looks like a story's
 shape** (rising action, convergence, denouement), not a flat dotted grid.
 
-### 6. Explicit branch / merge (optional)
+### 5. Explicit branch / merge (optional)
 
 Branch/merge is currently _inferred_ from shared scene membership + dotted
 verticals — clever and low-ceremony, but the reader of the diagram has to
@@ -153,14 +151,14 @@ reconstruct the topology. Consider an **optional** explicit relation on a
 `type: thread` file (`branches-from:` / `merges-into:`) for cases where the
 implicit form is ambiguous. Keep it optional so simple projects stay simple.
 
-### 7. Make the list view earn its place
+### 6. Make the list view earn its place
 
 If the Timeline is the go-to, the **Threads list** (all threads) should do what
 the timeline can't: per-thread **stats** — scene count, word count, first/last
 appearance, "silent for N scenes" — i.e. a dashboard, not a lesser duplicate. The
-_single_-thread version of this lives in #8.
+_single_-thread version of this lives in #7.
 
-### 8. Thread detail view — when a thread file is open
+### 7. Thread detail view — when a thread file is open
 
 **The question:** when you open a `type: thread` file (`threads/the-case.md`),
 should a dedicated view show that thread's beats?
@@ -178,7 +176,7 @@ live on the scenes, not in the thread file):
 - the thread's **beats in order** (per-thread `order`, then narrative order), each
   a row — scene title · `summary` · `intensity` badge · click-to-jump;
 - **arc stats** — beat count, word count across the arc, first/last appearance,
-  "silent for N scenes" gaps (#7's dashboard, scoped to this one thread);
+  "silent for N scenes" gaps (#6's dashboard, scoped to this one thread);
 - the thread file's own prose (its identity/description) stays in the editor; the
   pane is the computed companion beside it.
 
@@ -202,46 +200,46 @@ once the pane exists.
 ```yaml
 # in a scene's frontmatter
 order: 30 # narrative order (exists today)
-when: 12 # NEW (#2): story-time sort key (flashback if < neighbours)
 threads: # today: [the-case, the-disguise] OR [{ name, order }]
   - name: the-case # 'name' + optional 'order' is today's object form
     order: 1
     summary: 'Holmes is hired' # NEW (#1) — the beat's one-line summary
-    intensity: setup # NEW (#5)
+    intensity: setup # NEW (#4)
   - name: the-disguise
     summary: 'the groom disguise is chosen'
 ```
 
-Every added key (`when`, `summary`, `intensity`) is optional and sparse; the
-bare-id and `{ name, order }` forms keep working, so existing projects render
-unchanged. (Terminology: a **beat** is a scene's appearance on a thread; `summary`
-and `intensity` are fields _on_ a beat — see #1.)
+Every added key (`summary`, `intensity`) is optional and sparse; the bare-id and
+`{ name, order }` forms keep working, so existing projects render unchanged.
+(Terminology: a **beat** is a scene's appearance on a thread; `summary` and
+`intensity` are fields _on_ a beat — see #1.) Story-time (`when:`) is a **separate
+feature** — see [story-timeline.md](./story-timeline.md).
 
 ## Tasks (work-breakdown when this ships)
 
 Not committed — this is the full surface area so nothing (**especially the docs
-and help text**) is forgotten. Ship incrementally; each of #1–#8 can land alone.
-The `when`/chronology tasks are tracked separately in
+and help text**) is forgotten. Ship incrementally; each of #1–#7 can land alone.
+Story-time / chronology is out of scope here — its tasks live in
 [story-timeline.md](./story-timeline.md).
 
 **Model & data (main / shared)**
 
 - [ ] Extend `parseThreadTags` (`story-index.ts`) to read `summary` + `intensity`
-      on the object form; keep bare-id and `{ name, order }` working. (#1, #5)
+      on the object form; keep bare-id and `{ name, order }` working. (#1, #4)
 - [ ] Carry `summary`/`intensity` through `buildThreads` → the `story:threads` IPC
       and the shared `Thread`/beat types.
 - [ ] Make per-scene **word count** available to the index (pacing + weighted
-      axis). (#3, #4)
+      axis). (#2, #3)
 
 **Editor & panes (renderer)**
 
 - [ ] Braid: hover a dot → show its `summary`; drive lane shape/colour from
-      `intensity`; word-weighted-axis toggle. (#1, #4, #5)
+      `intensity`; word-weighted-axis toggle. (#1, #3, #4)
 - [ ] **Thread detail view** — contextual right-pane mode when a `type: thread`
-      file is active (beats in order, stats, jump). (#8)
-- [ ] Threads-list **stats dashboard**. (#7)
-- [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#3)
-- [ ] Explicit `branches-from:`/`merges-into:` rendering, if adopted. (#6)
+      file is active (beats in order, stats, jump). (#7)
+- [ ] Threads-list **stats dashboard**. (#6)
+- [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#2)
+- [ ] Explicit `branches-from:`/`merges-into:` rendering, if adopted. (#5)
 
 **Frontmatter authoring**
 
@@ -295,4 +293,9 @@ The `when`/chronology tasks are tracked separately in
 
 - [story-model.md](../story-model.md) — current threads/braid model.
 - [manuscript.md](../manuscript.md) — `order`, hierarchy, inline markers.
+- [story-timeline.md](./story-timeline.md) — story-time / chronology (the moved #2).
 - [roadmap.md](../roadmap.md) — where a committed Threads v2 would slot in.
+
+```
+
+```
