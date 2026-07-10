@@ -772,7 +772,7 @@ export default function App() {
                       ],
                       ['Comments', panels.open.comments, () => panels.toggle('comments')],
                       [
-                        'Inspector',
+                        'Debug info',
                         panels.open.inspector,
                         () => panels.toggle('inspector')
                       ],
@@ -1341,7 +1341,7 @@ export default function App() {
                 () => panels.toggle('comments')
               ],
               [
-                'Inspector',
+                'Debug info',
                 'info',
                 panels.open.inspector,
                 () => panels.toggle('inspector')

@@ -59,7 +59,7 @@ export function InspectorPanel({
   return (
     <div className="search-panel">
       <div className="search-panel__header">
-        <span className="search-panel__title">Inspector</span>
+        <span className="search-panel__title">Debug info</span>
         <button className="icon-btn" title="Close (Esc)" onClick={onClose}>
           ✕
         </button>

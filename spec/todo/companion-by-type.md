@@ -37,6 +37,14 @@ for it, falling back to a generic default for any type without a bespoke one:
 The default matters: a project's **custom** types get something useful for free;
 a bespoke view is opt-in, added only where it earns its keep.
 
+**Doc / help files.** A plain doc with no manuscript or entity content — a project
+README, a style guide, `AGENTS.md` when dogfooding the repo — currently gives an
+empty Companion (no scene entities to follow). Instead, show **help text** for it:
+a short "what this file is / how it's used" panel. It turns a dead pane into a
+useful one and is a natural home for in-context guidance. (How a file is
+recognised as a "help doc" — name convention, a `type: doc`/`help`, or a
+project-declared list — is open.)
+
 ## Architecture
 
 - A small **registry: `type` → CompanionView renderer**, with a default renderer.
@@ -48,12 +56,13 @@ a bespoke view is opt-in, added only where it earns its keep.
 - **Pin-to-freeze** still applies — freeze the current Companion regardless of what
   you navigate to next.
 
-## Relationship to the Inspector
+## Relationship to Debug info
 
 They're complementary, not duplicates:
 
-- **Inspector** = the _raw parse_ of the active file (what the app read: frontmatter
-  fields, warnings). File-local, literal.
+- **Debug info** (the former "Inspector" pane) = the _raw parse_ of the active file
+  (what the app read: frontmatter fields, warnings). File-local, literal, a
+  diagnostic view.
 - **Companion** = _curated cross-file context_ (where this entity lives in the
   story). Derived, relational.
 

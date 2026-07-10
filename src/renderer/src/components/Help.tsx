@@ -203,7 +203,7 @@ export function Help({ projectRoot, projectName, onClose }: HelpProps) {
           </li>
           <li>
             <strong>Panels</strong> (right rail): <em>Companion</em> follows the current
-            scene's entities, <em>Inspector</em> shows what the app parses,
+            scene's entities, <em>Debug info</em> shows what the app parses,
             <em> References</em> browses everything, <em>Threads</em> + <em>Timeline</em>{' '}
             visualise storylines.
           </li>

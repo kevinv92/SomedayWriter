@@ -117,7 +117,7 @@ export function useCommands(ctx: CommandContext): QuickCommand[] {
     },
     {
       id: 'toggle-inspector',
-      title: 'Toggle Inspector',
+      title: 'Toggle Debug Info',
       run: () => panels.toggle('inspector')
     },
     {

@@ -191,7 +191,10 @@ Lives as a togglable panel/view (e.g. replacing or overlaying the editor pane),
 not always-on. Ships after the deterministic `ThreadProvider` — read-only braid
 first, drag-to-edit second.
 
-## Inspector (file details) pane
+## Debug info (file details) pane
+
+_Labeled **"Debug info"** in the UI (formerly "Inspector") — the name says what it
+is: a diagnostic view._
 
 A togglable side pane that shows **what the app parses from the current file** —
 a read-only mirror of the model, primarily a **debugging aid** for when a writer
