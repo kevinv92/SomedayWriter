@@ -67,6 +67,42 @@ const dedupeFields = (fields: EntityFieldDef[]): EntityFieldDef[] => {
   return fields.filter((f) => (seen.has(f.name) ? false : (seen.add(f.name), true)))
 }
 
+/** A select for an enum field that surfaces a value outside the allowed set
+ *  (e.g. `intensity: climaz`) instead of silently dropping it — the bad value
+ *  shows as an "unknown" option with a warning border, and picking a real one
+ *  fixes it. */
+function EnumSelect({
+  value,
+  options,
+  allowEmpty,
+  emptyLabel = '—',
+  onChange
+}: {
+  value: string
+  options: readonly string[]
+  allowEmpty?: boolean
+  emptyLabel?: string
+  onChange: (v: string) => void
+}): ReactElement {
+  const bad = value !== '' && !options.includes(value)
+  return (
+    <select
+      className={`fm-ctl${bad ? ' fm-ctl--warn' : ''}`}
+      value={value}
+      title={bad ? `“${value}” isn't a recognised value` : undefined}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {allowEmpty && <option value="">{emptyLabel}</option>}
+      {bad && <option value={value}>{value} — unknown</option>}
+      {options.map((v) => (
+        <option key={v} value={v}>
+          {v}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 /**
  * Structured frontmatter editor (frontmatter-editor spec). Renders the active
  * file's `---` block as a schema-driven form — a control per field `kind`, the
@@ -134,33 +170,23 @@ export function FrontmatterPanel({
     if (kind === 'beats') return renderBeats()
     if (kind === 'enum' && key === 'type') {
       return (
-        <select
-          className="fm-ctl"
+        <EnumSelect
           value={type ?? ''}
-          onChange={(e) => setPlain('type', e.target.value || undefined)}
-        >
-          <option value="">— none —</option>
-          {entityTypes.map((t) => (
-            <option key={t.type} value={t.type}>
-              {t.type}
-            </option>
-          ))}
-        </select>
+          options={entityTypes.map((t) => t.type)}
+          allowEmpty
+          emptyLabel="— none —"
+          onChange={(v) => setPlain('type', v || undefined)}
+        />
       )
     }
     if (kind === 'enum') {
       return (
-        <select
-          className="fm-ctl"
+        <EnumSelect
           value={typeof raw === 'string' ? raw : ''}
-          onChange={(e) => setPlain(key, e.target.value || undefined)}
-        >
-          {(field.values ?? []).map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </select>
+          options={field.values ?? []}
+          allowEmpty
+          onChange={(v) => setPlain(key, v || undefined)}
+        />
       )
     }
     if (kind === 'number') {
@@ -292,32 +318,20 @@ export function FrontmatterPanel({
               </label>
               <label className="fm-sub">
                 Intensity
-                <select
-                  className="fm-ctl"
+                <EnumSelect
                   value={b.intensity ?? ''}
-                  onChange={(e) => patch(i, { intensity: e.target.value || undefined })}
-                >
-                  <option value="">—</option>
-                  {THREAD_INTENSITIES.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
+                  options={THREAD_INTENSITIES}
+                  allowEmpty
+                  onChange={(v) => patch(i, { intensity: v || undefined })}
+                />
               </label>
               <label className="fm-sub">
                 State
-                <select
-                  className="fm-ctl"
+                <EnumSelect
                   value={b.state ?? 'touches'}
-                  onChange={(e) => patch(i, { state: e.target.value })}
-                >
-                  {THREAD_STATES.map((v) => (
-                    <option key={v} value={v}>
-                      {v}
-                    </option>
-                  ))}
-                </select>
+                  options={THREAD_STATES}
+                  onChange={(v) => patch(i, { state: v })}
+                />
               </label>
             </div>
             <label className="fm-sub">
@@ -379,6 +393,12 @@ export function FrontmatterPanel({
           </div>
         ) : (
           <div className="fm-form">
+            {doc.errors.length > 0 && (
+              <div className="fm-banner" role="alert">
+                ⚠ This block has a YAML error — some fields may be missing. Fix it in the
+                editor.
+              </div>
+            )}
             {presentSchema.map((f) => (
               <div className="fm-field" key={f.name}>
                 <span className="fm-label">{f.label ?? f.name}</span>

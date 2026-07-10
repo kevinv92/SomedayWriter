@@ -2515,6 +2515,20 @@ body {
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+.fm-ctl--warn {
+  border-color: color-mix(in oklch, var(--warning) 55%, var(--border));
+}
+
+.fm-banner {
+  font-size: 0.75rem;
+  color: var(--warning);
+  background: color-mix(in oklch, var(--warning) 12%, transparent);
+  border: 1px solid color-mix(in oklch, var(--warning) 40%, transparent);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem 0.5rem;
+  line-height: 1.35;
+}
+
 select.fm-ctl {
   cursor: pointer;
 }
