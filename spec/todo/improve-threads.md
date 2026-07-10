@@ -4,10 +4,9 @@ _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
 **Status:** _in progress_ — **Foundations + Slices A (`summary`), B (`state` +
-branch/merge), and C (pacing/gap lint) shipped** (beat data model, braid hover
-summary, open/close caps, inferred branch/merge connectors, Project-Health
-neglected-thread lint, Scandal example, tests). #3, #4, #6–#8 still design-drafting.
-See the Tasks section for what's checked off.
+branch/merge), C (pacing/gap lint), and D (Companion thread-mode) shipped**. Left:
+Slice E (#6 dashboard) + the "Not ready" design items (#3 weighted axis, #4
+intensity, #8 minimap). See the Tasks section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -413,13 +412,19 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
 - [ ] **Follow-up:** make the gap threshold a setting (constant `GAP_SCENES = 3`
       for now); optional ⚠ badge on the braid lane.
 
-### Slice D — Companion thread-mode [#7] · _first case of [companion-by-type.md](./companion-by-type.md)_
+### Slice D — Companion thread-mode [#7] · _shipped_ · _first case of [companion-by-type.md](./companion-by-type.md)_
 
-- [ ] Companion renders **thread detail** when the active file is `type: thread`
-      (beats in order — title · `summary` · `intensity` · `state` · jump — plus arc
-      stats). Introduce the minimal `type → view` switch here.
-- [ ] Help/docs: note the Companion adapts to a thread file.
-- ⛬ needs design: edit a `summary` from the pane, or read-only v1?
+- [x] When the active file is a `type: thread` entity, the Companion adds a
+      **"Thread — ‹name›"** zone at the top (kept Pinned + In-this-scene below):
+      beats in order — title · `state` badge · `intensity` · `summary` ·
+      click-to-open — plus arc stats (`N beats · resolved/open/active`). Detected
+      by `thread.path === activePath` from `storyThreads()` (minimal `type → view`
+      switch; the full registry is the companion-by-type refactor). ✅ CDP-verified
+      opening `threads/the-case.md`.
+- [x] Read-only v1 — edit the `summary` by jumping to the scene (it lives on the
+      scene, not the thread file).
+- [ ] **Follow-up:** the full `type → view` registry + character/location views
+      ([companion-by-type.md](./companion-by-type.md)); a Help note.
 
 ### Slice E — Threads dashboard [#6]
 

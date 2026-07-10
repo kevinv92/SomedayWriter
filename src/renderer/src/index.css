@@ -2248,6 +2248,57 @@ body {
   font-style: italic;
 }
 
+.companion-arc__stats {
+  padding: 0 0.6rem 0.4rem;
+  font-size: 0.72rem;
+  color: var(--fg-3);
+}
+
+.companion-beat {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+  width: 100%;
+  text-align: left;
+  padding: 0.35rem 0.6rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  color: var(--fg);
+  cursor: pointer;
+  font: inherit;
+}
+
+.companion-beat:hover {
+  background: var(--bg-2);
+}
+
+.companion-beat__title {
+  font-weight: 500;
+}
+
+.companion-beat__state,
+.companion-beat__intensity {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.05rem 0.3rem;
+  border-radius: var(--radius-xs);
+  background: var(--bg-3);
+  color: var(--fg-3);
+}
+
+.companion-beat__state--opens {
+  color: var(--accent);
+}
+
+.companion-beat__summary {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: var(--fg-3);
+}
+
 .companion-entry {
   border-bottom: 1px solid var(--border);
 }

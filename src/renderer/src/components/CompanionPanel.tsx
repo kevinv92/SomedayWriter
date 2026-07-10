@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Icon } from './Icon'
-import type { CompanionEntry } from '@shared/types'
+import type { CompanionEntry, Thread } from '@shared/types'
 import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
 
 interface CompanionPanelProps {
@@ -42,6 +42,14 @@ export function CompanionPanel({
     entries: CompanionEntry[]
   } | null>(null)
   const [pinned, setPinned] = useState<CompanionEntry[]>([])
+  // If the active file is a `type: thread` entity, its thread (with beats) — so the
+  // Companion shows the arc (Threads v2, #7; first case of companion-by-type).
+  // Tagged with the path it's for (like sceneState) so a stale result is ignored
+  // without a synchronous setState in the effect.
+  const [threadState, setThreadState] = useState<{
+    forPath: string
+    thread: Thread | null
+  } | null>(null)
   // Which entries are open — keyed by path, so scene repopulation never collapses
   // what the writer is reading.
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
@@ -69,6 +77,25 @@ export function CompanionPanel({
     }
   }, [pinnedPaths, refreshKey])
 
+  // When the open file is a thread's own page, load that thread so we can show
+  // its arc. (A thread entity file's path matches a Thread's `path`.)
+  useEffect(() => {
+    if (!activePath) return
+    let cancelled = false
+    void window.api.storyThreads().then((threads) => {
+      if (!cancelled)
+        setThreadState({
+          forPath: activePath,
+          thread: threads.find((t) => t.path === activePath) ?? null
+        })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [activePath, refreshKey])
+
+  const threadHere =
+    threadState && threadState.forPath === activePath ? threadState.thread : null
   const pinnedSet = useMemo(() => new Set(pinnedPaths), [pinnedPaths])
   // Scene entries not already pinned (pinned ones show only in the Pinned zone).
   const scene =
@@ -151,6 +178,54 @@ export function CompanionPanel({
       </div>
 
       <div className="search-panel__results">
+        {threadHere && (
+          <>
+            <div className="companion-zone">
+              <Icon name="spool" size={12} /> Thread — {threadHere.name}
+            </div>
+            <div className="companion-arc__stats">
+              {(() => {
+                const bs = threadHere.beats
+                const closed = bs.some((b) => b.state === 'closes')
+                const opened = bs.some((b) => b.state === 'opens')
+                const status = closed
+                  ? 'resolved'
+                  : opened
+                    ? 'open · unresolved'
+                    : 'active'
+                return `${bs.length} beat${bs.length === 1 ? '' : 's'} · ${status}`
+              })()}
+            </div>
+            {threadHere.beats.length === 0 ? (
+              <div className="companion-hint">No scenes on this thread yet.</div>
+            ) : (
+              threadHere.beats.map((b) => (
+                <button
+                  key={b.path}
+                  className="companion-beat"
+                  onClick={() => onOpenFull(b.path)}
+                  title={`Open ${b.title}`}
+                >
+                  <span className="companion-beat__title">{b.title}</span>
+                  {b.state !== 'touches' && (
+                    <span
+                      className={`companion-beat__state companion-beat__state--${b.state}`}
+                    >
+                      {b.state}
+                    </span>
+                  )}
+                  {b.intensity && (
+                    <span className="companion-beat__intensity">{b.intensity}</span>
+                  )}
+                  {b.summary && (
+                    <span className="companion-beat__summary">{b.summary}</span>
+                  )}
+                </button>
+              ))
+            )}
+          </>
+        )}
+
         <div className="companion-zone">
           <Icon name="pin" size={12} /> Pinned
         </div>
