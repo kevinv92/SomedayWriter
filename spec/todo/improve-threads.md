@@ -4,9 +4,11 @@ _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
 **Status:** _in progress_ — **Foundations + Slices A (`summary`), B (`state` +
-branch/merge), C (pacing/gap lint), and D (Companion thread-mode) shipped**. Left:
-Slice E (#6 dashboard) + the "Not ready" design items (#3 weighted axis, #4
-intensity, #8 minimap). See the Tasks section for what's checked off.
+branch/merge), C (pacing/gap lint), D (Companion thread-mode), and E (#6 dashboard
+List mode) shipped**. Left: the "Not ready" design items — #3 weighted axis, #4
+intensity, #8 minimap — all now **unblocked** (Slice E shipped the shared
+`story:manuscriptScenes` helper they needed). See the Tasks section for what's
+checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -491,21 +493,27 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
 - [ ] **Follow-up:** the full `type → view` registry + character/location views
       ([companion-by-type.md](./companion-by-type.md)); a Help note.
 
-### Slice E — Threads dashboard [#6]
+### Slice E — Threads dashboard [#6] · _shipped_
 
-- [ ] New **main-pane view** (same class as `BraidView`, swaps the editor in
-      `<main>`); ideally `Timeline | List` modes of one Threads view.
-- [ ] Per-thread stats table (count, words, first/last, gaps, open/closed).
+- [x] Built as **two modes of the one Threads view** — a `Timeline | List` toggle
+      in the braid header (no second main-pane view / no new open-close plumbing).
+      The View-menu entry is now **"Threads Dashboard"** (was "· Timeline").
+- [x] Per-thread stats table: scenes, words, span (first → last appearance),
+      status (active / open / resolved) + a "silent N" pacing hint. Rows open the
+      thread's file. Pure `threadStats(threads, scenes)` in
+      `renderer/src/lib/thread-stats.ts` (unit-tested).
+- [x] Shipped the shared **`story:manuscriptScenes`** helper here (the scene spine
+      with word counts); `neglectedThreads` now reuses it. **This unblocks #3 and
+      #8** — the dependency below is now satisfied.
 
 ### Designed — ready to build (was "not ready")
 
 All three now have a resolved **Design** section in their entry above. Build order
 and the one shared dependency:
 
-- **#3 word-weighted axis** → needs a new **`story:manuscriptScenes`**
-  (`{ path, order, words }[]`) helper — lift the scene-words scan Slice C already
-  does into a shared function. Swap `colX` → `colXWeighted` behind an `Even | By
-length` toggle. _Build first — it unblocks #8._
+- **#3 word-weighted axis** → **`story:manuscriptScenes`** (`{ path, order, title,
+words }[]`) helper now **exists** (shipped in Slice E). Remaining: swap `colX` →
+  `colXWeighted` behind an `Even | By length` toggle.
 - **#4 intensity → lane shape** → pure render change: per-beat vertical offset
   (climax peaks) + a `<polyline>` lane; no new data. _Build with/after #3 (both
   touch the lane render)._
