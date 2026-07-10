@@ -40,15 +40,73 @@ Roughly in writer-value order. Each is a candidate; not all need to ship togethe
 
 ### 1. A beat per scene, per thread
 
-Let a scene say, for each thread it's on, **one line of what that thread does
-there** ("first real doubt", "the lie is planted", "payoff"). Surface it on hover
-in the braid and in the follow-thread reading order.
+**What.** For each thread a scene sits on, one short, **writer-authored line
+naming the thread's _move_ in that scene** — not a summary of the whole scene,
+just what this arc does here. Think of it as a caption on the thread's dot.
 
-- **Data:** extend `threads:` from a list of ids to a list of `{ thread, beat }`,
-  _or_ carry it on the inline `<!-- thread:x -->` marker. Must stay
-  hand-editable and degrade to the current bare-id form.
-- **Open:** one beat per (scene, thread) or several? Where it renders (tooltip,
-  lane label, a side list).
+**Why — use cases.**
+
+- **Follow-a-thread becomes a living outline.** The braid can already reorder to a
+  single thread's scenes; with beats, that view reads as an auto-synopsis of the
+  arc. Reading _The Case_ top to bottom — "hired → finds the hiding place →
+  smoke-rocket plan → the photo's spot is revealed → Irene has fled" — you feel
+  escalation (or a sag) in five seconds without opening a scene.
+- **Catch a stalled subplot.** Three near-identical beats in a row ("they argue",
+  "another argument", "argue again") make repetition visible that's invisible when
+  the scenes are forty pages apart.
+- **Verify a payoff was set up.** Scan a thread's beats for the seed before the
+  climax — "the photograph is introduced" appears before "the photograph is
+  recovered." A Chekhov's-gun check, per arc.
+- **Recall while navigating.** Hovering a dot in the braid shows "first real
+  doubt" — you remember what that thread is doing there without opening the file.
+- **See a scene pulling its weight.** A scene on three threads shows three beats;
+  if one reads "mentioned in passing", that thread is weak there — cut it from the
+  scene, or strengthen it.
+
+**Example (the Scandal fixture).** Threads are declared in a scene's frontmatter
+today as a `threads:` array — either a bare id, or an object `{ name, order }` for
+an explicit per-thread beat order:
+
+```yaml
+# manuscript/act-2/03-briony-lodge.md — today
+order: 30
+threads: [the-case, the-woman]
+```
+
+Beats are additive — each membership gains a line; the bare-id form still works:
+
+```yaml
+# manuscript/act-2/03-briony-lodge.md — proposed
+order: 30
+threads:
+  - name: the-case # 'name' is the existing object-form key (not 'thread')
+    order: 3 # existing: this scene is beat #3 on the arc
+    beat: 'Holmes scouts Briony Lodge and finds the hiding place'
+  - name: the-woman
+    beat: "first sight of Irene's cleverness"
+```
+
+The follow-thread view of _The Case_ then reads as an outline:
+
+```text
+The Case
+  1. The King of Bohemia  — Holmes is hired to recover the photograph
+  2. Briony Lodge         — scouts the house; finds the hiding place
+  3. The Plan             — the smoke-rocket plan is set
+  4. The Alarm of Fire    — the photograph's hiding spot is revealed
+  5. The Empty Nest       — Irene has fled; the case is lost but resolved
+```
+
+**Declaration & data.** This rides the **existing** `threads:` contract (see
+[story-model.md](../story-model.md) → threads). The only change is one optional
+key on the object form: `beat:` (this item), which pairs with `intensity:` from #5
+below — the same annotation, two fields. Bare ids and `{ name, order }` keep
+working untouched, so no project must adopt it. Inline `<!-- thread:x -->` markers
+stay for _mid-scene_ scoping and carry no beat (for now).
+
+**Open.** One beat per (scene, thread), or several (a scene that does two things to
+one arc)? Where it renders — dot tooltip, lane caption, or a dedicated "arc
+outline" list.
 
 ### 2. Story-time axis — track flashbacks & non-linear narrative
 
@@ -97,14 +155,18 @@ can't: per-thread **stats** — scene count, word count, first/last appearance,
 ```yaml
 # in a scene's frontmatter
 order: 30 # narrative order (exists today)
-when: 12 # NEW: story-time sort key (flashback if < neighbours)
-threads: # today: [the-case, the-disguise]
-  - thread: the-case # NEW richer form (must degrade to the bare id)
-    beat: 'Holmes is hired' # #1
-    intensity: setup # #5
-  - thread: the-disguise
+when: 12 # NEW (#2): story-time sort key (flashback if < neighbours)
+threads: # today: [the-case, the-disguise] OR [{ name, order }]
+  - name: the-case # 'name' + optional 'order' is today's object form
+    order: 1
+    beat: 'Holmes is hired' # NEW (#1)
+    intensity: setup # NEW (#5)
+  - name: the-disguise
     beat: 'the groom disguise is chosen'
 ```
+
+Every added key (`when`, `beat`, `intensity`) is optional and sparse; the bare-id
+and `{ name, order }` forms keep working, so existing projects render unchanged.
 
 ## Open questions (roll up)
 
