@@ -3,10 +3,11 @@
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _in progress_ — **Foundations + Slice A (`summary`) + Slice B (`state`
-lifecycle & branch/merge) shipped** (beat data model, braid hover summary, open/
-close caps, inferred branch/merge connectors, Scandal example, tests). #2–#4, #6–#8
-still design-drafting. See the Tasks section for what's checked off.
+**Status:** _in progress_ — **Foundations + Slices A (`summary`), B (`state` +
+branch/merge), and C (pacing/gap lint) shipped** (beat data model, braid hover
+summary, open/close caps, inferred branch/merge connectors, Project-Health
+neglected-thread lint, Scandal example, tests). #3, #4, #6–#8 still design-drafting.
+See the Tasks section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -398,13 +399,19 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
       branch, the merge at the Empty Nest). ✅
 - [x] Tests: `inferThreadLinks` (branch, merge, lone-close, merge-beats-branch). ✅
 
-### Slice C — pacing / gap lint [#2]
+### Slice C — pacing / gap lint [#2] · _shipped_
 
-- [ ] Compute per-thread gaps (scenes + words since last beat) and "opened, never
-      closed" (uses `state`); thresholds are settings.
-- [ ] Surface in the **Project Health** panel as a "Neglected threads" section
-      (rows, click-to-jump) via `story:health`; optional ⚠ badge on the braid lane.
-- [ ] Tests: gap computation + dangling-thread detection.
+- [x] `computeNeglected` (pure) + `neglectedThreads` (`story-index.ts`): a thread
+      that never `closes` and whose last beat is ≥3 scenes before the end →
+      flagged, with scenes/words silent and a `dangling` (opened-never-closed)
+      flag. ✅
+- [x] IPC `story:neglectedThreads` + a **"Neglected threads"** section in the
+      Project Health panel (rows, click-to-jump to the last beat). ✅ CDP-verified
+      on Scandal ("Holmes and Watson — silent 3 scenes / ~804 words since The
+      Plan").
+- [x] Tests: `computeNeglected` (quiet/resolved/active/sort/threshold). ✅
+- [ ] **Follow-up:** make the gap threshold a setting (constant `GAP_SCENES = 3`
+      for now); optional ⚠ badge on the braid lane.
 
 ### Slice D — Companion thread-mode [#7] · _first case of [companion-by-type.md](./companion-by-type.md)_
 

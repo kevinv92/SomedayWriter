@@ -314,6 +314,23 @@ export type Thread = {
   beats: ThreadBeat[]
 }
 
+/** A thread the pacing lint flags as neglected (Threads v2, #2): it never
+ *  `closes` yet has gone quiet for a while before the manuscript ends. */
+export type NeglectedThread = {
+  name: string
+  tag: string
+  /** Scenes since the thread's last beat (up to the manuscript end). */
+  scenes: number
+  /** Words in those trailing scenes (approximate). */
+  words: number
+  /** The last beat's summary (or scene title) — for "…since '<x>'". */
+  since: string
+  /** The last beat's scene path — the jump target. */
+  path: string
+  /** Opened but never closed (a dangling arc), vs. just gone quiet. */
+  dangling: boolean
+}
+
 /** One reference in the Companion pane (Phase 5, M8d) — an entity profile or a
  * pinned note, resolved to what the pane shows: a title, a type badge (the
  * entity `type`, or `'note'`), a one-line summary for the collapsed row, and the

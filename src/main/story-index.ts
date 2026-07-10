@@ -4,6 +4,7 @@ import type {
   Entity,
   EntityRef,
   FileInspection,
+  NeglectedThread,
   Thread,
   ThreadBeat,
   ThreadIntensity,
@@ -551,6 +552,74 @@ export async function buildThreads(
   }
 
   return threads.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/** A scene in manuscript order, with its (approx) word count. */
+export type SceneGap = { order: number; words: number }
+
+/** Default: a thread silent for this many scenes (with no `closes`) is flagged.
+ *  A setting later (#2). */
+const GAP_SCENES = 3
+
+/**
+ * The pacing lint (Threads v2, #2): threads that never `close` yet have gone
+ * quiet — their last beat sits `GAP_SCENES`+ scenes before the manuscript ends.
+ * Pure: takes the thread model + the ordered scene list; the caller reads files.
+ * A `closes` beat marks a thread resolved, so it's never flagged.
+ */
+export function computeNeglected(
+  threads: Thread[],
+  scenes: SceneGap[],
+  gapScenes = GAP_SCENES
+): NeglectedThread[] {
+  const ordered = [...scenes].sort((a, b) => a.order - b.order)
+  const out: NeglectedThread[] = []
+  for (const t of threads) {
+    if (!t.beats.length) continue
+    if (t.beats.some((b) => b.state === 'closes')) continue // resolved
+    const withOrder = t.beats.filter((b) => b.manuscriptOrder != null)
+    if (!withOrder.length) continue
+    const last = withOrder.reduce((a, b) =>
+      (b.manuscriptOrder ?? -Infinity) > (a.manuscriptOrder ?? -Infinity) ? b : a
+    )
+    const after = ordered.filter((s) => s.order > (last.manuscriptOrder as number))
+    if (after.length < gapScenes) continue
+    out.push({
+      name: t.name,
+      tag: t.tag,
+      scenes: after.length,
+      words: after.reduce((n, s) => n + s.words, 0),
+      since: last.summary ?? last.title,
+      path: last.path,
+      dangling: t.beats.some((b) => b.state === 'opens')
+    })
+  }
+  return out.sort((a, b) => b.scenes - a.scenes)
+}
+
+/** Read the manuscript scenes (ordered, with word counts) and run the pacing
+ *  lint over `threads`. */
+export async function neglectedThreads(
+  root: string,
+  ignore: string[],
+  threads: Thread[]
+): Promise<NeglectedThread[]> {
+  const files = await listMarkdownFiles(root, ignore)
+  const scenes: SceneGap[] = []
+  for (const path of files) {
+    let text: string
+    try {
+      text = await fs.readFile(path, 'utf8')
+    } catch {
+      continue
+    }
+    const order = readOrder(text)
+    if (order == null) continue
+    const fm = parseFrontmatter(text)
+    if (typeof fm.data.type === 'string') continue // entity, not a scene
+    scenes.push({ order, words: countManuscriptWords(fm.body) })
+  }
+  return computeNeglected(threads, scenes)
 }
 
 async function buildThread(

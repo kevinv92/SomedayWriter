@@ -10,6 +10,7 @@ import type {
   FileInspection,
   FileReadResult,
   GrammarMatch,
+  NeglectedThread,
   ProjectConfig,
   Thread,
   WriteConfigResult,
@@ -132,6 +133,9 @@ const api = {
   /** The project-wide thread model — membership + per-thread order (M9). */
   storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads'),
   storyHealth: (): Promise<EntityRef[]> => ipcRenderer.invoke('story:health'),
+  /** Pacing lint: threads that went quiet without closing (Threads v2, #2). */
+  storyNeglectedThreads: (): Promise<NeglectedThread[]> =>
+    ipcRenderer.invoke('story:neglectedThreads'),
   countMentions: (surface: string): Promise<{ count: number; files: number }> =>
     ipcRenderer.invoke('story:countMentions', surface),
   renameMentions: (
