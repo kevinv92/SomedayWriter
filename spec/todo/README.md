@@ -1,23 +1,30 @@
 # Design TODO — specs to write
 
-_Part of the [SomedayWriter spec](./README.md)._
+_Part of the [SomedayWriter spec](../README.md)._
 
 This tracks **design work owed**: areas that need a spec written or expanded
 _before_ they're built. It's deliberately separate from the two neighbours:
 
-- [roadmap.md](./roadmap.md) is the **feature backlog** — what to build and in
+- [roadmap.md](../roadmap.md) is the **feature backlog** — what to build and in
   what order.
-- [../DECISIONS.md](../DECISIONS.md) is the **record of decisions already made**.
-- This file is the **open design questions** — things where the _how_ isn't
-  settled yet, so coding would be premature.
+- [DECISIONS.md](../../DECISIONS.md) is the **record of decisions already made**.
+- This directory holds the **open design questions** — things where the _how_
+  isn't settled yet, so coding would be premature.
 
 ## How to use this
 
-- Add an entry when a feature needs real design before implementation.
-- Give it a **status** (`needs design` → `drafting` → `ready to build`), a
+- Small items live inline below as a short entry.
+- Substantial ones get **their own file in this directory** (e.g.
+  [improve-threads.md](./improve-threads.md)); leave a one-line pointer below.
+- Give each a **status** (`needs design` → `drafting` → `ready to build`), a
   one-line **intent**, and the concrete **open questions**.
-- When its design lands (a new section here or in another `spec/*.md`, plus a
-  numbered entry in `DECISIONS.md`), link it and close the item.
+- When its design lands (fleshed out here + a numbered entry in `DECISIONS.md`),
+  link it and close the item.
+
+## Feature design docs
+
+- [improve-threads.md](./improve-threads.md) — Threads v2: from _membership_ to
+  _movement_ (per-scene beats, pacing/gap signal, weighted axis, intensity).
 
 ---
 
@@ -41,8 +48,8 @@ draw from, with **user-overridable** shortcuts.
   main/renderer; the web menubar keeps everything in React. Decide before M29.
 - Which existing shortcuts become rebindable vs. fixed (e.g. `⌘S`, `⌘P`).
 
-**Related:** [roadmap.md](./roadmap.md) Phase 12 (M29–M31),
-[navigation.md](./navigation.md).
+**Related:** [roadmap.md](../roadmap.md) Phase 12 (M29–M31),
+[navigation.md](../navigation.md).
 
 ### Export — options UI & more formats · _needs design_
 
@@ -60,7 +67,7 @@ multi-format compile.
   levels / part breaks / EPUB nav, or stay flat-by-`order`?
 
 **Related:** the shipped pipeline (`src/shared/manuscript.ts`, `src/main/epub.ts`),
-[manuscript.md](./manuscript.md), [roadmap.md](./roadmap.md) "Export & compile".
+[manuscript.md](../manuscript.md), [roadmap.md](../roadmap.md) "Export & compile".
 
 ### Manuscript hierarchy — explicit `level` field · _needs design_
 
@@ -72,7 +79,7 @@ how it maps to export heading levels and the braid's grouping, and the migration
 for existing flat projects. Becomes load-bearing the moment export or a binder
 needs part breaks.
 
-**Related:** [manuscript.md](./manuscript.md) → hierarchy section.
+**Related:** [manuscript.md](../manuscript.md) → hierarchy section.
 
 ### AI continuity (`ContinuityProvider`) · _needs design_
 
@@ -84,7 +91,7 @@ detail, place drift?), how it's grounded in the StoryIndex, prompt/response
 shape, cost/latency and when it runs, and how results render (diagnostics vs. a
 dedicated panel). Deterministic core stays AI-free; this is a provider.
 
-**Related:** [ai.md](./ai.md), [analysis.md](./analysis.md).
+**Related:** [ai.md](../ai.md), [analysis.md](../analysis.md).
 
 ### Distribution & updates · _needs design_
 
@@ -95,7 +102,7 @@ electron-builder config), whether to ship **auto-update** (electron-updater +
 the `latest-mac.yml` the release step would need), and cross-arch/universal +
 Windows/Linux targets. Today's DMG is unsigned and arm64-only.
 
-**Related:** [roadmap.md](./roadmap.md), `.github/workflows/release.yml`.
+**Related:** [roadmap.md](../roadmap.md), `.github/workflows/release.yml`.
 
 ### Smaller open questions
 
@@ -106,7 +113,7 @@ Windows/Linux targets. Today's DMG is unsigned and arm64-only.
   hardcoded English across the components, plus plurals and RTL UI mirroring.
 - **Real Neovim integration** — an optional "raw Neovim mode" (embed `nvim`);
   heavy, trades away prose decorations. See the deferred note in
-  [roadmap.md](./roadmap.md).
+  [roadmap.md](../roadmap.md).
 
 ---
 
