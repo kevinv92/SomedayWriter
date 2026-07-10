@@ -15,18 +15,19 @@ scene sits on a thread." Those are separate axes with their own fields; the root
 
 ### Three sequencing axes — don't conflate them
 
-| Axis                | Field                              | Means                                                             | Drives                                               |
-| ------------------- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
-| **Narrative order** | root `order:`                      | the order the scene is **read/told**                              | tree sort, nav, export spine, braid's default x-axis |
-| **Thread order**    | `order:` inside a `threads:` entry | the scene's position **within one thread's** beats (thread-local) | the "follow a thread" reading order only             |
-| **Story-time**      | `when:` _(proposed)_               | when the event **happens in the world** (flashbacks/chronology)   | a story-time axis / told-vs-happened view            |
+| Axis                | Field                            | Means                                                             | Drives                                               |
+| ------------------- | -------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
+| **Narrative order** | root `order:`                    | the order the scene is **read/told**                              | tree sort, nav, export spine, braid's default x-axis |
+| **Thread order**    | `pos:` inside a `threads:` entry | the scene's position **within one thread's** beats (thread-local) | the "follow a thread" reading order only             |
+| **Story-time**      | `when:` _(proposed)_             | when the event **happens in the world** (flashbacks/chronology)   | a story-time axis / told-vs-happened view            |
 
-Rule of thumb: **root `order` = the order it's _read_; per-thread `order` = the
-order it happens _on that thread_; `when` = the order it _happens in the story_.**
-The per-thread order lives in [story-model.md](./story-model.md) → threads;
-`when` is a proposal in [todo/story-timeline.md](./todo/story-timeline.md). The
-shared name between the first two is a known wart — see the naming note in
-[todo/improve-threads.md](./todo/improve-threads.md).
+Rule of thumb: **root `order` = the order it's _read_; per-thread `pos` = the order
+it happens _on that thread_; `when` = the order it _happens in the story_.** The
+per-thread order lives in [story-model.md](./story-model.md) → threads; `when` is a
+proposal in [todo/story-timeline.md](./todo/story-timeline.md). The per-thread key
+is **`pos`**, renamed from `order` to end the collision with root `order` (decided
+in [todo/improve-threads.md](./todo/improve-threads.md); a clean break while in
+preview).
 
 ### Storage
 

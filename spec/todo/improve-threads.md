@@ -95,7 +95,7 @@ form still works:
 order: 30
 threads:
   - name: the-case # 'name' is the existing object-form key (not 'thread')
-    order: 3 # existing: this scene is beat #3 on the arc
+    pos: 3 # this scene is beat #3 on the arc — renamed from 'order' (see below)
     summary: 'Holmes scouts Briony Lodge and finds the hiding place'
   - name: the-woman
     summary: "first sight of Irene's cleverness"
@@ -112,14 +112,16 @@ The Case
   5. The Empty Nest       — Irene has fled; the case is lost but resolved
 ```
 
-**Declaration & data.** This rides the **existing** `threads:` contract (see
-[story-model.md](../story-model.md) → threads). The only change is one optional
-key on the object form: **`summary:`** (this item), which pairs with `intensity:`
-from #4 below — the same beat, annotated with two fields. Bare ids and
-`{ name, order }` keep working untouched, so no project must adopt it. (Named
-`summary`, **not** `beat`, on purpose: a _beat_ is the appearance/dot; the
-`summary` is the line describing it.) Inline `<!-- thread:x -->` markers stay for
-_mid-scene_ scoping and carry no summary (for now).
+**Declaration & data.** This rides the `threads:` contract (see
+[story-model.md](../story-model.md) → threads). It adds one optional key to the
+object form: **`summary:`** (this item), which pairs with `intensity:` from #4 —
+the same beat, annotated with two fields. Bare ids and the object form keep
+working, so no project must adopt it. (Named `summary`, **not** `beat`, on purpose:
+a _beat_ is the appearance/dot; the `summary` is the line describing it.) Inline
+`<!-- thread:x -->` markers stay for scoping a thread to a **passage within** a
+scene and carry no summary (for now) — see the decision below. Note the object
+form's per-thread order key is **`pos`** here, renamed from `order` (decision
+below).
 
 **Open.** One `summary` per beat, or can a beat carry a couple (a scene that does
 two distinct things to one arc)? Where it renders — dot tooltip, lane caption, or
@@ -327,9 +329,9 @@ strip? Horizontal-only, or a 2-D mini-braid when the lane count is also tall?
 ```yaml
 # in a scene's frontmatter
 order: 30 # narrative order (exists today)
-threads: # today: [the-case, the-disguise] OR [{ name, order }]
-  - name: the-case # 'name' + optional 'order' is today's object form
-    order: 1
+threads: # bare id OR object form { name, pos?, … }
+  - name: the-case
+    pos: 1 # per-thread order — RENAMED from 'order' (see decisions)
     summary: 'Holmes is hired' # NEW (#1) — the beat's one-line summary
     intensity: setup # NEW (#4)
   - name: the-disguise
@@ -357,10 +359,10 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
       shape carried on `Thread` — `summary?: string`,
       `intensity?: 'setup' | 'rise' | 'climax' | 'fall' | 'resolve'`,
       `state?: 'opens' | 'closes' | 'touches'`.
-- [ ] **Parse** (`parseThreadTags`, `src/main/story-index.ts`): read
-      `summary` / `intensity` / `state` off the `{ name, order, … }` object form;
-      default `state` → `touches`; drop unknown enum values; keep the bare-id and
-      `{ name, order }` forms working untouched.
+- [ ] **Parse** (`parseThreadTags`, `src/main/story-index.ts`): **rename the
+      per-thread `order` key → `pos`** (clean break — preview; drop the old key);
+      read `summary` / `intensity` / `state` off the object form; default `state`
+      → `touches`; drop unknown enum values; keep the bare-id form working.
 - [ ] **Build** (`buildThreads`): attach the three fields to each beat; they ride
       the existing `story:threads` IPC — no new channel.
 - [ ] **Per-scene word count** into the index (reuse the shared `countWords` over
@@ -426,24 +428,32 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
 - [ ] Move the shipped part out of this `todo/` doc into `story-model.md`; keep
       `manuscript.md`'s axes table honest.
 - [ ] `DECISIONS.md` entries as they settle: `summary`-not-`beat`, the per-thread
-      `order` rename call, and the `state`-based branch/merge model.
+      `order` → `pos` rename, and the `state`-based branch/merge model.
 
-## Open questions (roll up)
+## Questions — decided & still open
 
-- **The two `order`s.** The per-thread `order` (inside a `threads:` entry) shares
-  its name with the root manuscript `order`, but they're different axes — read
-  order vs. position-on-this-thread (see the disambiguation in
-  [manuscript.md](../manuscript.md) → "Three sequencing axes"). Do we **rename the
-  per-thread one** (e.g. `pos` / `beat-order`) to kill the collision, or rely on
-  scope + docs? Root `order` is entrenched (readOrder, tree, export, MCP) — it
-  stays; the nested one is the rename candidate. Decide when Threads v2 is
-  committed. (If renamed, keep reading the old `order` key for back-compat.)
-- How much lives in frontmatter vs. inline `<!-- thread:x -->` markers? (Keep both
-  paths working; inline is for mid-scene scoping.)
+**Decided.**
+
+- **The two `order`s → rename the per-thread one to `pos`.** Root `order`
+  (narrative/reading order) is entrenched — `readOrder`, tree sort, export, MCP —
+  so it stays. The per-thread order becomes **`pos`** (a beat's position on _this_
+  thread), ending the name collision (see
+  [manuscript.md](../manuscript.md) → "Three sequencing axes"). We're in
+  **preview**, so it's a **clean break** — parsing drops the old nested `order`
+  key rather than reading both.
+- **Keep both authoring paths.** Frontmatter `threads:` declares **whole-file**
+  membership; inline `<!-- thread:x -->` markers scope a thread to a **passage
+  within** a scene — important when a thread runs through _part_ of a file, not the
+  whole thing. Both stay; they do different jobs. (Inline markers carry no beat
+  fields for now.)
+
+**Still open.**
+
 - Does the **hierarchy `level`** work (see [todo index](./README.md)) interact
-  with weighting/grouping here? Probably design them together.
-- Migration: every addition must be sparse and optional so existing flat projects
-  render unchanged.
+  with weighting/grouping here? Probably design them together. _(left open)_
+- The new beat fields (`summary` / `intensity` / `state`) stay **sparse &
+  optional** so untagged projects render unchanged; the `order` → `pos` rename is
+  the one break we take while in preview.
 
 ## Related
 

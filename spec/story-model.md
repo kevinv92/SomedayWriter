@@ -115,15 +115,17 @@ subplots collide or converge).
 because a subplot's beats may be scattered:
 
 - **Default** — manuscript order (file/scene position on disk / in the tree).
-- **Explicit per-thread order** — an optional `order` value on a membership sets
-  a beat's position _within that thread_, without moving the file. The same
-  scene can be beat 3 of `rebellion` and beat 1 of `romance`.
+- **Explicit per-thread order** — an optional **`pos`** value on a membership sets
+  a beat's position _within that thread_, without moving the file. The same scene
+  can be beat 3 of `rebellion` and beat 1 of `romance`. (`pos` is renamed from
+  `order` to avoid colliding with the root manuscript `order` — see
+  [manuscript.md](./manuscript.md) → "Three sequencing axes".)
 
   ```md
   ---
   threads:
-    - { name: rebellion, order: 3 }
-    - { name: romance, order: 1 }
+    - { name: rebellion, pos: 3 }
+    - { name: romance, pos: 1 }
   ---
   ```
 
