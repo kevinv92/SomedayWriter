@@ -85,6 +85,10 @@ const linkHoverField = StateField.define<DecorationSet>({
 class CodeMirrorAdapter implements EditorAdapter {
   private view: EditorView | null = null
   private readonly vimCompartment = new Compartment()
+  // History lives in a compartment so `loadDoc` can clear the undo stack by
+  // reconfiguring it — without a full `setState`, which would rebuild the editor
+  // (and Vim) and leave a programmatic focus unable to route keys until a click.
+  private readonly historyCompartment = new Compartment()
   private vimEnabled = false
   private completionSource: CompletionSource | null = null
   private currentUri = ''
@@ -105,9 +109,18 @@ class CodeMirrorAdapter implements EditorAdapter {
 
   loadDoc(doc: EditorDoc): void {
     this.currentUri = doc.uri
-    // Rebuild state so a new document starts with a clean undo history.
-    this.requireView().setState(this.buildState(doc.text))
-    // setState mints a fresh CM instance, so re-bind the vim mode listener.
+    const view = this.requireView()
+    // Replace the whole document and clear the undo stack *without* setState —
+    // reconfiguring the history compartment resets it, and dropping it for the
+    // replacing transaction keeps that change off the new stack. Because the view
+    // (and its Vim keymap + focus wiring) is untouched, keys route immediately
+    // after a jump instead of only after a click.
+    view.dispatch({
+      changes: { from: 0, to: view.state.doc.length, insert: doc.text },
+      selection: { anchor: 0 },
+      effects: this.historyCompartment.reconfigure([])
+    })
+    view.dispatch({ effects: this.historyCompartment.reconfigure(history()) })
     if (this.vimEnabled) this.syncVimListener()
   }
 
@@ -546,7 +559,7 @@ class CodeMirrorAdapter implements EditorAdapter {
       extensions: [
         // Vim keys (+ line numbers) must sit first so the keymap wins when active.
         this.vimCompartment.of(this.vimBundle()),
-        history(),
+        this.historyCompartment.of(history()),
         drawSelection(),
         indentOnInput(),
         markdown(),
