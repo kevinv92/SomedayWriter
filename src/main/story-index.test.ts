@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { Thread, ThreadBeat, ThreadState } from '../shared/types'
-import { computeNeglected, parseThreadTags, type SceneGap } from './story-index'
+import {
+  computeNeglected,
+  parseThreadTags,
+  threadsWarnings,
+  type SceneGap
+} from './story-index'
 
 describe('parseThreadTags (Threads v2 beat fields)', () => {
   it('parses the bare-id form with sane defaults', () => {
@@ -119,5 +124,39 @@ describe('computeNeglected (pacing lint)', () => {
     const t = [thd('x', [beat(40, 'touches')])] // 3 scenes after
     expect(computeNeglected(t, scenes, 4)).toEqual([]) // 3 < 4
     expect(computeNeglected(t, scenes, 3)).toHaveLength(1)
+  })
+})
+
+describe('threadsWarnings (Threads v2 object form)', () => {
+  it('accepts bare-id strings', () => {
+    expect(threadsWarnings({ threads: ['the-case', 'the-woman'] })).toEqual([])
+  })
+
+  it('accepts beat objects with a name (no false "non-text" warning)', () => {
+    expect(
+      threadsWarnings({
+        threads: [
+          { name: 'the-case', pos: 3, intensity: 'rise' },
+          'the-woman',
+          { name: 'the-disguise', state: 'opens' }
+        ]
+      })
+    ).toEqual([])
+  })
+
+  it('flags an object with no name', () => {
+    expect(threadsWarnings({ threads: [{ pos: 1 }] })).toHaveLength(1)
+  })
+
+  it('flags a non-string, non-object entry', () => {
+    expect(threadsWarnings({ threads: [42] })).toHaveLength(1)
+  })
+
+  it('flags a non-list threads value', () => {
+    expect(threadsWarnings({ threads: 'the-case' })).toHaveLength(1)
+  })
+
+  it('is silent when threads is absent', () => {
+    expect(threadsWarnings({})).toEqual([])
   })
 })

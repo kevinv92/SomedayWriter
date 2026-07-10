@@ -226,6 +226,25 @@ function stringListWarnings(data: Record<string, unknown>, key: string): string[
   return []
 }
 
+/** `threads` accepts a bare id (string) OR a beat object `{ name: … }` (Threads
+ *  v2), so it needs its own validation — the string-list check would flag every
+ *  object beat as a "non-text entry". Exported for tests. */
+export function threadsWarnings(data: Record<string, unknown>): string[] {
+  const value = data.threads
+  if (value === undefined) return []
+  if (!Array.isArray(value)) return ["Couldn't parse `threads` — expected a list."]
+  const ok = (x: unknown): boolean =>
+    typeof x === 'string' ||
+    (typeof x === 'object' &&
+      x !== null &&
+      !Array.isArray(x) &&
+      typeof (x as Record<string, unknown>).name === 'string')
+  if (value.some((x) => !ok(x))) {
+    return ['`threads` has an entry that isn’t a name or a `{ name: … }` object.']
+  }
+  return []
+}
+
 /** Entities detected in `body`, with per-entity counts. One combined
  * longest-first scan (like `referencesTo`) so "Mara Venn" isn't also counted as
  * "Mara"; `selfPath` (the file being scanned, if it's a profile) is excluded so a
@@ -311,7 +330,7 @@ export async function inspectFile(
   }
   const { data, body, warnings } = parseFrontmatterDetailed(text)
   const fieldWarnings = [
-    ...stringListWarnings(data, 'threads'),
+    ...threadsWarnings(data),
     ...stringListWarnings(data, 'aliases'),
     ...(data.order !== undefined && typeof data.order !== 'number'
       ? ['Couldn’t parse `order` — expected a number.']
