@@ -337,6 +337,8 @@ export default function App() {
       settings.applyProjectConfig(result.project.config)
       // Load this project's pins + re-read tree + entities.
       await projectData.onOpen(result.project)
+      // Keep the recent-projects list current (this open just reordered it).
+      void window.api.getSettings().then((s) => setRecents(s.recentProjects))
     },
     [documents.reset, settings, projectData.onOpen]
   )
@@ -738,9 +740,58 @@ export default function App() {
           <button className="menubar__item" onClick={() => void newProject()}>
             New…
           </button>
-          <button className="menubar__item" onClick={() => void openProject()}>
-            Open…
-          </button>
+          <div className="menu">
+            <button
+              className={`menubar__item${menuOpen === 'open' ? ' menubar__item--open' : ''}`}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen === 'open'}
+              onClick={() => setMenuOpen((m) => (m === 'open' ? null : 'open'))}
+            >
+              Open ▾
+            </button>
+            {menuOpen === 'open' && (
+              <>
+                <div className="menu__backdrop" onClick={() => setMenuOpen(null)} />
+                <div className="menu-pop" role="menu">
+                  <button
+                    className="menu-pop__row"
+                    role="menuitem"
+                    onClick={() => {
+                      setMenuOpen(null)
+                      void openProject()
+                    }}
+                  >
+                    <span className="menu-pop__check" />
+                    Open Project…
+                  </button>
+                  <div className="menu-pop__sep" />
+                  <div className="menu-pop__label">Recent projects</div>
+                  {recents.length === 0 ? (
+                    <div className="menu-pop__row menu-pop__row--static">
+                      <span className="menu-pop__check" />
+                      No recent projects
+                    </div>
+                  ) : (
+                    recents.slice(0, 8).map((r) => (
+                      <button
+                        key={r.path}
+                        className="menu-pop__row"
+                        role="menuitem"
+                        title={r.path}
+                        onClick={() => {
+                          setMenuOpen(null)
+                          void openRecent(r.path)
+                        }}
+                      >
+                        <span className="menu-pop__check" />
+                        {r.name}
+                      </button>
+                    ))
+                  )}
+                </div>
+              </>
+            )}
+          </div>
           <button
             className={`menubar__item${panels.open.search ? ' menubar__item--active' : ''}`}
             title="Search across all files (⌘/Ctrl+Shift+F)"
