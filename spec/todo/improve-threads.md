@@ -52,32 +52,11 @@ in the braid and in the follow-thread reading order.
 
 ### 2. Story-time axis — track flashbacks & non-linear narrative
 
-The braid's x-axis is **narrative order** (the order the reader meets scenes).
-That's only half the picture: a writer mixing **flashbacks / flash-forwards /
-parallel timelines** also needs **story-time** — _when things actually happen in
-the world_. Right now that lives only in the writer's head, and it's exactly what
-gets hard to track.
-
-Proposal: give each scene an optional **story-time** value and let the timeline be
-ordered by it.
-
-- **Data:** a scene frontmatter field — a `when:` value. Options to decide
-  between: an abstract **chrono order** number (like `order`, but story-time), a
-  real/approx **date**, or a named **era/label** (`when: "Before the war"`).
-  Sparse — scenes without it fall back to narrative order.
-- **Views it unlocks:**
-  - **Chronology ordering** — a third axis mode next to _manuscript_ and
-    _follow-thread_: lay scenes out by `when`, so the true sequence of events is
-    visible independent of how they're told.
-  - **Told-vs-happened plot** (the powerful one) — a small 2-D chart: x =
-    narrative order, y = story-time. A linear story is a diagonal; **every
-    flashback is a visible dip, every flash-forward a spike.** At a glance you see
-    how non-linear the book is and whether the jumps land where you intended.
-  - **Flashback markers** — scenes whose `when` is earlier than their neighbours'
-    get a subtle badge in the tree / timeline.
-- **Open:** the `when` type (number vs date vs label — probably support more than
-  one, resolved to a sort key); how partial/unknown times sort; whether parallel
-  timelines (two "presents") need a track/lane concept of their own.
+The braid's x-axis is **narrative order**; a writer mixing flashbacks /
+flash-forwards / parallel timelines also needs **story-time** (when events happen,
+vs when they're told). This shares the timeline surface but stands on its own — it
+has its own design doc: **[story-timeline.md](./story-timeline.md)**. Design it
+together with the braid so the two don't reinvent axis logic.
 
 ### 3. Pacing / gap signal
 

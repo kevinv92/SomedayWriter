@@ -25,6 +25,8 @@ _before_ they're built. It's deliberately separate from the two neighbours:
 
 - [improve-threads.md](./improve-threads.md) — Threads v2: from _membership_ to
   _movement_ (per-scene beats, pacing/gap signal, weighted axis, intensity).
+- [story-timeline.md](./story-timeline.md) — Story-time timeline: chronology &
+  flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
 
 ---
 

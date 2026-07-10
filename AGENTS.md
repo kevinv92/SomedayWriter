@@ -27,12 +27,43 @@ src/
   main/       Electron main process — owns fs, windows, IPC handlers (Node)
   preload/    contextBridge — the ONLY renderer↔main surface (window.api)
   renderer/   React UI (sandboxed; no direct fs/Node)
+  shared/     types + pure logic shared across the process boundary (@shared)
+  mcp/        standalone MCP server (reuses the StoryIndex; run via tsx)
 electron.vite.config.ts   build config for all three
 examples/
-  sample-project/   a real writer-gui Project fixture (open it while developing;
-                    assert against it in tests) — project.json, manuscript/*.md
-                    with order + thread tags, characters/*.md profiles
+  sample-project/   a real Project fixture (open it while developing; assert
+                    against it in tests) — project.json, manuscript/*.md with
+                    order + thread tags, characters/*.md profiles
 ```
+
+## Docs & spec
+
+The design is not one file — it's the **`spec/` directory**, sliced by subsystem.
+Start at [`spec/README.md`](spec/README.md) (the index). Files:
+
+```
+spec/
+  README.md          overview, goals, non-goals, and this index
+  architecture.md    tech stack, source layout, EditorAdapter seam, IPC design
+  project-model.md   what defines a Project, app-settings vs project config, titles
+  manuscript.md      manuscript order, scene→chapter→act hierarchy, editorial marks
+  story-model.md     entities, mentions, references, threads, Inspector & Companion
+  analysis.md        the pluggable language-intelligence facade (spell/grammar/LSP)
+  navigation.md      search, Quick Open, command palette, keyboard nav & focus
+  mcp.md             the MCP server that exposes the project to Claude
+  ai.md              deferred AI features (continuity, thread inference)
+  roadmap.md         core-feature list, phases, deferred backlog
+  terminology.md     glossary
+  todo/              design backlog — open questions / specs still to write
+                     (README.md index + per-feature docs, e.g. improve-threads.md)
+```
+
+- **`DECISIONS.md`** (repo root) — the numbered record of _why_ choices were made.
+- **`spec/todo/`** — open **design** questions (the _how_ isn't settled). Add an
+  entry there before coding a feature that needs design; big ones get their own
+  file.
+- The npm **package** is still named `writer-gui`; the **product** is
+  **SomedayWriter**. Don't "fix" the package name.
 
 ## Commands
 
