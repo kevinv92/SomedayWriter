@@ -119,5 +119,8 @@ export interface EditorAdapter {
   /** Insert a Markdown image `![alt](src)` at the cursor. */
   insertImage(alt: string, src: string): void
 
+  /** Replace a character range (frontmatter editor write-back). */
+  replaceRange(from: number, to: number, insert: string): void
+
   dispose(): void
 }

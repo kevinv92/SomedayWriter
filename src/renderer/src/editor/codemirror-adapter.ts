@@ -431,6 +431,17 @@ class CodeMirrorAdapter implements EditorAdapter {
     view.focus()
   }
 
+  /** Replace a character range without stealing focus — the frontmatter editor
+   * writes the `---` block back this way; CM maps the existing selection through
+   * the change, so a cursor in the body stays put. */
+  replaceRange(from: number, to: number, insert: string): void {
+    const view = this.requireView()
+    const len = view.state.doc.length
+    view.dispatch({
+      changes: { from: Math.min(from, len), to: Math.min(to, len), insert }
+    })
+  }
+
   /** Wrap the selection with a distinct open/close pair; caret between them when
    * nothing is selected. */
   private wrapPair(view: EditorView, open: string, close: string): void {

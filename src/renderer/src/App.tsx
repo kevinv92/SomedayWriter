@@ -18,6 +18,7 @@ import {
 import { BraidView } from './components/BraidView'
 import { CommentsPanel } from './components/CommentsPanel'
 import { CompanionPanel } from './components/CompanionPanel'
+import { FrontmatterPanel } from './components/FrontmatterPanel'
 import { HealthPanel } from './components/HealthPanel'
 import { InspectorPanel } from './components/InspectorPanel'
 import { ProjectSearch } from './components/ProjectSearch'
@@ -131,8 +132,10 @@ export default function App() {
     cursor: { line: 1, column: 1 }
   })
 
-  // Whether the Comments panel is open, read inside the stable doc-change handler.
+  // Whether a live-text panel (Comments / Frontmatter) is open, read inside the
+  // stable doc-change handler so `docText` mirrors the editor while either is up.
   const commentsOpenRef = useRef(false)
+  const frontmatterOpenRef = useRef(false)
   // Session recency for the command palette (command ids); file recency lives in
   // useDocuments.
   const [recentCommands, setRecentCommands] = useState<string[]>([])
@@ -202,7 +205,7 @@ export default function App() {
       const path = documents.activePath
       if (!path) return
       documents.updateActiveBuffer(text)
-      if (commentsOpenRef.current) setDocText(text)
+      if (commentsOpenRef.current || frontmatterOpenRef.current) setDocText(text)
       // Watch entity-file frontmatter for a rename (debounced ~1s).
       if (entityHeadBaseline.current.has(path)) {
         if (renameTimer.current) clearTimeout(renameTimer.current)
@@ -219,12 +222,43 @@ export default function App() {
   // initial text must be pulled in here rather than derived during render.
   useEffect(() => {
     commentsOpenRef.current = panels.open.comments
-    if (panels.open.comments && documents.activePath) {
+    frontmatterOpenRef.current = panels.open.frontmatter
+    if ((panels.open.comments || panels.open.frontmatter) && documents.activePath) {
       const seed = documents.currentText(documents.activePath) ?? documents.activeLoadText
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setDocText(seed)
     }
-  }, [panels.open.comments, documents.activePath, documents.activeLoadText])
+  }, [
+    panels.open.comments,
+    panels.open.frontmatter,
+    documents.activePath,
+    documents.activeLoadText
+  ])
+
+  // Apply the frontmatter editor's block rewrite to the editor buffer as a
+  // minimal range edit (keeps the body cursor + undo granular); the editor's
+  // change flow then updates the buffer + docText.
+  const applyFrontmatter = useCallback(
+    (next: string) => {
+      const old = docText
+      if (next === old) return
+      const min = Math.min(old.length, next.length)
+      let p = 0
+      while (p < min && old.charCodeAt(p) === next.charCodeAt(p)) p++
+      let s = 0
+      while (
+        s < min - p &&
+        old.charCodeAt(old.length - 1 - s) === next.charCodeAt(next.length - 1 - s)
+      )
+        s++
+      editorHandle.current?.replaceRange(
+        p,
+        old.length - s,
+        next.slice(p, next.length - s)
+      )
+    },
+    [docText]
+  )
 
   // Apply the pending rename: rewrite @{from}→@{to} across files (skipping any
   // open with unsaved edits), reload the touched buffers, and refresh the index.
@@ -848,6 +882,11 @@ export default function App() {
                         panels.open.inspector,
                         () => panels.toggle('inspector')
                       ],
+                      [
+                        'Frontmatter',
+                        panels.open.frontmatter,
+                        () => panels.toggle('frontmatter')
+                      ],
                       ['__label__', false, () => {}],
                       [
                         'Project References',
@@ -1385,6 +1424,17 @@ export default function App() {
           />
         )}
 
+        {panels.open.frontmatter && (
+          <FrontmatterPanel
+            path={documents.activePath}
+            text={docText}
+            onApply={applyFrontmatter}
+            entities={projectData.entities}
+            entityTypes={projectData.entityTypes}
+            onClose={() => panels.set('frontmatter', false)}
+          />
+        )}
+
         {panels.open.health && (
           <HealthPanel
             refreshKey={inspectorRefresh}
@@ -1417,6 +1467,12 @@ export default function App() {
                 'info',
                 panels.open.inspector,
                 () => panels.toggle('inspector')
+              ],
+              [
+                'Frontmatter',
+                'tag',
+                panels.open.frontmatter,
+                () => panels.toggle('frontmatter')
               ],
               null,
               [

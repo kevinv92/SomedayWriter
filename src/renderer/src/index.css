@@ -2471,6 +2471,232 @@ body {
   font-style: italic;
 }
 
+/* --- Frontmatter editor pane (frontmatter-editor spec) --- */
+.fm-file {
+  margin-left: 0.4rem;
+  font-size: 0.72rem;
+  color: var(--fg-4);
+  font-weight: 400;
+}
+
+.fm-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.55rem 0.6rem 1rem;
+}
+
+.fm-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.fm-label {
+  font-size: 0.72rem;
+  color: var(--fg-3);
+  font-weight: 500;
+}
+
+.fm-ctl {
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--fg);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.28rem 0.45rem;
+  width: 100%;
+}
+
+.fm-ctl:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+select.fm-ctl {
+  cursor: pointer;
+}
+
+.fm-num {
+  max-width: 92px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+  padding: 0.28rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-1);
+}
+
+.fm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  background: var(--bg-3);
+  border-radius: 999px;
+  padding: 0.05rem 0.2rem 0.05rem 0.45rem;
+}
+
+.fm-chip__rm {
+  border: 0;
+  background: transparent;
+  color: var(--fg-4);
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0 0.15rem;
+}
+
+.fm-chip__rm:hover {
+  color: var(--fg);
+}
+
+.fm-chips__input {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--fg);
+  flex: 1;
+  min-width: 60px;
+  outline: none;
+  padding: 0.1rem;
+}
+
+.fm-beats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fm-beat {
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-1);
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.fm-beat__head {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.fm-beat__name {
+  flex: 1;
+  font-family: var(--font-reading, inherit);
+  font-weight: 600;
+}
+
+.fm-beat__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.fm-sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.68rem;
+  color: var(--fg-3);
+}
+
+.fm-ibtn {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--fg-4);
+  border-radius: var(--radius-xs);
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+
+.fm-ibtn:hover {
+  background: var(--bg-3);
+  color: var(--fg-2);
+}
+
+.fm-add {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.35rem;
+  cursor: pointer;
+  text-align: center;
+  width: 100%;
+}
+
+.fm-add:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.fm-addfield {
+  appearance: none;
+}
+
+.fm-add--primary {
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.fm-sec {
+  font-size: 0.66rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.fm-sec::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--divider);
+}
+
+.fm-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.6rem;
+  padding: 2rem 1rem;
+}
+
+.fm-empty p {
+  font-size: 0.82rem;
+  color: var(--fg-3);
+  margin: 0;
+}
+
+.fm-empty p.fm-empty__note {
+  font-size: 0.72rem;
+  color: var(--fg-4);
+}
+
 /* Threads panel (M9) — each thread's beats in order, in the panel shell. */
 .thread {
   border-bottom: 1px solid var(--border);

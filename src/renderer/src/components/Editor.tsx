@@ -23,6 +23,9 @@ export interface EditorHandle {
   formatTable(): void
   /** Insert a Markdown image at the cursor. */
   insertImage(alt: string, src: string): void
+  /** Replace a character range (used by the frontmatter editor to write the
+   *  `---` block back minimally, preserving the body cursor + undo history). */
+  replaceRange(from: number, to: number, insert: string): void
 }
 
 interface EditorProps {
@@ -138,7 +141,8 @@ export function Editor({
         format: (action) => adapter.format(action),
         resolveChange: (accept) => adapter.resolveChange(accept),
         formatTable: () => adapter.formatTable(),
-        insertImage: (alt, src) => adapter.insertImage(alt, src)
+        insertImage: (alt, src) => adapter.insertImage(alt, src),
+        replaceRange: (from, to, insert) => adapter.replaceRange(from, to, insert)
       }
     }
     const offDiagnostics = analysis.onDiagnostics((uri, diags) => {

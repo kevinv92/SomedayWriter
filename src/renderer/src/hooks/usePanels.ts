@@ -19,6 +19,7 @@ export const PANEL_KEYS = [
   'threads',
   'braid',
   'comments',
+  'frontmatter',
   'health',
   'help'
 ] as const
@@ -35,6 +36,7 @@ const ALL_CLOSED: PanelState = {
   threads: false,
   braid: false,
   comments: false,
+  frontmatter: false,
   health: false,
   help: false
 }
