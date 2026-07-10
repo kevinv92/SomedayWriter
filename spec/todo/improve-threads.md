@@ -280,7 +280,7 @@ default because the beats are **derived**, not file content — a read-only widg
 inside an editable file is confusing. Possible later as a collapsed "arc" section.
 
 **Open:** can you edit a `summary` from the Companion (write it back to the scene's
-frontmatter), or read-only v1?
+frontmatter), or read-only v1? Answer: Read only
 
 ### 8. Overview minimap & scrubber — navigate a big braid
 
@@ -343,69 +343,90 @@ unchanged. (Terminology: a **beat** is a scene's appearance on a thread; `summar
 `intensity`, and `state` are fields _on_ a beat — see #1 and #5.) Story-time
 (`when:`) is a **separate feature** — see [story-timeline.md](./story-timeline.md).
 
-## Tasks (work-breakdown when this ships)
+## Tasks
 
-Not committed — this is the full surface area so nothing (**especially the docs
-and help text**) is forgotten. Ship incrementally; each of #1–#8 can land alone.
-Story-time / chronology is out of scope here — its tasks live in
-[story-timeline.md](./story-timeline.md).
+Concrete plan for the **decided** design. Everything builds on one **Foundations**
+step, then ships in independent **slices** — each end-to-end (data → UI →
+authoring → help/docs → tests). Items still needing a design pass are marked
+**⛬ needs design** and aren't ready to task. Story-time / chronology is out of
+scope — its tasks live in [story-timeline.md](./story-timeline.md).
 
-**Model & data (main / shared)**
+### Foundations — the beat data model (blocks the rest)
 
-- [ ] Extend `parseThreadTags` (`story-index.ts`) to read `summary`, `intensity`,
-      and `state` on the object form; keep bare-id and `{ name, order }` working.
-      (#1, #4, #5)
-- [ ] Carry `summary`/`intensity` through `buildThreads` → the `story:threads` IPC
-      and the shared `Thread`/beat types.
-- [ ] Make per-scene **word count** available to the index (pacing + weighted
-      axis). (#2, #3)
+- [ ] **Shared types** (`src/shared/types.ts`): add optional fields to the beat
+      shape carried on `Thread` — `summary?: string`,
+      `intensity?: 'setup' | 'rise' | 'climax' | 'fall' | 'resolve'`,
+      `state?: 'opens' | 'closes' | 'touches'`.
+- [ ] **Parse** (`parseThreadTags`, `src/main/story-index.ts`): read
+      `summary` / `intensity` / `state` off the `{ name, order, … }` object form;
+      default `state` → `touches`; drop unknown enum values; keep the bare-id and
+      `{ name, order }` forms working untouched.
+- [ ] **Build** (`buildThreads`): attach the three fields to each beat; they ride
+      the existing `story:threads` IPC — no new channel.
+- [ ] **Per-scene word count** into the index (reuse the shared `countWords` over
+      the scene body) — needed by the gap lint (#2) and weighted axis (#3).
+- [ ] **Tests** (Vitest, main): `parseThreadTags` — each field, enum-invalid
+      dropped, `state` default, full back-compat; `buildThreads` carries them.
 
-**Editor & panes (renderer)**
+### Slice A — `summary` [#1] · _smallest real win; do first_
 
-- [ ] Braid: hover a dot → show its `summary`; drive lane shape/colour from
-      `intensity`; word-weighted-axis toggle. (#1, #3, #4)
-- [ ] **Thread detail view** — contextual right-pane mode when a `type: thread`
-      file is active (beats in order, stats, jump). (#7)
-- [ ] Threads **dashboard** as a **main-pane view** (same class as `BraidView`,
-      swaps the editor in `<main>`); ideally a `Timeline | List` mode toggle on
-      one Threads view. (#6)
-- [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#2)
-- [ ] **Overview minimap + scrubber** below the braid — compressed render +
-      draggable viewport with two-way scroll sync. (#8)
-- [ ] Render lane start/end **caps** from `state` (opens/closes), and infer
-      **branch/merge** from open/close co-occurrence in a scene. (#5)
+- [ ] Braid: hover a beat dot → tooltip with its `summary`.
+- [ ] Follow-thread order: render `summary` as each row's caption (the arc outline).
+- [ ] Authoring: intellisense (`frontmatter-provider`/`-context`) offers `summary`
+      inside a `threads:` object; thread/scene templates (`entity-template`) +
+      registry know it; frontmatter help lists it.
+- [ ] Help & docs: syntax reference gains `threads: [{ name, order, summary }]`;
+      README "Story intelligence" bullet; in-app Help line.
+- [ ] Example: add `summary` to a handful of Scandal scenes (keep `sample-project`
+      minimal).
 
-**Frontmatter authoring**
+### Slice B — `state` lifecycle + branch/merge [#5]
 
-- [ ] Intellisense (`frontmatter-provider` / `frontmatter-context`) offers
-      `summary`, `intensity` (enum), and the `threads:` object keys.
-- [ ] New-file templates (`entity-template`) + the entity-type registry know the
-      new fields.
-- [ ] Frontmatter help surfaces them — see [frontmatter-help.md](./frontmatter-help.md).
+- [ ] Braid: draw lane start/end **caps** at `opens` / `closes` beats.
+- [ ] Infer **branch/merge** from open/close co-occurrence in a scene; render the
+      split/join.
+- [ ] Authoring + help: `state` enum in intellisense / frontmatter help / syntax ref.
+- [ ] Example: mark `opens`/`closes` on Scandal's branch (The Disguise) and merge
+      (The Outwitting) scenes.
+- [ ] Tests: branch/merge inference from `state` co-occurrence.
 
-**Help & docs — do not skip**
+### Slice C — pacing / gap lint [#2]
 
-- [ ] **Syntax reference** (the in-app Markdown & syntax cheat-sheet): add the
-      expanded `threads:` shape, `summary`, `intensity`, and the two-`order` note.
-- [ ] **In-app Help guide:** a line on per-beat summaries + the thread detail view.
-- [ ] **README:** update the "Story intelligence" bullets (threads carry per-beat
-      summaries; a thread detail view) and refresh the threads GIF/screenshot.
-- [ ] **Spec:** flesh out `story-model.md` (threads) and confirm `manuscript.md`'s
-      axes table; move the shipped parts of this doc from `todo/` into the relevant
-      spec section, and close the item.
+- [ ] Compute per-thread gaps (scenes + words since last beat) and "opened, never
+      closed" (uses `state`); thresholds are settings.
+- [ ] Surface in the **Project Health** panel as a "Neglected threads" section
+      (rows, click-to-jump) via `story:health`; optional ⚠ badge on the braid lane.
+- [ ] Tests: gap computation + dangling-thread detection.
 
-**Examples & tests**
+### Slice D — Companion thread-mode [#7] · _first case of [companion-by-type.md](./companion-by-type.md)_
 
-- [ ] Add `summary`/`intensity` to a few Scandal scenes so the feature demos; keep
-      `sample-project` minimal.
-- [ ] Unit tests: extended `parseThreadTags` (parse + back-compat), beat build with
-      summaries, gap/pacing computation.
+- [ ] Companion renders **thread detail** when the active file is `type: thread`
+      (beats in order — title · `summary` · `intensity` · `state` · jump — plus arc
+      stats). Introduce the minimal `type → view` switch here.
+- [ ] Help/docs: note the Companion adapts to a thread file.
+- ⛬ needs design: edit a `summary` from the pane, or read-only v1?
 
-**Decisions**
+### Slice E — Threads dashboard [#6]
 
-- [ ] Record in `DECISIONS.md`: the `summary`-not-`beat` field name, the per-thread
-      `order` rename call, and the branch/merge model (`state` on the beat vs.
-      thread-file edges).
+- [ ] New **main-pane view** (same class as `BraidView`, swaps the editor in
+      `<main>`); ideally `Timeline | List` modes of one Threads view.
+- [ ] Per-thread stats table (count, words, first/last, gaps, open/closed).
+
+### Not ready — needs a design pass first
+
+- ⛬ **#4 intensity → lane shape** — authoring is trivial (an enum), but the
+  _visual_ mapping (lane height? colour ramp? both?) needs a design pass.
+- ⛬ **#3 word-weighted axis** — a spacing toggle + column width ∝ word count
+  (Foundations supplies the counts); pin down the even↔weighted interaction.
+- ⛬ **#8 minimap / scrubber** — density, a fit/zoom control, and 2-D vs horizontal
+  are open (see #8 above).
+
+### On landing (every slice)
+
+- [ ] Move the shipped part out of this `todo/` doc into `story-model.md`; keep
+      `manuscript.md`'s axes table honest.
+- [ ] `DECISIONS.md` entries as they settle: `summary`-not-`beat`, the per-thread
+      `order` rename call, and the `state`-based branch/merge model.
 
 ## Open questions (roll up)
 
@@ -430,7 +451,3 @@ Story-time / chronology is out of scope here — its tasks live in
 - [manuscript.md](../manuscript.md) — `order`, hierarchy, inline markers.
 - [story-timeline.md](./story-timeline.md) — story-time / chronology (the moved #2).
 - [roadmap.md](../roadmap.md) — where a committed Threads v2 would slot in.
-
-```
-
-```
