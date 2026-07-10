@@ -632,14 +632,16 @@ export async function manuscriptScenes(
 }
 
 /** Read the manuscript scenes (ordered, with word counts) and run the pacing
- *  lint over `threads`. */
+ *  lint over `threads`. `gapScenes` overrides the default silence threshold
+ *  (from `project.json` → `threads.gapScenes`). */
 export async function neglectedThreads(
   root: string,
   ignore: string[],
-  threads: Thread[]
+  threads: Thread[],
+  gapScenes = GAP_SCENES
 ): Promise<NeglectedThread[]> {
   const scenes = await manuscriptScenes(root, ignore)
-  return computeNeglected(threads, scenes)
+  return computeNeglected(threads, scenes, gapScenes)
 }
 
 async function buildThread(

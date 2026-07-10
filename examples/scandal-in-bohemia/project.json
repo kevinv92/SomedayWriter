@@ -11,6 +11,9 @@
   "explorer": {
     "ignore": [".git", "node_modules"]
   },
+  "threads": {
+    "gapScenes": 3
+  },
   "themes": [
     {
       "id": "gaslight",

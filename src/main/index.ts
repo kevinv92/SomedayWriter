@@ -504,7 +504,8 @@ function registerIpc(): void {
   ipcMain.handle('story:neglectedThreads', async (): Promise<NeglectedThread[]> => {
     if (!currentProject) return []
     const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-    return neglectedThreads(currentProject.root, ignore, await getThreads())
+    const gap = currentProject.config.threads?.gapScenes
+    return neglectedThreads(currentProject.root, ignore, await getThreads(), gap)
   })
 
   // The ordered manuscript scene spine (Threads v2, #3/#6/#8 — dashboard stats).

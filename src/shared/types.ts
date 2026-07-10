@@ -48,6 +48,10 @@ export type ProjectConfig = {
     autosave?: boolean
   }
   explorer?: { ignore?: string[] }
+  /** Threads settings (Threads v2). `gapScenes`: a thread that never `closes`
+   * and whose last beat sits this many manuscript scenes before the end is
+   * flagged as neglected in Project Health. Default 3. */
+  threads?: { gapScenes?: number }
   /** Registered entity types (Phase 7, M18) — display metadata + the fields each
    * type declares. This is type *schema* (tool config), so unlike thread identity
    * it lives in `project.json`, not in content (decision #45). Merged over the
