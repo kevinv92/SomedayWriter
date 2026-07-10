@@ -97,6 +97,15 @@ resolving.
 <img src="docs/images/demo-threads.gif" width="820" alt="Threads timeline reordering as you follow different threads" />
 </div>
 
+**Edit frontmatter as a form.** Open the **Frontmatter** pane on any file and its
+`---` block becomes a schema-aware form — dropdowns, and a threads-beat repeater
+you can reorder and collapse. It writes straight back to the file with a faithful
+YAML round-trip, so your comments and own keys stay untouched.
+
+<div align="center">
+<img src="docs/images/demo-frontmatter.gif" width="820" alt="Editing a file's frontmatter as a structured form — the YAML updates live as beats are reordered and collapsed" />
+</div>
+
 **Catch mistakes as you type.** Opt-in spelling/grammar diagnostics squiggle
 under the problem — quietly, and only when you turn them on.
 
