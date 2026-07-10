@@ -245,40 +245,42 @@ navigate _to_ it). #7 is a right-pane **companion** that appears _beside the
 editor_ when a single `type: thread` file is open. Different surfaces, different
 jobs — but they can share the row/stat components.
 
-### 7. Thread detail view — when a thread file is open
+### 7. Thread detail — the Companion pane in "thread mode"
 
-**The question:** when you open a `type: thread` file (`threads/the-case.md`),
-should a dedicated view show that thread's beats?
+When you open a `type: thread` file (`threads/the-case.md`), the **Companion pane**
+shows **that thread's detail** in place of its usual contents.
 
-**Yes — but as a contextual mode of the right pane, not a new always-on toggle.**
-A thread's detail is only meaningful while a thread file is active, so surface it
-the way the **Companion** (auto-follows the scene's entities) and **Inspector**
-(shows the active file's parse) already do: the pane's content switches with the
-active file. An always-present rail button that's disabled for every non-thread
-file is clutter.
+The Companion is already the app's **per-file, context-following** pane — for a
+scene it auto-follows the entities in view (with pin-to-freeze). A thread file is
+just another active file, so the pane adapts: when the active file's `type` is
+`thread`, it swaps the entity list for the thread's **beats**. No new pane, no
+always-on rail toggle that's dead for every other file.
+
+This is the first case of a more general idea — **a Companion that changes with
+the entity you're viewing** — written up in
+[companion-by-type.md](./companion-by-type.md).
 
 **What it shows** — all _derived_, scanned from scenes' `threads:` tags (the beats
 live on the scenes, not in the thread file):
 
 - the thread's **beats in order** (per-thread `order`, then narrative order), each
-  a row — scene title · `summary` · `intensity` badge · click-to-jump;
+  a row — scene title · `summary` · `intensity` badge · `state` cap · click-to-jump;
 - **arc stats** — beat count, word count across the arc, first/last appearance,
   "silent for N scenes" gaps (#6's dashboard, scoped to this one thread);
-- the thread file's own prose (its identity/description) stays in the editor; the
-  pane is the computed companion beside it.
+- the thread file's own prose (its identity/description) stays in the **editor**;
+  the Companion is the computed detail beside it.
 
 **Zoom levels.** The braid (Threads · Timeline) is the **overview** — every thread
-at once; this is the **drill-down** — one arc in depth. They pair: clicking a lane
-in the braid opens that thread file → this view. Overview → detail.
+at once; the Companion here is the **drill-down** — one arc in depth. They pair:
+clicking a lane in the braid opens that thread file → the Companion fills.
 
 **Alternative considered:** render the beats **inline in the editor**, below the
 thread file's frontmatter (the file _is_ the thread's page). Rejected as the
 default because the beats are **derived**, not file content — a read-only widget
-inside an editable file is confusing. Possible later as a collapsed "arc" section
-once the pane exists.
+inside an editable file is confusing. Possible later as a collapsed "arc" section.
 
-**Open:** reuse Inspector/Companion, or a sibling "Thread" mode? Can you edit a
-`summary` from the pane (write back to the scene's frontmatter), or read-only v1?
+**Open:** can you edit a `summary` from the Companion (write it back to the scene's
+frontmatter), or read-only v1?
 
 ### 8. Overview minimap & scrubber — navigate a big braid
 

@@ -29,6 +29,9 @@ _before_ they're built. It's deliberately separate from the two neighbours:
   flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
 - [frontmatter-help.md](./frontmatter-help.md) — an in-editor, schema-aware help
   button for the frontmatter block (as the frontmatter grows more complex).
+- [companion-by-type.md](./companion-by-type.md) — a Companion pane that changes
+  what it shows based on the active file's entity type (thread arc, character
+  footprint, …).
 
 ---
 
