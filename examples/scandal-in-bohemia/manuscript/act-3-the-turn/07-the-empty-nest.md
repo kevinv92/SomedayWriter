@@ -4,6 +4,7 @@ threads:
   - {
       name: the-case,
       state: closes,
+      intensity: resolve,
       summary: 'Irene has fled; the case is lost but resolved'
     }
   - { name: the-woman, state: closes }

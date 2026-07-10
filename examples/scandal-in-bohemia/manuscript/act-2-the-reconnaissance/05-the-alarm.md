@@ -1,7 +1,11 @@
 ---
 order: 50
 threads:
-  - { name: the-case, summary: "the photograph's hiding spot is revealed" }
+  - {
+      name: the-case,
+      intensity: climax,
+      summary: "the photograph's hiding spot is revealed"
+    }
   - { name: the-disguise, state: closes, summary: 'the disguise does its work' }
 ---
 

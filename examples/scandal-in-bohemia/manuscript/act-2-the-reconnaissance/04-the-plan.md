@@ -1,7 +1,7 @@
 ---
 order: 40
 threads:
-  - { name: the-case, summary: 'the smoke-rocket plan is set' }
+  - { name: the-case, intensity: rise, summary: 'the smoke-rocket plan is set' }
   - holmes-and-watson
   - the-disguise
   - royal-scandal

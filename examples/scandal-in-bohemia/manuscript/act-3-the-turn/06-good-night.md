@@ -1,6 +1,6 @@
 ---
 order: 60
-threads: [the-case, the-woman, the-outwitting]
+threads: [{ name: the-case, intensity: fall }, the-woman, the-outwitting]
 ---
 
 # Good-night, Mister Sherlock Holmes

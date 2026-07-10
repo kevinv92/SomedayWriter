@@ -4,11 +4,11 @@ _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
 **Status:** _in progress_ — **Foundations + Slices A (`summary`), B (`state` +
-branch/merge), C (pacing/gap lint), D (Companion thread-mode), and E (#6 dashboard
-List mode) shipped**. Left: the "Not ready" design items — #3 weighted axis, #4
-intensity, #8 minimap — all now **unblocked** (Slice E shipped the shared
-`story:manuscriptScenes` helper they needed). See the Tasks section for what's
-checked off.
+branch/merge), C (pacing/gap lint), D (Companion thread-mode), E (#6 dashboard
+List mode), and #4 (intensity → lane shape) shipped**. Left: #3 weighted axis and
+#8 minimap (both unblocked — Slice E shipped the shared `story:manuscriptScenes`
+helper they needed), plus the authoring/graduation follow-ups. See the Tasks
+section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -514,9 +514,13 @@ and the one shared dependency:
 - **#3 word-weighted axis** → **`story:manuscriptScenes`** (`{ path, order, title,
 words }[]`) helper now **exists** (shipped in Slice E). Remaining: swap `colX` →
   `colXWeighted` behind an `Even | By length` toggle.
-- **#4 intensity → lane shape** → pure render change: per-beat vertical offset
-  (climax peaks) + a `<polyline>` lane; no new data. _Build with/after #3 (both
-  touch the lane render)._
+- **#4 intensity → lane shape** → _shipped._ The braid lane is now a `<polyline>`
+  whose per-beat vertical lift encodes intensity (`INTENSITY_LIFT`: setup/resolve
+  0, rise 12, climax 24, fall 12); dots, cap rings, crossings, and branch/merge
+  connectors all sit on the curve, and a thread with no intensities stays flat
+  (back-compatible). Designed first as `preview/threads-intensity.html` (Claude
+  Design), then adopted. The Scandal `the-case` arc got a setup→rise→climax→fall→
+  resolve tag set to demonstrate. CDP-verified (lane y 206→194→194→182→194→206).
 - **#8 minimap / scrubber** → a 2-D mini-braid from shared board geometry + a
   viewport rect bound to the existing `view {tx,ty,k}` (two-way sync for free).
   _Build last — it reflects #3 + #4._
