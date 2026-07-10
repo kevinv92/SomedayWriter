@@ -69,6 +69,10 @@ export interface EditorAdapter {
   /** Put DOM focus on the editor without moving the caret. */
   focus(): void
 
+  /** Force genuine editable focus (blur→focus) so contentEditable typing lands
+   * after a jump, not just after a click. See the adapter impl for the why. */
+  forceRefocus(): void
+
   /** Whether the editor currently holds DOM focus. */
   hasFocus(): boolean
 

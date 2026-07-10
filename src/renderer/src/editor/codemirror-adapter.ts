@@ -163,6 +163,19 @@ class CodeMirrorAdapter implements EditorAdapter {
     this.view?.focus()
   }
 
+  /** Force *genuine* editable focus by blurring then re-focusing. After Quick
+   * Open, the overlay input's blur-on-unmount leaves the browser's active-editable
+   * tracking stale: `activeElement` is the editor (so `hasFocus()` is true and Vim
+   * keys, which route on keydown, work) but contentEditable typing has nowhere to
+   * land until a real click. A blur→focus cycle re-establishes that editable state
+   * the way a click would, without moving the caret. */
+  forceRefocus(): void {
+    const view = this.view
+    if (!view) return
+    view.contentDOM.blur()
+    view.focus()
+  }
+
   hasFocus(): boolean {
     return this.view?.hasFocus ?? false
   }

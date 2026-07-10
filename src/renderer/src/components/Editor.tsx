@@ -217,7 +217,14 @@ export function Editor({
       const STABLE_NEEDED = 6
       const grab = (): void => {
         if (adapter.hasFocus()) {
-          if (++stable >= STABLE_NEEDED) return
+          if (++stable >= STABLE_NEEDED) {
+            // Focus has held for a few frames, but the overlay's blur-on-unmount
+            // may have left the browser's editable-focus stale — `hasFocus()` is
+            // true (Vim keys work) yet plain typing has nowhere to land until a
+            // click. Promote it to genuine editable focus once, at the end.
+            adapter.forceRefocus()
+            return
+          }
         } else {
           adapter.focus()
           stable = 0
