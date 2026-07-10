@@ -15,17 +15,16 @@ _before_ they're built. It's deliberately separate from the two neighbours:
 
 - Small items live inline below as a short entry.
 - Substantial ones get **their own file in this directory** (e.g.
-  [improve-threads.md](./improve-threads.md)); leave a one-line pointer below.
+  [story-timeline.md](./story-timeline.md)); leave a one-line pointer below.
 - Give each a **status** (`needs design` → `drafting` → `ready to build`), a
   one-line **intent**, and the concrete **open questions**.
 - When its design lands (fleshed out here + a numbered entry in `DECISIONS.md`),
-  link it and close the item.
+  link it and close the item — and when it **ships**, graduate it into the
+  permanent spec and remove it from this directory (as Threads v2 did → it now
+  lives in [story-model.md](../story-model.md), decisions #47–#49).
 
 ## Feature design docs
 
-- [improve-threads.md](./improve-threads.md) — Threads v2: from _membership_ to
-  _movement_ — **shipped & graduated** into [story-model.md](../story-model.md)
-  (the file is now a short record + remaining follow-ups).
 - [story-timeline.md](./story-timeline.md) — Story-time timeline: chronology &
   flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
 - [frontmatter-help.md](./frontmatter-help.md) — an in-editor, schema-aware help

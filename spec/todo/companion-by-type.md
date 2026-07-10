@@ -8,7 +8,7 @@ _Part of the [SomedayWriter spec](../README.md) · design backlog
 **Intent.** The **Companion pane** should show a view **tailored to the active
 file's entity `type`** — not one fixed behavior. Open a character and it shows that
 character's footprint; open a thread and it shows the arc; open a scene and it does
-what it does today. The [thread detail](./improve-threads.md) (#7) is the first
+what it does today. The [thread detail](../story-model.md) (#7) is the first
 concrete case; this doc is the general pattern behind it.
 
 ## Today
@@ -27,7 +27,7 @@ for it, falling back to a generic default for any type without a bespoke one:
 | Active file `type` | Companion shows                                                                                            |
 | ------------------ | ---------------------------------------------------------------------------------------------------------- |
 | scene / untyped    | entities appearing in this scene (**today's behavior**)                                                    |
-| `thread`           | the thread's beats in order + arc stats ([improve-threads.md](./improve-threads.md) #7)                    |
+| `thread`           | the thread's beats in order + arc stats ([story-model.md → Thread views](../story-model.md) #7)            |
 | `character`        | their **footprint** — scenes/beats they appear in, aliases, threads they're on, who they share scenes with |
 | `location`         | scenes set here; who appears here                                                                          |
 | `item`             | scenes it appears in; who holds/uses it                                                                    |
@@ -90,7 +90,7 @@ They're complementary, not duplicates:
 - [ ] Companion **view registry** (`type` → renderer) + a default (references +
       fields) renderer.
 - [ ] Scene view = today's behavior, moved behind the registry.
-- [ ] Thread view (= [improve-threads.md](./improve-threads.md) #7).
+- [ ] Thread view (= [story-model.md → Thread views](../story-model.md) #7).
 - [ ] Character / location / item views (footprint queries over the story index).
 - [ ] **Docs & help:** README bullet ("the Companion adapts to what you're
       viewing"), the in-app Help guide, and the syntax/entity reference.
@@ -98,7 +98,7 @@ They're complementary, not duplicates:
 
 ## Related
 
-- [improve-threads.md](./improve-threads.md) — #7, the thread-detail instance.
+- [story-model.md → Thread views](../story-model.md) — #7, the thread-detail instance.
 - [story-model.md](../story-model.md) — entities, the type registry, the Companion.
 - [frontmatter-help.md](./frontmatter-help.md) — also registry-driven; keep them
   sharing one source of truth for what each type is.

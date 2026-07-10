@@ -10,7 +10,7 @@ events are _told_ (narrative order) and the order they _happen_ (story-time) —
 a writer mixing flashbacks, flash-forwards, or parallel timelines can actually see
 and trust the chronology instead of holding it in their head.
 
-Came out of the threads/timeline design ([improve-threads.md](./improve-threads.md)),
+Came out of the threads/timeline design ([story-model.md → Thread views](../story-model.md)),
 but it's a **separate feature**: it's about _all_ scenes, threaded or not, so the
 threads doc explicitly scopes it out and points here. The two share the timeline
 _surface_ — design them together — but neither owns the other.
@@ -59,7 +59,7 @@ render unchanged. Nothing here is required.
 A third ordering next to _manuscript_ and _follow-thread_ on the existing
 timeline: lay scenes out by `when`, so the true sequence of events reads
 independent of how it's told. Reuses the braid's axis machinery
-([improve-threads.md](./improve-threads.md)); the lanes/threads still work.
+([story-model.md → Thread views](../story-model.md)); the lanes/threads still work.
 
 ### 2. Told-vs-happened plot (the one to build first)
 
@@ -90,7 +90,7 @@ it up front.
 
 ## Relationship to neighbours
 
-- **Threads braid** ([improve-threads.md](./improve-threads.md)) — shares the
+- **Threads braid** ([story-model.md → Thread views](../story-model.md)) — shares the
   timeline surface and axis-ordering concept; chronology is another axis mode
   there. Design the two together so they don't reinvent axis logic.
 - **Manuscript order** ([manuscript.md](../manuscript.md)) — `order` stays the
@@ -116,6 +116,6 @@ it up front.
 
 ## Related
 
-- [improve-threads.md](./improve-threads.md) — Threads v2 (shares the timeline).
+- [story-model.md → Thread views](../story-model.md) — Threads v2 (shares the timeline).
 - [manuscript.md](../manuscript.md) — narrative `order`, inline markers.
 - [roadmap.md](../roadmap.md) — where a committed timeline would slot in.

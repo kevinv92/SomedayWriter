@@ -206,8 +206,8 @@ last beat, and a `dangling` mark for opened-but-never-closed threads.
 **Deferred — drag-to-edit the braid (M11).** Rearranging structure by dragging
 beats between/along lanes (writing membership + `pos` back to files) is designed
 but not built: tree-drag reordering + hand-editing the `threads:` frontmatter
-(with intellisense) already cover rearrangement. Kept as future work — see
-`spec/todo/improve-threads.md`.
+(with intellisense) already cover rearrangement. Kept as future work (the M11
+braid-editing lane).
 
 ## Debug info (file details) pane
 

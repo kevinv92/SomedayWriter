@@ -55,7 +55,8 @@ spec/
   roadmap.md         core-feature list, phases, deferred backlog
   terminology.md     glossary
   todo/              design backlog — open questions / specs still to write
-                     (README.md index + per-feature docs, e.g. improve-threads.md)
+                     (README.md index + per-feature docs, e.g. story-timeline.md;
+                      shipped ones graduate into the permanent spec + get removed)
 ```
 
 - **`DECISIONS.md`** (repo root) — the numbered record of _why_ choices were made.

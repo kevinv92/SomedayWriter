@@ -58,7 +58,7 @@ Read the file's `type:` and render from the registry:
 - **The `threads:` shape** — the one that's getting complex — shown expanded:
   bare id vs `{ name, order, summary, intensity }` (a **beat** is the scene's
   appearance on a thread; `summary`/`intensity` describe it — see
-  [improve-threads.md](./improve-threads.md) #1), with the
+  [story-model.md → Thread views](../story-model.md) #1), with the
   [order disambiguation](../manuscript.md) inline so nobody confuses the two
   `order`s.
 - **Actions** — "insert this field" (reuses the template/intellisense path) and a
@@ -99,4 +99,4 @@ Read the file's `type:` and render from the registry:
 
 - [story-model.md](../story-model.md) — entity types + the fields registry.
 - [manuscript.md](../manuscript.md) — `order` / `threads` / `when` fields.
-- [improve-threads.md](./improve-threads.md) — the richer `threads:` this helps with.
+- [story-model.md → Thread views](../story-model.md) — the richer `threads:` this helps with.
