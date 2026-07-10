@@ -170,12 +170,18 @@ and `{ name, order }` forms keep working, so existing projects render unchanged.
 
 ## Open questions (roll up)
 
+- **The two `order`s.** The per-thread `order` (inside a `threads:` entry) shares
+  its name with the root manuscript `order`, but they're different axes — read
+  order vs. position-on-this-thread (see the disambiguation in
+  [manuscript.md](../manuscript.md) → "Three sequencing axes"). Do we **rename the
+  per-thread one** (e.g. `pos` / `beat-order`) to kill the collision, or rely on
+  scope + docs? Root `order` is entrenched (readOrder, tree, export, MCP) — it
+  stays; the nested one is the rename candidate. Decide when Threads v2 is
+  committed. (If renamed, keep reading the old `order` key for back-compat.)
 - How much lives in frontmatter vs. inline `<!-- thread:x -->` markers? (Keep both
   paths working; inline is for mid-scene scoping.)
 - Does the **hierarchy `level`** work (see [todo index](./README.md)) interact
   with weighting/grouping here? Probably design them together.
-- Is "story-time" big enough to be **its own view** rather than an axis mode of
-  the braid? Start as an axis mode; split out if it grows.
 - Migration: every addition must be sparse and optional so existing flat projects
   render unchanged.
 

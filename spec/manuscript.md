@@ -6,7 +6,27 @@ _Part of the [SomedayWriter spec](./README.md)._
 
 The **manuscript order** is the sequence scenes/chapters are meant to be read in.
 It's a first-class concept because three things depend on it: navigation, the
-thread visualiser's x-axis, and any future export/compile.
+thread visualiser's default x-axis, and export/compile (the assembly spine).
+
+The root frontmatter **`order`** is _this and only this_ — one number per scene,
+the order it's **read**. It is not "when the scene happens" and not "where the
+scene sits on a thread." Those are separate axes with their own fields; the root
+`order` should never be overloaded to mean them.
+
+### Three sequencing axes — don't conflate them
+
+| Axis                | Field                              | Means                                                             | Drives                                               |
+| ------------------- | ---------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
+| **Narrative order** | root `order:`                      | the order the scene is **read/told**                              | tree sort, nav, export spine, braid's default x-axis |
+| **Thread order**    | `order:` inside a `threads:` entry | the scene's position **within one thread's** beats (thread-local) | the "follow a thread" reading order only             |
+| **Story-time**      | `when:` _(proposed)_               | when the event **happens in the world** (flashbacks/chronology)   | a story-time axis / told-vs-happened view            |
+
+Rule of thumb: **root `order` = the order it's _read_; per-thread `order` = the
+order it happens _on that thread_; `when` = the order it _happens in the story_.**
+The per-thread order lives in [story-model.md](./story-model.md) → threads;
+`when` is a proposal in [todo/story-timeline.md](./todo/story-timeline.md). The
+shared name between the first two is a known wart — see the naming note in
+[todo/improve-threads.md](./todo/improve-threads.md).
 
 ### Storage
 
