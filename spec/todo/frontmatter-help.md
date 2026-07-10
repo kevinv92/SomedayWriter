@@ -12,10 +12,12 @@ A casual or new writer won't memorise that. Put a small **help affordance right 
 the frontmatter block in the editor** that opens **schema-aware help for _this_
 file** — so the fields explain themselves where you write them.
 
-> **Sibling:** the _editable_ counterpart is
-> [frontmatter-editor.md](./frontmatter-editor.md) — a schema-driven form. This
-> spec stays the lightweight read-only affordance; if the editor ships, this "?"
-> can become its entry point. Both render from the one schema registry.
+> **Note:** the _editable_ counterpart — the structured **Frontmatter editor** —
+> has **shipped** ([story-model.md](../story-model.md) → Editing frontmatter,
+> decision #50). Its form surfaces every field as a control, so it already covers
+> much of this spec's discoverability intent; this read-only "?" is now optional
+> polish (it could become the editor pane's inline help). Both render from the one
+> schema registry.
 
 ## What exists, and the gap
 
@@ -102,7 +104,7 @@ Read the file's `type:` and render from the registry:
 
 ## Related
 
-- [frontmatter-editor.md](./frontmatter-editor.md) — the editable sibling (a form).
-- [story-model.md](../story-model.md) — entity types + the fields registry.
+- [story-model.md](../story-model.md) → Editing frontmatter — the shipped
+  structured editor (the editable counterpart) + entity types + the fields registry.
 - [manuscript.md](../manuscript.md) — `order` / `threads` / `when` fields.
 - [story-model.md → Thread views](../story-model.md) — the richer `threads:` this helps with.

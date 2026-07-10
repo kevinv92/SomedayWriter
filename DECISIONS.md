@@ -363,3 +363,15 @@ initial design conversation.)
     of confusion; `pos` ends the collision. A clean break (no back-compat for the
     old per-thread `order`), taken while the app is pre-1.0. See
     [manuscript.md](./spec/manuscript.md) → "Three sequencing axes". Threads v2.
+50. **The frontmatter editor is a rail pane with a high-fidelity YAML round-trip.**
+    A structured editor for the growing `---` block ships as a **file-specific rail
+    pane** ("Frontmatter", beside Companion / Comments / Debug info) — chosen over
+    an inline block editor or merging into the Debug pane, for the simplest two-way
+    sync. Available for **any** text/markdown file (not just `type:` files); a file
+    with no block gets an "Add frontmatter" empty state. Edits ride the `yaml`
+    **Document/CST**, so `# comments`, key order, and unknown keys survive untouched
+    and a beat edit only re-emits that beat — writers keep notes in frontmatter, so a
+    save must never reflow what they didn't touch. Keyboard-first. Editor,
+    intellisense (M19), and templates (M20) all render from the one entity-type
+    registry, so a field is defined once. See
+    [story-model.md](./spec/story-model.md) → Editing frontmatter.

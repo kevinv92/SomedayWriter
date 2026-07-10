@@ -172,7 +172,10 @@ nothing drifts.
 - **Alias rename refactor** — rename a character in its frontmatter and the app
   offers to rewrite every `@{old}` → `@{new}` across the manuscript.
 - **Entity tooling** — a per-project entity-type registry, frontmatter
-  intellisense (`type:` / `threads:` / enum fields), and new-file templates.
+  intellisense (`type:` / `threads:` / enum fields), new-file templates, and a
+  **structured Frontmatter editor** pane that edits the `---` block as a form
+  (dropdowns, a threads beat repeater) with a high-fidelity YAML round-trip — your
+  comments and own keys stay put.
 
 ### Editorial marks (CriticMarkup)
 

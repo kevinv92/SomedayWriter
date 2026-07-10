@@ -53,6 +53,30 @@ How an entity is declared is what keeps linking deterministic (vs. AI guessing):
   leaving clean prose ("the courier"). Use it to disambiguate or to link a form
   the detector wouldn't catch.
 
+### Editing frontmatter — one schema, three surfaces
+
+Every profile's shape comes from the **entity-type registry** (`entity-types.ts`:
+`COMMON_FIELDS` + each type's declared `fields`, each with a `kind`). That one
+schema drives three surfaces, so adding a field once shows up in all of them:
+
+- **Intellisense (M19)** — completes keys/values while you type inside `---`,
+  including the `threads:` beat object (inner keys + `intensity`/`state` enums +
+  thread-name suggestions).
+- **New-file templates (M20)** — a type's skeleton on file creation.
+- **The Frontmatter editor** — a file-specific **rail pane** that edits the `---`
+  block as a **form**: a control per field `kind` (enum → select, text, number,
+  list → chips) and a **threads beat repeater** (name + pos + intensity/state +
+  summary; add / remove / move, keyboard-operable). Available for any text file; a
+  file with no block gets an **"Add frontmatter"** empty state. Unknown enum values
+  and YAML parse errors are flagged in place.
+
+**High-fidelity, two-way.** The editor rides the `yaml` **Document/CST**
+(`renderer/src/lib/frontmatter-doc.ts`), so `# comments`, key order, and the
+writer's own keys stay byte-stable — a beat edit mutates only that beat's node,
+leaving siblings untouched. It reads the live editor text and writes back a
+**minimal range edit** (`EditorHandle.replaceRange`), so the body cursor and undo
+history survive. The file stays the source of truth (decision #50).
+
 ### Deterministic providers (behind the same facade)
 
 - **`CharacterProvider`** — `completion` (@-mention names) + `references`
