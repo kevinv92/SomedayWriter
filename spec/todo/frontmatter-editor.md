@@ -132,24 +132,32 @@ the source of truth.
   flag bad `type` / `order` / `threads`. Natural add: flag bad `intensity` /
   `state` enum values, which are silently dropped today.
 
-## Tasks (rough)
+## Build order
 
-- **Shared schema** — add a `kind` to registry fields; move the `intensity` /
-  `state` enum sets out of `frontmatter-provider` into the shared registry so the
-  form + intellisense + help read one list. A `---`-block **Document** helper over
-  `yaml` (`parseDocument`, node get/set that preserves comments + order + unknown
-  keys, `String(doc)`), plus a "seed a block" builder for the empty state.
-- **Form runtime** — render controls by `kind` from the schema; the threads beat
-  repeater (add / remove / reorder); **full keyboard operation**; two-way binding
-  to the active file (form authoritative while focused, re-parse on external edit).
-- **Surface** — a file-specific **"Frontmatter" rail pane** (+ an icon) shown for
-  any text/markdown file, with the **"Add frontmatter"** empty state that seeds a
-  block.
-- **Write-back + validation** — mutate the `yaml` Document on change and write via
-  the normal `writeFile` path (undoable); in-place validation hints, optionally
-  including bad enum values.
-- **Docs** — README + story-model / manuscript pointers; a `DECISIONS.md` entry
-  for the rail-pane placement + the high-fidelity round-trip promise.
+**Step 1 — shared foundation** _(pure + testable; unblocks the rest — building
+now)._
+
+- Move the `intensity` / `state` enum sets into a **single shared source**
+  (`shared/types.ts` as `const` arrays, with the union types derived from them),
+  and point `frontmatter-provider` + `parseThreadTags` at it so nothing hardcodes
+  the lists.
+- Add a **`kind`** to registry fields (`entity-types.ts`) — `text` / `number` /
+  `enum` / `entity-ref` / `list` / `beats` — and annotate `COMMON_FIELDS`
+  (`order`/`pos` → number, `threads` → beats, `aliases` → list, `type` → enum).
+- A `---`-block **Document helper** over `yaml` (`parseDocument`; get/set/delete
+  that preserve comments + key order + unknown keys; `String(doc)` back, spliced
+  into the file), plus a **seed-a-block** builder for the "Add frontmatter" state.
+  Unit-tested for round-trip fidelity.
+
+**Step 2 — the pane.** Design it through Claude Design first, then: the form
+runtime (controls by `kind` + the threads beat repeater, fully keyboard-operable),
+the file-specific **"Frontmatter" rail pane** (+ icon) with the "Add frontmatter"
+empty state, and two-way binding (form authoritative while focused, re-parse on
+external edit) writing through the normal `writeFile` path (undoable).
+
+**Step 3 — validation + docs.** In-place validation hints (optionally flagging bad
+enum values); README + story-model / manuscript pointers; a `DECISIONS.md` entry
+for the rail-pane placement + the high-fidelity round-trip promise.
 
 ## Related
 

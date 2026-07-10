@@ -62,6 +62,10 @@ export type ProjectConfig = {
 
 /** One field a `type: …` profile declares (Phase 7, M18). Drives frontmatter
  * intellisense (M19) and new-file templates (M20). */
+/** The control the frontmatter editor renders for a field (frontmatter-editor
+ *  spec). Inferred from the field when not set explicitly. */
+export type FieldKind = 'text' | 'number' | 'enum' | 'entity-ref' | 'list' | 'beats'
+
 export type EntityFieldDef = {
   /** Frontmatter key, e.g. `region`. */
   name: string
@@ -71,6 +75,9 @@ export type EntityFieldDef = {
   values?: string[]
   /** A list field (YAML sequence), e.g. `aliases`, `threads`. */
   repeated?: boolean
+  /** How the frontmatter editor renders it; inferred when omitted (see
+   *  `resolveFieldKind`). */
+  kind?: FieldKind
 }
 
 /** A registered entity type (Phase 7, M18): how the tree/inspector/visualiser
@@ -282,12 +289,17 @@ export type FileInspection = {
 /** One scene on a thread (Phase 5, M9). `threadOrder` is the explicit per-thread
  * beat position when the scene declares one; otherwise it's null and the beat
  * falls back to `manuscriptOrder` (then title) for sequencing. */
-/** How intense a beat is on its thread — drives the lane's shape (Threads v2). */
-export type ThreadIntensity = 'setup' | 'rise' | 'climax' | 'fall' | 'resolve'
+/** How intense a beat is on its thread — drives the lane's shape (Threads v2).
+ * The `const` array is the single source of truth (shared by the parser, the
+ * completion provider, and the frontmatter editor); the union derives from it. */
+export const THREAD_INTENSITIES = ['setup', 'rise', 'climax', 'fall', 'resolve'] as const
+export type ThreadIntensity = (typeof THREAD_INTENSITIES)[number]
 
 /** A beat's lifecycle role on its thread: `opens` starts/branches it, `closes`
- * ends/merges it, `touches` (default) is a normal mid-thread beat (Threads v2). */
-export type ThreadState = 'opens' | 'closes' | 'touches'
+ * ends/merges it, `touches` (default) is a normal mid-thread beat (Threads v2).
+ * Single source (see `THREAD_INTENSITIES`). */
+export const THREAD_STATES = ['opens', 'closes', 'touches'] as const
+export type ThreadState = (typeof THREAD_STATES)[number]
 
 export type ThreadBeat = {
   path: string

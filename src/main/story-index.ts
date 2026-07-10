@@ -11,6 +11,7 @@ import type {
   ThreadIntensity,
   ThreadState
 } from '../shared/types'
+import { THREAD_INTENSITIES, THREAD_STATES } from '../shared/types'
 import { listMarkdownFiles } from './fs-project'
 import {
   deriveTitle,
@@ -410,15 +411,6 @@ type ParsedTag = {
   state: ThreadState
 }
 
-const INTENSITIES: readonly ThreadIntensity[] = [
-  'setup',
-  'rise',
-  'climax',
-  'fall',
-  'resolve'
-]
-const STATES: readonly ThreadState[] = ['opens', 'closes', 'touches']
-
 /** Parse a scene's `threads:` frontmatter (M9; extended in Threads v2). Supports
  * the plain form `[rebellion, romance]` and the object form
  * `[{ name: rebellion, pos: 3, summary: '…', intensity: setup, state: opens }]`.
@@ -447,10 +439,10 @@ export function parseThreadTags(value: unknown): ParsedTag[] {
           tag: name.trim(),
           order: typeof o.pos === 'number' ? o.pos : null,
           summary,
-          intensity: INTENSITIES.includes(o.intensity as ThreadIntensity)
+          intensity: THREAD_INTENSITIES.includes(o.intensity as ThreadIntensity)
             ? (o.intensity as ThreadIntensity)
             : null,
-          state: STATES.includes(o.state as ThreadState)
+          state: THREAD_STATES.includes(o.state as ThreadState)
             ? (o.state as ThreadState)
             : 'touches'
         })

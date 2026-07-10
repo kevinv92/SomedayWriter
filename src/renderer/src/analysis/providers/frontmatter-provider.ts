@@ -1,5 +1,6 @@
 import type { AnalysisProvider, Completion, CompletionContext } from '../types'
 import type { Entity } from '@shared/types'
+import { THREAD_INTENSITIES, THREAD_STATES } from '@shared/types'
 import {
   COMMON_FIELDS,
   entityTypeMeta,
@@ -40,8 +41,8 @@ export function createFrontmatterProvider(): {
     intensity: 'setup · rise · climax · fall · resolve',
     state: 'opens · closes · touches'
   }
-  const INTENSITY = ['setup', 'rise', 'climax', 'fall', 'resolve']
-  const STATE = ['opens', 'closes', 'touches']
+  const INTENSITY = THREAD_INTENSITIES
+  const STATE = THREAD_STATES
 
   /** Thread surfaces (kebab alias + display name), deduped case-insensitively —
    * offered for `threads:` and a beat object's `name:`. */

@@ -6,7 +6,7 @@
  * characters, locations, items, factions and magic systems; `project.json`
  * `entityTypes` merges *over* these (override a field, or add a new type).
  */
-import type { EntityFieldDef, EntityTypeDef, ProjectConfig } from './types'
+import type { EntityFieldDef, EntityTypeDef, FieldKind, ProjectConfig } from './types'
 
 /** A fully-resolved entity type — every display field filled, ready to render. */
 export type ResolvedEntityType = {
@@ -23,12 +23,24 @@ export type ResolvedEntityType = {
  * M19 alongside the type's declared fields. `type`/`name` are single-valued;
  * `aliases`/`threads` are lists; `order` is a number. */
 export const COMMON_FIELDS: EntityFieldDef[] = [
-  { name: 'type', label: 'Type' },
-  { name: 'name', label: 'Name' },
-  { name: 'aliases', label: 'Aliases', repeated: true },
-  { name: 'order', label: 'Order' },
-  { name: 'threads', label: 'Threads', repeated: true }
+  { name: 'type', label: 'Type', kind: 'enum' },
+  { name: 'name', label: 'Name', kind: 'text' },
+  { name: 'aliases', label: 'Aliases', repeated: true, kind: 'list' },
+  { name: 'order', label: 'Order', kind: 'number' },
+  { name: 'threads', label: 'Threads', repeated: true, kind: 'beats' }
 ]
+
+/** The control the frontmatter editor renders for a field. Explicit `kind` wins;
+ *  otherwise infer from the field's shape so custom project fields (which won't
+ *  set `kind`) still get a sensible control. */
+export function resolveFieldKind(field: EntityFieldDef): FieldKind {
+  if (field.kind) return field.kind
+  if (field.name === 'threads') return 'beats'
+  if (field.name === 'order' || field.name === 'pos') return 'number'
+  if (field.values?.length) return 'enum'
+  if (field.repeated) return 'list'
+  return 'text'
+}
 
 /** Fallbacks for a type with no registry entry (an unknown `type:` value). */
 const FALLBACK_ICON = '📄'
