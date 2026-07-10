@@ -3,8 +3,9 @@
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _ready to build_ — placement, availability, round-trip fidelity, and
-a11y are decided (below); two remaining questions are mechanism-level, not blocking.
+**Status:** _shipped (v1)_ — steps 1 & 2 built (see Build order). Left: step 3
+(in-place validation hints + docs/DECISIONS graduation) and small polish
+follow-ups.
 
 **Intent.** Frontmatter has crossed a complexity threshold. A scene can now carry
 `type`, `order`, `aliases`, and a `threads:` **array of beat objects**
@@ -134,8 +135,7 @@ the source of truth.
 
 ## Build order
 
-**Step 1 — shared foundation** _(pure + testable; unblocks the rest — building
-now)._
+**Step 1 — shared foundation** · _shipped._
 
 - Move the `intensity` / `state` enum sets into a **single shared source**
   (`shared/types.ts` as `const` arrays, with the union types derived from them),
@@ -149,11 +149,15 @@ now)._
   into the file), plus a **seed-a-block** builder for the "Add frontmatter" state.
   Unit-tested for round-trip fidelity.
 
-**Step 2 — the pane.** Design it through Claude Design first, then: the form
-runtime (controls by `kind` + the threads beat repeater, fully keyboard-operable),
-the file-specific **"Frontmatter" rail pane** (+ icon) with the "Add frontmatter"
-empty state, and two-way binding (form authoritative while focused, re-parse on
-external edit) writing through the normal `writeFile` path (undoable).
+**Step 2 — the pane.** · _shipped (v1)._ Designed in Claude Design
+(`preview/frontmatter-pane.html`), then built: `FrontmatterPanel` (controls by
+`kind` + the threads beat repeater with add / remove / move, keyboard-operable),
+the file-specific **"Frontmatter" rail pane** (`tag` icon) with the "Add
+frontmatter" empty state, and two-way binding — the pane reads the live editor
+text and writes back a minimal range edit via `EditorHandle.replaceRange`; a beat
+edit mutates only that beat's node (`setIn`/`deleteIn`/`addIn`) so siblings stay
+byte-stable. _Follow-ups: per-beat collapse, drag-reorder, and the edited beat
+keeps its own flow/block style (currently re-emits block)._
 
 **Step 3 — validation + docs.** In-place validation hints (optionally flagging bad
 enum values); README + story-model / manuscript pointers; a `DECISIONS.md` entry
