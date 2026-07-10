@@ -2592,9 +2592,32 @@ body {
   cursor: grabbing;
 }
 
-.braid__modes {
-  display: flex;
-  gap: 0.25rem;
+/* Segmented control for the two view modes (Timeline | List). */
+.braid__seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.braid__seg-btn {
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.12rem 0.55rem;
+  border: 0;
+  border-radius: var(--radius-xs);
+  background: transparent;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+.braid__seg-btn--on {
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: var(--shadow-rest);
 }
 
 /* --- Threads dashboard: List mode (Threads v2, #6) --- */
@@ -2666,6 +2689,21 @@ body {
   flex: none;
 }
 
+/* Words column: the count with a relative-weight bar beneath it. */
+.thread-words__n {
+  display: block;
+  font-variant-numeric: tabular-nums;
+}
+
+.thread-words__bar {
+  display: block;
+  height: 5px;
+  margin-top: 3px;
+  margin-left: auto;
+  border-radius: 999px;
+  background: var(--accent-soft);
+}
+
 .thread-row__span {
   color: var(--muted);
   max-width: 22rem;
@@ -2674,7 +2712,14 @@ body {
   white-space: nowrap;
 }
 
+.thread-row__status {
+  white-space: nowrap;
+}
+
 .thread-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
   font-size: 0.68rem;
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
@@ -2683,19 +2728,36 @@ body {
   text-transform: capitalize;
 }
 
+.thread-badge__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
 .thread-badge--resolved {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--success);
+  border-color: color-mix(in oklch, var(--success) 40%, transparent);
 }
 
 .thread-badge--open {
-  color: #c26a2b;
-  border-color: #c26a2b;
+  color: var(--warning);
+  border-color: color-mix(in oklch, var(--warning) 45%, transparent);
 }
 
 .thread-row__silent {
+  margin-left: 0.4rem;
   font-size: 0.72rem;
-  color: #c26a2b;
+  color: var(--warning);
+  white-space: nowrap;
+}
+
+.thread-row__silent-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--warning);
 }
 
 .braid-col {

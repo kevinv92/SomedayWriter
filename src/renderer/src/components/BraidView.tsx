@@ -68,6 +68,8 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
   }, [refreshKey])
 
   const stats = useMemo(() => threadStats(threads, scenes), [threads, scenes])
+  // Longest thread by words — the 100% mark for the List's word-weight bars.
+  const maxWords = useMemo(() => Math.max(1, ...stats.map((s) => s.words)), [stats])
 
   const orderIndex = useMemo(() => {
     const m = new Map<string, number>()
@@ -161,15 +163,15 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
     <div className="braid">
       <div className="braid__header">
         <span className="braid__title">Project Threads</span>
-        <div className="braid__modes">
+        <div className="braid__seg">
           <button
-            className={`braid__chip${mode === 'timeline' ? ' braid__chip--on' : ''}`}
+            className={`braid__seg-btn${mode === 'timeline' ? ' braid__seg-btn--on' : ''}`}
             onClick={() => setMode('timeline')}
           >
             Timeline
           </button>
           <button
-            className={`braid__chip${mode === 'list' ? ' braid__chip--on' : ''}`}
+            className={`braid__seg-btn${mode === 'list' ? ' braid__seg-btn--on' : ''}`}
             onClick={() => setMode('list')}
           >
             List
@@ -250,14 +252,23 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
                       {s.name}
                     </td>
                     <td className="thread-table__num">{s.beats}</td>
-                    <td className="thread-table__num">{s.words.toLocaleString()}</td>
+                    <td className="thread-table__num thread-words">
+                      <span className="thread-words__n">{s.words.toLocaleString()}</span>
+                      <span
+                        className="thread-words__bar"
+                        style={{ width: `${(s.words / maxWords) * 100}%` }}
+                      />
+                    </td>
                     <td className="thread-row__span">{span}</td>
-                    <td>
+                    <td className="thread-row__status">
                       <span className={`thread-badge thread-badge--${s.status}`}>
+                        <span className="thread-badge__dot" />
                         {s.status}
                       </span>
                       {s.silent > 0 && s.status !== 'resolved' && (
-                        <span className="thread-row__silent"> · silent {s.silent}</span>
+                        <span className="thread-row__silent">
+                          <span className="thread-row__silent-dot" /> silent {s.silent}
+                        </span>
                       )}
                     </td>
                   </tr>
