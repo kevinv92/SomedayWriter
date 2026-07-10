@@ -1,7 +1,92 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
 import type { CompanionEntry, Thread } from '@shared/types'
 import { entityTypeMeta, type ResolvedEntityType } from '@shared/entity-types'
+
+/** Render inline markdown to nodes: `@{mention}` → tinted surface, `**bold**`,
+ *  and `*italic*` / `_italic_`. The braces/asterisks are editor syntax, not
+ *  something to read in the companion. */
+const INLINE = /@\{([^}]+)\}|\*\*([^*]+)\*\*|\*([^*]+)\*|_([^_]+)_/g
+function renderInline(text: string): ReactNode[] {
+  const out: ReactNode[] = []
+  let last = 0
+  let key = 0
+  let m: RegExpExecArray | null
+  INLINE.lastIndex = 0
+  while ((m = INLINE.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index))
+    if (m[1] != null)
+      out.push(
+        <span key={key++} className="companion-men">
+          {m[1]}
+        </span>
+      )
+    else if (m[2] != null) out.push(<strong key={key++}>{m[2]}</strong>)
+    else out.push(<em key={key++}>{m[3] ?? m[4]}</em>)
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push(text.slice(last))
+  return out
+}
+
+/** Render an entity body as clean prose: drop the leading `# Heading` (redundant
+ *  with the entry title), then walk lines into paragraphs, sub-headings, and
+ *  bullet lists — inline markup rendered, never shown raw. */
+function renderEntryBody(raw: string): ReactNode {
+  const stripped = raw.replace(/^\s*#{1,6}\s+.*(?:\r?\n)+/, '')
+  const blocks: ReactNode[] = []
+  let para: string[] = []
+  let list: string[] = []
+  let k = 0
+  const flushPara = (): void => {
+    if (para.length) {
+      blocks.push(<p key={k++}>{renderInline(para.join(' '))}</p>)
+      para = []
+    }
+  }
+  const flushList = (): void => {
+    if (list.length) {
+      const items = list
+      blocks.push(
+        <ul key={k++}>
+          {items.map((li, i) => (
+            <li key={i}>{renderInline(li)}</li>
+          ))}
+        </ul>
+      )
+      list = []
+    }
+  }
+  for (const line of stripped.split(/\r?\n/)) {
+    const t = line.trim()
+    if (!t) {
+      flushPara()
+      flushList()
+      continue
+    }
+    const heading = t.match(/^#{1,6}\s+(.*)$/)
+    const bullet = t.match(/^[-*]\s+(.*)$/)
+    if (heading) {
+      flushPara()
+      flushList()
+      blocks.push(
+        <div key={k++} className="companion-body__sub">
+          {renderInline(heading[1])}
+        </div>
+      )
+    } else if (bullet) {
+      flushPara()
+      list.push(bullet[1])
+    } else {
+      flushList()
+      para.push(t)
+    }
+  }
+  flushPara()
+  flushList()
+  if (!blocks.length) return <span className="companion-empty">(empty)</span>
+  return blocks
+}
 
 interface CompanionPanelProps {
   /** The file whose scene drives auto-follow, or null when no tab is open. */
@@ -115,39 +200,41 @@ export function CompanionPanel({
     const isOpen = expanded.has(entry.path)
     const isPinned = pinnedSet.has(entry.path)
     return (
-      <div key={entry.path} className="companion-entry">
-        <div className="companion-entry__row">
+      <article
+        key={entry.path}
+        className={`companion-entry${isOpen ? ' companion-entry--open' : ''}`}
+      >
+        <div className="companion-entry__head">
           <button
-            className="companion-entry__head"
+            className="companion-entry__toggle"
             onClick={() => toggleExpand(entry.path)}
             title={isOpen ? 'Collapse' : 'Expand'}
           >
-            <span className="companion-entry__caret">
-              <Icon name={isOpen ? 'chevron-down' : 'chevron-right'} size={12} />
+            <span className="companion-entry__ico">
+              <Icon name={entityTypeMeta(entry.type, entityTypes).iconName} size={15} />
             </span>
-            <span className="companion-entry__title">{entry.title}</span>
-            <span className="companion-entry__type">
-              <Icon name={entityTypeMeta(entry.type, entityTypes).iconName} size={13} />{' '}
-              {entry.type}
-            </span>
+            <span className="companion-entry__name">{entry.title}</span>
+            <span className="companion-entry__chip">{entry.type}</span>
             {entry.count != null && (
               <span className="companion-entry__count">×{entry.count}</span>
             )}
           </button>
-          <button
-            className={`companion-pin${isPinned ? ' companion-pin--on' : ''}`}
-            title={isPinned ? 'Unpin' : 'Pin'}
-            onClick={() => onTogglePin(entry.path)}
-          >
-            <Icon name="pin" size={14} />
-          </button>
-          <button
-            className="companion-open"
-            title="Open as tab"
-            onClick={() => onOpenFull(entry.path)}
-          >
-            ↗
-          </button>
+          <div className="companion-entry__acts">
+            <button
+              className={`companion-act${isPinned ? ' companion-act--on' : ''}`}
+              title={isPinned ? 'Unpin' : 'Pin'}
+              onClick={() => onTogglePin(entry.path)}
+            >
+              <Icon name="pin" size={14} />
+            </button>
+            <button
+              className="companion-act"
+              title="Open as tab"
+              onClick={() => onOpenFull(entry.path)}
+            >
+              ↗
+            </button>
+          </div>
         </div>
         {isOpen ? (
           <div
@@ -159,12 +246,14 @@ export function CompanionPanel({
               scrollMemory.current.set(entry.path, e.currentTarget.scrollTop)
             }
           >
-            {entry.body || <span className="companion-empty">(empty)</span>}
+            {renderEntryBody(entry.body ?? '')}
           </div>
         ) : (
-          entry.summary && <div className="companion-summary">{entry.summary}</div>
+          entry.summary && (
+            <div className="companion-summary">{renderInline(entry.summary)}</div>
+          )
         )}
-      </div>
+      </article>
     )
   }
 
