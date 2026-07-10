@@ -264,6 +264,44 @@ once the pane exists.
 **Open:** reuse Inspector/Companion, or a sibling "Thread" mode? Can you edit a
 `summary` from the pane (write back to the scene's frontmatter), or read-only v1?
 
+### 8. Overview minimap & scrubber — navigate a big braid
+
+**The problem these very improvements create.** Summaries, intensity height,
+word-weighted columns, more threads — the braid gets **big**. It scrolls both ways
+(every scene across, every thread down) and it's easy to lose your place. It needs
+a fast way to move around.
+
+**The idea (a VS Code-style minimap / a video scrubber).** A thin, always-visible
+**overview strip below the braid**: the _whole_ manuscript compressed to a glance,
+with a **draggable viewport window** marking what's currently on screen. Drag or
+click to scrub anywhere instantly.
+
+```text
+┌ Threads · Timeline ────────────── (main view, a window on a big braid) ┐
+│  The Case   ●────●─────────●        ...                                 │
+│  The Woman  ●────┼─────────●        ...                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+ Overview (whole book, ~1:20):   ▁▂▅▇▆▃▁▁▂▄██▆▃▁▁▂▃▂▁▁▂▅▇▅▂▁
+                                      └ viewport ┘  ← drag / click to scrub
+```
+
+**What the overview shows** — the braid's _shape_ at a fraction of scale: lanes as
+thin coloured lines, beats as tiny marks; the pacing shape carried down (intensity
+as height, word-weighting as spacing) so the minimap reads like the story's
+silhouette; act/chapter boundaries as faint ticks; and the **viewport rectangle**
+= what's on screen.
+
+**Interaction.** Drag the viewport (or click a spot) → the main braid pans there;
+scroll the main view → the viewport tracks (two-way sync); hover → a peek tooltip.
+
+**Why a minimap, not just scrollbars.** A scrollbar says _where_ you are; a
+minimap says _what's there_ — you navigate by the story's shape ("jump to the
+dense climax cluster"), which is exactly the value the other improvements add.
+
+**Open.** Does it get too dense to help on a 200-scene epic (a fit/zoom control)?
+Should it just _be_ the word-weighted pacing chart (#3) rather than a separate
+strip? Horizontal-only, or a 2-D mini-braid when the lane count is also tall?
+
 ---
 
 ## Data-model sketch (for discussion, not committed)
@@ -290,7 +328,7 @@ unchanged. (Terminology: a **beat** is a scene's appearance on a thread; `summar
 ## Tasks (work-breakdown when this ships)
 
 Not committed — this is the full surface area so nothing (**especially the docs
-and help text**) is forgotten. Ship incrementally; each of #1–#7 can land alone.
+and help text**) is forgotten. Ship incrementally; each of #1–#8 can land alone.
 Story-time / chronology is out of scope here — its tasks live in
 [story-timeline.md](./story-timeline.md).
 
@@ -312,6 +350,8 @@ Story-time / chronology is out of scope here — its tasks live in
       file is active (beats in order, stats, jump). (#7)
 - [ ] Threads-list **stats dashboard**. (#6)
 - [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#2)
+- [ ] **Overview minimap + scrubber** below the braid — compressed render +
+      draggable viewport with two-way scroll sync. (#8)
 - [ ] Render lane start/end **caps** from `state` (opens/closes), and infer
       **branch/merge** from open/close co-occurrence in a scene. (#5)
 
