@@ -3,7 +3,8 @@
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _drafting_ (shape below; nothing committed).
+**Status:** _ready to build_ — placement, availability, round-trip fidelity, and
+a11y are decided (below); two remaining questions are mechanism-level, not blocking.
 
 **Intent.** Frontmatter has crossed a complexity threshold. A scene can now carry
 `type`, `order`, `aliases`, and a `threads:` **array of beat objects**
@@ -13,6 +14,24 @@ come. Hand-authoring that YAML — indentation, the flow-vs-block object forms, 
 Give the writer a **schema-driven form** that edits the frontmatter through real
 inputs (dropdowns, autocomplete, a beat repeater) and writes clean YAML back. The
 file stays the source of truth; the form is a two-way view onto its `---` block.
+
+## Decided
+
+- **Placement — a dedicated rail pane** ("Frontmatter"), in the **file-specific
+  group** beside Companion / Comments / Debug info. Simplest two-way sync; no
+  in-editor widget machinery. (Chosen over the Debug-pane merge and the inline
+  block editor.)
+- **Availability — any file with readable frontmatter (text/markdown), not gated
+  on `type:`.** When a file has **no `---` block yet**, the pane shows an empty
+  state with an **"Add frontmatter"** action that inserts a block seeded with the
+  common fields (plus the type's fields once a `type:` is chosen).
+- **High-fidelity round-trip.** Edit through the **`yaml` Document/CST API**
+  (`parseDocument` → mutate nodes → `String(doc)`), so `# comments`, key order,
+  and **unknown keys survive untouched** — only the fields you change re-emit.
+  Writers keep their own notes/keys in frontmatter, so nothing they didn't touch
+  may move.
+- **Keyboard-first.** The whole form — including the beat repeater's add / remove
+  / reorder — is fully operable without a mouse; it should never trap focus.
 
 ## What exists, and the gap
 
@@ -56,12 +75,11 @@ collapsed row that expands into the object form on demand. The `intensity` and
 in `frontmatter-provider`; lift them so the form, intellisense, and help all read
 one list).
 
-**Placement — decide (see open questions).** Leaning: a **right-pane "Frontmatter"
-panel** (rail entry, file-specific like Companion/Comments/Debug) for v1 — the
-simplest two-way sync, no in-editor widget machinery. Alternatives: make it the
-**editable counterpart of the Debug info pane** (which already surfaces the parsed
-frontmatter), or an **inline block editor** that renders _over_ the softened `---`
-block in the editor (most elegant, hardest — CM widget + caret/undo interplay).
+**Surface — a rail pane** (decided). A file-specific "Frontmatter" entry on the
+rail, beside Companion / Comments / Debug info, with its own icon. Shown for any
+text/markdown file; for a file with no `---` block, an **empty state** with an
+"Add frontmatter" button (see Decided). The pane is the form; the editor stays
+the source of truth.
 
 ## Write-back & two-way sync
 
@@ -71,10 +89,12 @@ block in the editor (most elegant, hardest — CM widget + caret/undo interplay)
 - **Two-way** — editing the text updates the form (re-parse on change, debounced);
   editing the form rewrites the block. Must not fight the **softened-at-rest**
   frontmatter rendering or move the caret unexpectedly.
-- **Round-trip fidelity** — preserve unknown keys, key order where practical, and
-  the writer's bare-id vs object choice. Comment preservation and exact quoting
-  are the sharp edges (plain `yaml` stringify reflows) — scope v1 to "clean
-  re-emit; unknown keys kept," flag anything lossy.
+- **Round-trip fidelity — high (decided).** Use the `yaml` **Document/CST**
+  (`parseDocument`), mutate only the nodes the form touched, and `String(doc)`
+  back. `# comments`, key order, unknown keys, and the writer's bare-id vs object
+  choice all survive; untouched lines are byte-stable. This is the promise —
+  writers keep notes in frontmatter, so a save must not reflow what they didn't
+  edit.
 - **Validation** — the form knows the schema, so it can flag unknown/malformed
   keys and bad enum values in place, feeding the same channel as the Inspector's
   frontmatter warnings. Decide informational vs. blocking.
@@ -101,34 +121,35 @@ block in the editor (most elegant, hardest — CM widget + caret/undo interplay)
   (a "?" that opens the form) rather than a separate popover — reconcile then.
 - Complements, doesn't replace, hand-editing the YAML (always available).
 
-## Open questions
+## Open questions (remaining — mechanism, not blocking)
 
-- **Placement** — right-pane panel (v1 lean) vs. editable Debug-info pane vs.
-  inline block editor over the `---` region. Pick before building.
-- **Two-way sync mechanism** — debounced re-parse; how to avoid clobbering an
-  in-progress hand edit, and coexistence with softened-at-rest rendering.
-- **YAML round-trip** — comments, key order, quote style, flow vs block form.
-  How much fidelity is v1's promise, and what's flagged as lossy.
-- **Enum source** — lift `intensity`/`state` (and future enums) into the registry
-  vs. a shared consts module; the form and the shipped intellisense should share it.
-- **Which files** — only files with (or eligible for) a `type:`? Manuscript scenes
-  (for `order`/`threads`) too? Probably both.
-- **Validation stance** — informational hints vs. blocking bad values; how it ties
-  to the Inspector's existing frontmatter warnings.
-- **a11y** — full keyboard authoring of the repeater; the form must not be
-  mouse-only.
+- **Two-way sync mechanism** — while the pane is focused it's authoritative;
+  re-parse from the text when the doc changes and the form isn't mid-edit
+  (debounced). The exact guard against clobbering an in-progress hand edit, and
+  coexistence with the softened-at-rest frontmatter rendering, still to pin down.
+- **Validation stance** — informational hints (leaning) vs. blocking bad values,
+  and how it ties to the Debug info / Inspector frontmatter warnings that already
+  flag bad `type` / `order` / `threads`. Natural add: flag bad `intensity` /
+  `state` enum values, which are silently dropped today.
 
-## Tasks (rough, once placement lands)
+## Tasks (rough)
 
-- **Shared schema** — `kind` on registry fields; enum sets moved to the shared
-  source; a small `parse`/`serialize` for the `---` block over `yaml`.
-- **Form runtime** — render controls by kind from the schema; the threads beat
-  repeater; two-way binding to the active file.
-- **Surface** — the chosen placement (panel / pane / inline) + rail/menu entry.
-- **Write-back + validation** — serialize on change; unknown-key preservation;
-  in-place warnings.
-- **Docs** — README + story-model/manuscript pointers; DECISIONS entry for the
-  placement + round-trip-fidelity call.
+- **Shared schema** — add a `kind` to registry fields; move the `intensity` /
+  `state` enum sets out of `frontmatter-provider` into the shared registry so the
+  form + intellisense + help read one list. A `---`-block **Document** helper over
+  `yaml` (`parseDocument`, node get/set that preserves comments + order + unknown
+  keys, `String(doc)`), plus a "seed a block" builder for the empty state.
+- **Form runtime** — render controls by `kind` from the schema; the threads beat
+  repeater (add / remove / reorder); **full keyboard operation**; two-way binding
+  to the active file (form authoritative while focused, re-parse on external edit).
+- **Surface** — a file-specific **"Frontmatter" rail pane** (+ an icon) shown for
+  any text/markdown file, with the **"Add frontmatter"** empty state that seeds a
+  block.
+- **Write-back + validation** — mutate the `yaml` Document on change and write via
+  the normal `writeFile` path (undoable); in-place validation hints, optionally
+  including bad enum values.
+- **Docs** — README + story-model / manuscript pointers; a `DECISIONS.md` entry
+  for the rail-pane placement + the high-fidelity round-trip promise.
 
 ## Related
 
