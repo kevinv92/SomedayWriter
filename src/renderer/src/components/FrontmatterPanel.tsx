@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react'
+import { useRef, useState, type ReactElement } from 'react'
 import type { Entity, EntityFieldDef, FieldKind } from '@shared/types'
 import { THREAD_INTENSITIES, THREAD_STATES } from '@shared/types'
 import {
@@ -7,7 +7,7 @@ import {
   resolveFieldKind,
   type ResolvedEntityType
 } from '@shared/entity-types'
-import { Document } from 'yaml'
+import { Document, isMap, isSeq } from 'yaml'
 import {
   addFrontmatter,
   frontmatterData,
@@ -121,6 +121,9 @@ export function FrontmatterPanel({
 }: FrontmatterPanelProps) {
   // Bumped on structural changes (add/remove/move) to remount uncontrolled inputs.
   const [version, setVersion] = useState(0)
+  // Collapsed beats (by index) and the in-flight drag source for reordering.
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set())
+  const dragIndex = useRef<number | null>(null)
 
   // Each commit re-parses the current text (high-fidelity Document), applies one
   // change, and writes the block back. The editor is the source of truth, so we
@@ -256,94 +259,157 @@ export function FrontmatterPanel({
   // ---- threads beat repeater ----
   function renderBeats(): ReactElement {
     const beats = (Array.isArray(data.threads) ? data.threads : []).map(toBeat)
-    // Mutate the specific beat node (not the whole array) so untouched beats keep
-    // their original YAML style. `setIn` replaces one index; a bare id becomes an
-    // object automatically when it gains a field.
+    // Edit a beat in place. An object beat keeps its YAML style — we set/delete
+    // only the touched sub-keys; a bare id is rebuilt (block form) when it gains
+    // a field. Either way, sibling beats are never re-emitted.
     const patch = (i: number, p: Partial<Beat>): void =>
-      commit((d) => d.setIn(['threads', i], fromBeat({ ...beats[i], ...p })))
-    const remove = (i: number): void =>
+      commit((d) => {
+        if (isMap(d.getIn(['threads', i], true))) {
+          for (const [k, v] of Object.entries(p)) {
+            if (k === 'name') d.setIn(['threads', i, 'name'], v)
+            else if (v === undefined || v === '' || (k === 'state' && v === 'touches'))
+              d.deleteIn(['threads', i, k])
+            else d.setIn(['threads', i, k], v)
+          }
+        } else {
+          d.setIn(['threads', i], fromBeat({ ...beats[i], ...p }))
+        }
+      })
+    const remove = (i: number): void => {
+      setCollapsed(new Set())
       commit((d) => {
         d.deleteIn(['threads', i])
         const seq = d.get('threads') as { items?: unknown[] } | undefined
         if (seq?.items && seq.items.length === 0) d.delete('threads')
       }, true)
-    const add = (): void =>
+    }
+    const add = (): void => {
+      setCollapsed(new Set())
       commit((d) => {
         if (d.get('threads') == null) setField(d, 'threads', [])
         d.addIn(['threads'], fromBeat({ name: '' }))
       }, true)
-    const move = (i: number, dir: -1 | 1): void =>
+    }
+    // Move a beat node (not its value) so every beat keeps its own YAML style.
+    const reorder = (from: number, to: number): void => {
+      setCollapsed(new Set())
       commit((d) => {
-        const j = i + dir
-        if (j < 0 || j >= beats.length) return
-        const a = d.getIn(['threads', i], true)
-        const b = d.getIn(['threads', j], true)
-        d.setIn(['threads', i], b)
-        d.setIn(['threads', j], a)
+        const seq = d.get('threads', true)
+        if (!isSeq(seq) || from === to || to < 0 || to >= seq.items.length) return
+        const [item] = seq.items.splice(from, 1)
+        seq.items.splice(to, 0, item)
       }, true)
+    }
+    const move = (i: number, dir: -1 | 1): void => reorder(i, i + dir)
+    const toggleCollapse = (i: number): void =>
+      setCollapsed((s) => {
+        const n = new Set(s)
+        if (n.has(i)) n.delete(i)
+        else n.add(i)
+        return n
+      })
     return (
       <div className="fm-beats">
-        {beats.map((b, i) => (
-          <div className="fm-beat" key={`${version}-${i}`}>
-            <div className="fm-beat__head">
-              <input
-                className="fm-ctl fm-beat__name"
-                list="fm-thread-names"
-                defaultValue={b.name}
-                placeholder="thread…"
-                onBlur={(e) => patch(i, { name: e.target.value.trim() })}
-              />
-              <button className="fm-ibtn" title="Move up" onClick={() => move(i, -1)}>
-                ▲
-              </button>
-              <button className="fm-ibtn" title="Move down" onClick={() => move(i, 1)}>
-                ▼
-              </button>
-              <button className="fm-ibtn" title="Remove beat" onClick={() => remove(i)}>
-                ✕
-              </button>
-            </div>
-            <div className="fm-beat__grid">
-              <label className="fm-sub">
-                Pos
-                <input
-                  className="fm-ctl fm-num"
-                  inputMode="numeric"
-                  defaultValue={b.pos != null ? String(b.pos) : ''}
-                  onBlur={(e) => {
-                    const n = e.target.value.trim()
-                    patch(i, { pos: n === '' ? undefined : Number(n) })
+        {beats.map((b, i) => {
+          const open = !collapsed.has(i)
+          return (
+            <div
+              className={`fm-beat${open ? '' : ' fm-beat--collapsed'}`}
+              key={`${version}-${i}`}
+              onDragOver={(e) => {
+                if (dragIndex.current != null) e.preventDefault()
+              }}
+              onDrop={(e) => {
+                e.preventDefault()
+                const from = dragIndex.current
+                dragIndex.current = null
+                if (from != null) reorder(from, i)
+              }}
+            >
+              <div className="fm-beat__head">
+                <span
+                  className="fm-grip"
+                  title="Drag to reorder"
+                  draggable
+                  onDragStart={() => {
+                    dragIndex.current = i
                   }}
+                  onDragEnd={() => {
+                    dragIndex.current = null
+                  }}
+                >
+                  ⋮⋮
+                </span>
+                <button
+                  className="fm-ibtn fm-beat__chev"
+                  title={open ? 'Collapse' : 'Expand'}
+                  onClick={() => toggleCollapse(i)}
+                >
+                  {open ? '⌄' : '›'}
+                </button>
+                <input
+                  className="fm-ctl fm-beat__name"
+                  list="fm-thread-names"
+                  defaultValue={b.name}
+                  placeholder="thread…"
+                  onBlur={(e) => patch(i, { name: e.target.value.trim() })}
                 />
-              </label>
-              <label className="fm-sub">
-                Intensity
-                <EnumSelect
-                  value={b.intensity ?? ''}
-                  options={THREAD_INTENSITIES}
-                  allowEmpty
-                  onChange={(v) => patch(i, { intensity: v || undefined })}
-                />
-              </label>
-              <label className="fm-sub">
-                State
-                <EnumSelect
-                  value={b.state ?? 'touches'}
-                  options={THREAD_STATES}
-                  onChange={(v) => patch(i, { state: v })}
-                />
-              </label>
+                <button className="fm-ibtn" title="Move up" onClick={() => move(i, -1)}>
+                  ▲
+                </button>
+                <button className="fm-ibtn" title="Move down" onClick={() => move(i, 1)}>
+                  ▼
+                </button>
+                <button className="fm-ibtn" title="Remove beat" onClick={() => remove(i)}>
+                  ✕
+                </button>
+              </div>
+              {open && (
+                <>
+                  <div className="fm-beat__grid">
+                    <label className="fm-sub">
+                      Pos
+                      <input
+                        className="fm-ctl fm-num"
+                        inputMode="numeric"
+                        defaultValue={b.pos != null ? String(b.pos) : ''}
+                        onBlur={(e) => {
+                          const n = e.target.value.trim()
+                          patch(i, { pos: n === '' ? undefined : Number(n) })
+                        }}
+                      />
+                    </label>
+                    <label className="fm-sub">
+                      Intensity
+                      <EnumSelect
+                        value={b.intensity ?? ''}
+                        options={THREAD_INTENSITIES}
+                        allowEmpty
+                        onChange={(v) => patch(i, { intensity: v || undefined })}
+                      />
+                    </label>
+                    <label className="fm-sub">
+                      State
+                      <EnumSelect
+                        value={b.state ?? 'touches'}
+                        options={THREAD_STATES}
+                        onChange={(v) => patch(i, { state: v })}
+                      />
+                    </label>
+                  </div>
+                  <label className="fm-sub">
+                    Summary
+                    <input
+                      className="fm-ctl"
+                      defaultValue={b.summary ?? ''}
+                      onBlur={(e) => patch(i, { summary: e.target.value || undefined })}
+                    />
+                  </label>
+                </>
+              )}
             </div>
-            <label className="fm-sub">
-              Summary
-              <input
-                className="fm-ctl"
-                defaultValue={b.summary ?? ''}
-                onBlur={(e) => patch(i, { summary: e.target.value || undefined })}
-              />
-            </label>
-          </div>
-        ))}
+          )
+        })}
         <button className="fm-add" onClick={add}>
           ＋ Add beat
         </button>

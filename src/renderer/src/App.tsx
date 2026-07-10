@@ -1426,6 +1426,7 @@ export default function App() {
 
         {panels.open.frontmatter && (
           <FrontmatterPanel
+            key={documents.activePath ?? 'none'}
             path={documents.activePath}
             text={docText}
             onApply={applyFrontmatter}

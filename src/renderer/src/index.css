@@ -2608,8 +2608,27 @@ select.fm-ctl {
 
 .fm-beat__name {
   flex: 1;
+  min-width: 0;
   font-family: var(--font-reading, inherit);
   font-weight: 600;
+}
+
+.fm-grip {
+  cursor: grab;
+  color: var(--fg-4);
+  font-size: 0.72rem;
+  letter-spacing: -3px;
+  padding: 0 1px;
+  user-select: none;
+  flex: none;
+}
+
+.fm-grip:active {
+  cursor: grabbing;
+}
+
+.fm-beat__chev {
+  flex: none;
 }
 
 .fm-beat__grid {
