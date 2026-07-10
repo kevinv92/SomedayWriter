@@ -222,12 +222,28 @@ threads:
 resolved arc)? Is `state` enough to render branch/merge unambiguously, or do
 genuinely tangled books still want an explicit pointer as an escape hatch?
 
-### 6. Make the list view earn its place
+### 6. A full "Threads" dashboard (all threads)
 
-If the Timeline is the go-to, the **Threads list** (all threads) should do what
-the timeline can't: per-thread **stats** — scene count, word count, first/last
-appearance, "silent for N scenes" — i.e. a dashboard, not a lesser duplicate. The
-_single_-thread version of this lives in #7.
+The **Threads list** should do what the timeline can't: per-thread **stats** —
+scene count, word count, first/last appearance, "silent for N scenes", open/closed
+`state` — a dashboard, not a lesser duplicate of the braid.
+
+**How it's rendered — a main-pane view, not a modal.** It's a **destination**, so
+give it the whole centre pane: render it in `<main>` **in place of the editor**,
+the same class as `BraidView` (Threads · Timeline) and the read-only `ImageView` —
+the centre already swaps editor ↔ braid ↔ image (App's `<main>`). **Not** a modal
+floating over the editor, and **not** a cramped right-side panel. Your open file
+stays in its tab and comes back when you switch away.
+
+Cleanest shape: make the **list and the braid two _modes_ of one "Threads" view** —
+a `Timeline | List` toggle in that view's header — since both are read-only
+renderings over the same thread model. (Two sibling main-pane views also work; one
+view with a mode switch just avoids duplicate open/close plumbing.)
+
+**Not to be confused with #7.** #6 is a full-pane, all-threads **destination** (you
+navigate _to_ it). #7 is a right-pane **companion** that appears _beside the
+editor_ when a single `type: thread` file is open. Different surfaces, different
+jobs — but they can share the row/stat components.
 
 ### 7. Thread detail view — when a thread file is open
 
@@ -348,7 +364,9 @@ Story-time / chronology is out of scope here — its tasks live in
       `intensity`; word-weighted-axis toggle. (#1, #3, #4)
 - [ ] **Thread detail view** — contextual right-pane mode when a `type: thread`
       file is active (beats in order, stats, jump). (#7)
-- [ ] Threads-list **stats dashboard**. (#6)
+- [ ] Threads **dashboard** as a **main-pane view** (same class as `BraidView`,
+      swaps the editor in `<main>`); ideally a `Timeline | List` mode toggle on
+      one Threads view. (#6)
 - [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#2)
 - [ ] **Overview minimap + scrubber** below the braid — compressed render +
       draggable viewport with two-way scroll sync. (#8)
