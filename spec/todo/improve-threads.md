@@ -217,6 +217,63 @@ bare-id and `{ name, order }` forms keep working, so existing projects render
 unchanged. (Terminology: a **beat** is a scene's appearance on a thread; `summary`
 and `intensity` are fields _on_ a beat — see #1.)
 
+## Tasks (work-breakdown when this ships)
+
+Not committed — this is the full surface area so nothing (**especially the docs
+and help text**) is forgotten. Ship incrementally; each of #1–#8 can land alone.
+The `when`/chronology tasks are tracked separately in
+[story-timeline.md](./story-timeline.md).
+
+**Model & data (main / shared)**
+
+- [ ] Extend `parseThreadTags` (`story-index.ts`) to read `summary` + `intensity`
+      on the object form; keep bare-id and `{ name, order }` working. (#1, #5)
+- [ ] Carry `summary`/`intensity` through `buildThreads` → the `story:threads` IPC
+      and the shared `Thread`/beat types.
+- [ ] Make per-scene **word count** available to the index (pacing + weighted
+      axis). (#3, #4)
+
+**Editor & panes (renderer)**
+
+- [ ] Braid: hover a dot → show its `summary`; drive lane shape/colour from
+      `intensity`; word-weighted-axis toggle. (#1, #4, #5)
+- [ ] **Thread detail view** — contextual right-pane mode when a `type: thread`
+      file is active (beats in order, stats, jump). (#8)
+- [ ] Threads-list **stats dashboard**. (#7)
+- [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#3)
+- [ ] Explicit `branches-from:`/`merges-into:` rendering, if adopted. (#6)
+
+**Frontmatter authoring**
+
+- [ ] Intellisense (`frontmatter-provider` / `frontmatter-context`) offers
+      `summary`, `intensity` (enum), and the `threads:` object keys.
+- [ ] New-file templates (`entity-template`) + the entity-type registry know the
+      new fields.
+- [ ] Frontmatter help surfaces them — see [frontmatter-help.md](./frontmatter-help.md).
+
+**Help & docs — do not skip**
+
+- [ ] **Syntax reference** (the in-app Markdown & syntax cheat-sheet): add the
+      expanded `threads:` shape, `summary`, `intensity`, and the two-`order` note.
+- [ ] **In-app Help guide:** a line on per-beat summaries + the thread detail view.
+- [ ] **README:** update the "Story intelligence" bullets (threads carry per-beat
+      summaries; a thread detail view) and refresh the threads GIF/screenshot.
+- [ ] **Spec:** flesh out `story-model.md` (threads) and confirm `manuscript.md`'s
+      axes table; move the shipped parts of this doc from `todo/` into the relevant
+      spec section, and close the item.
+
+**Examples & tests**
+
+- [ ] Add `summary`/`intensity` to a few Scandal scenes so the feature demos; keep
+      `sample-project` minimal.
+- [ ] Unit tests: extended `parseThreadTags` (parse + back-compat), beat build with
+      summaries, gap/pacing computation.
+
+**Decisions**
+
+- [ ] Record in `DECISIONS.md`: the `summary`-not-`beat` field name, the per-thread
+      `order` rename call, and (if adopted) explicit branch/merge.
+
 ## Open questions (roll up)
 
 - **The two `order`s.** The per-thread `order` (inside a `threads:` entry) shares
