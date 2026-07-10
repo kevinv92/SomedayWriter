@@ -27,6 +27,8 @@ _before_ they're built. It's deliberately separate from the two neighbours:
   _movement_ (per-scene beats, pacing/gap signal, weighted axis, intensity).
 - [story-timeline.md](./story-timeline.md) — Story-time timeline: chronology &
   flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
+- [frontmatter-help.md](./frontmatter-help.md) — an in-editor, schema-aware help
+  button for the frontmatter block (as the frontmatter grows more complex).
 
 ---
 

@@ -38,30 +38,38 @@ of contents, not a story. Everything below is about closing that gap.
 
 Roughly in writer-value order. Each is a candidate; not all need to ship together.
 
-### 1. A beat per scene, per thread
+### 1. A one-line summary for each beat
 
-**What.** For each thread a scene sits on, one short, **writer-authored line
-naming the thread's _move_ in that scene** — not a summary of the whole scene,
-just what this arc does here. Think of it as a caption on the thread's dot.
+**First, what a "beat" _is_ (existing term).** In the thread model a **beat** is a
+scene's **appearance on a thread** — one dot on that thread's lane. A thread is an
+ordered run of beats (the per-thread `order` sequences them; `buildThreads` already
+calls them `beats`). A scene on three threads _is_ three beats. This is not new.
 
-**Why — use cases.**
+**What's missing — and what this adds.** Today a beat is only a _dot_: it says the
+thread is present in the scene, nothing more. This adds **a one-line `summary` to
+each beat** — a short, writer-authored line naming what that arc _does_ there
+("Holmes is hired", "first real doubt"). It's a caption on the dot, not a summary
+of the whole scene. That single line is what turns the braid from a map into a
+readable story; every use case below is unlocked by it.
+
+**Why — use cases (all follow from giving each beat a summary).**
 
 - **Follow-a-thread becomes a living outline.** The braid can already reorder to a
-  single thread's scenes; with beats, that view reads as an auto-synopsis of the
+  single thread's beats; with summaries, that view reads as an auto-synopsis of the
   arc. Reading _The Case_ top to bottom — "hired → finds the hiding place →
   smoke-rocket plan → the photo's spot is revealed → Irene has fled" — you feel
   escalation (or a sag) in five seconds without opening a scene.
-- **Catch a stalled subplot.** Three near-identical beats in a row ("they argue",
-  "another argument", "argue again") make repetition visible that's invisible when
-  the scenes are forty pages apart.
-- **Verify a payoff was set up.** Scan a thread's beats for the seed before the
+- **Catch a stalled subplot.** Three near-identical summaries in a row ("they
+  argue", "another argument", "argue again") make repetition visible that's
+  invisible when the scenes are forty pages apart.
+- **Verify a payoff was set up.** Scan an arc's summaries for the seed before the
   climax — "the photograph is introduced" appears before "the photograph is
   recovered." A Chekhov's-gun check, per arc.
 - **Recall while navigating.** Hovering a dot in the braid shows "first real
   doubt" — you remember what that thread is doing there without opening the file.
-- **See a scene pulling its weight.** A scene on three threads shows three beats;
-  if one reads "mentioned in passing", that thread is weak there — cut it from the
-  scene, or strengthen it.
+- **See a scene pulling its weight.** A scene on three threads shows three
+  summaries; if one reads "mentioned in passing", that thread is weak there — cut
+  it from the scene, or strengthen it.
 
 **Example (the Scandal fixture).** Threads are declared in a scene's frontmatter
 today as a `threads:` array — either a bare id, or an object `{ name, order }` for
@@ -73,7 +81,8 @@ order: 30
 threads: [the-case, the-woman]
 ```
 
-Beats are additive — each membership gains a line; the bare-id form still works:
+Summaries are additive — each beat (membership) gains a `summary`; the bare-id
+form still works:
 
 ```yaml
 # manuscript/act-2/03-briony-lodge.md — proposed
@@ -81,9 +90,9 @@ order: 30
 threads:
   - name: the-case # 'name' is the existing object-form key (not 'thread')
     order: 3 # existing: this scene is beat #3 on the arc
-    beat: 'Holmes scouts Briony Lodge and finds the hiding place'
+    summary: 'Holmes scouts Briony Lodge and finds the hiding place'
   - name: the-woman
-    beat: "first sight of Irene's cleverness"
+    summary: "first sight of Irene's cleverness"
 ```
 
 The follow-thread view of _The Case_ then reads as an outline:
@@ -99,14 +108,16 @@ The Case
 
 **Declaration & data.** This rides the **existing** `threads:` contract (see
 [story-model.md](../story-model.md) → threads). The only change is one optional
-key on the object form: `beat:` (this item), which pairs with `intensity:` from #5
-below — the same annotation, two fields. Bare ids and `{ name, order }` keep
-working untouched, so no project must adopt it. Inline `<!-- thread:x -->` markers
-stay for _mid-scene_ scoping and carry no beat (for now).
+key on the object form: **`summary:`** (this item), which pairs with `intensity:`
+from #5 below — the same beat, annotated with two fields. Bare ids and
+`{ name, order }` keep working untouched, so no project must adopt it. (Named
+`summary`, **not** `beat`, on purpose: a _beat_ is the appearance/dot; the
+`summary` is the line describing it.) Inline `<!-- thread:x -->` markers stay for
+_mid-scene_ scoping and carry no summary (for now).
 
-**Open.** One beat per (scene, thread), or several (a scene that does two things to
-one arc)? Where it renders — dot tooltip, lane caption, or a dedicated "arc
-outline" list.
+**Open.** One `summary` per beat, or can a beat carry a couple (a scene that does
+two distinct things to one arc)? Where it renders — dot tooltip, lane caption, or
+a dedicated "arc outline" list.
 
 ### 2. Story-time axis — track flashbacks & non-linear narrative
 
@@ -159,14 +170,16 @@ when: 12 # NEW (#2): story-time sort key (flashback if < neighbours)
 threads: # today: [the-case, the-disguise] OR [{ name, order }]
   - name: the-case # 'name' + optional 'order' is today's object form
     order: 1
-    beat: 'Holmes is hired' # NEW (#1)
+    summary: 'Holmes is hired' # NEW (#1) — the beat's one-line summary
     intensity: setup # NEW (#5)
   - name: the-disguise
-    beat: 'the groom disguise is chosen'
+    summary: 'the groom disguise is chosen'
 ```
 
-Every added key (`when`, `beat`, `intensity`) is optional and sparse; the bare-id
-and `{ name, order }` forms keep working, so existing projects render unchanged.
+Every added key (`when`, `summary`, `intensity`) is optional and sparse; the
+bare-id and `{ name, order }` forms keep working, so existing projects render
+unchanged. (Terminology: a **beat** is a scene's appearance on a thread; `summary`
+and `intensity` are fields _on_ a beat — see #1.)
 
 ## Open questions (roll up)
 
