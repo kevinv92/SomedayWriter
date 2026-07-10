@@ -27,10 +27,9 @@ _before_ they're built. It's deliberately separate from the two neighbours:
 
 - [story-timeline.md](./story-timeline.md) — Story-time timeline: chronology &
   flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
-- [frontmatter-help.md](./frontmatter-help.md) — an in-editor, schema-aware **help**
-  button that explains this file's fields. (Its editable counterpart, the structured
-  **Frontmatter editor**, shipped & graduated → [story-model.md](../story-model.md)
-  → Editing frontmatter.)
+- [frontmatter-help.md](./frontmatter-help.md) — an **"Edit" chip on the `---`
+  block** that opens the shipped Frontmatter editor pane, plus schema-aware field
+  **hints inside the pane** (the read-only help idea, re-scoped now the editor exists).
 - [companion-by-type.md](./companion-by-type.md) — a Companion pane that changes
   what it shows based on the active file's entity type (thread arc, character
   footprint, …).

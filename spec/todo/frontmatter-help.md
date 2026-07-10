@@ -1,110 +1,70 @@
-# In-editor frontmatter help
+# Frontmatter block — "Edit" affordance & in-pane help
 
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _needs design_ (drafting the shape; nothing committed).
+**Status:** _ready to build (small)._ Re-scoped now that the structured
+**Frontmatter editor** has shipped ([story-model.md](../story-model.md) → Editing
+frontmatter, decision #50).
 
-**Intent.** Frontmatter is getting richer — entity `type:` + per-type fields,
-`aliases:`, `threads:` growing into beat objects (`name` / `pos` / `summary` /
-`intensity` / `state`), a proposed `when:`, and the [two `order`s](../manuscript.md).
-A casual or new writer won't memorise that. Put a small **help affordance right at
-the frontmatter block in the editor** that opens **schema-aware help for _this_
-file** — so the fields explain themselves where you write them.
+**Intent.** Two small pieces, both leaning on the shipped editor:
 
-> **Note:** the _editable_ counterpart — the structured **Frontmatter editor** —
-> has **shipped** ([story-model.md](../story-model.md) → Editing frontmatter,
-> decision #50). Its form surfaces every field as a control, so it already covers
-> much of this spec's discoverability intent; this read-only "?" is now optional
-> polish (it could become the editor pane's inline help). Both render from the one
-> schema registry.
+1. **An "Edit" chip on the `---` block in the editor** — a one-click jump from
+   where you write the frontmatter to the structured form that edits it. This
+   replaces the earlier "read-only help popover" idea: the editor pane already
+   _is_ the schema-aware surface, so the block should simply **open it**.
+2. **The help lives in the editor pane** — schema-aware field hints and a link to
+   the full syntax reference belong _in_ the form, next to the controls, rather
+   than in a separate popover.
 
-## What exists, and the gap
+## 1. The block "Edit" chip
 
-- **Intellisense (M19)** — `frontmatter-provider` offers key/value completions
-  _while you type inside_ `---`. Great, but it's **pull**: you have to know a
-  field exists (or that you can type) to summon it.
-- **The entity-type registry** — `entity-types.ts` already holds the **schema**:
-  `COMMON_FIELDS` (type, name, aliases, …) plus each type's declared `fields`
-  (e.g. location → `region`). This is machine-readable and is _already_ the source
-  for templates + intellisense — so help rendered from it can **never drift**.
-- **The global syntax reference** — the Markdown & syntax cheat-sheet overlay. It
-  covers frontmatter, but it's whole-app and static, not "the fields valid for
-  _this_ character file."
+Render a small **"✎ Edit"** chip on the leading `---` block using the same
+decoration machinery the softened-frontmatter rendering already uses (a widget
+`StateField`, like `imageField` / `mentionField`). Clicking it **opens (and
+focuses) the Frontmatter pane** — i.e. calls the same `panels.set('frontmatter',
+true)` the rail button does.
 
-**The gap:** nothing shows, in place, _"for this file's `type`, here are the
-fields you can use, what each means, and an example"_ — which is exactly the
-friction that grows as the schema grows.
+- **Placement:** a corner chip at the block's top-right, or one that appears only
+  when the caret is inside the `---` block (quietest). Must coexist with the
+  softened-at-rest rendering and never shift the text.
+- **Keyboard:** a command / shortcut ("Edit frontmatter") that does the same, so
+  it isn't mouse-only. Reuses the existing panel-toggle plumbing.
 
-## The affordance — a help button in the editor
+## 2. Help inside the pane
 
-Render a small **"?" chip on the frontmatter block** using the same decoration
-machinery the editor already uses (`frontmatterPlugin`, and widget `StateField`s
-like `imageField` / `mentionField`). Placement options to choose between:
+The pane already surfaces every field as a labelled control; add the _explanatory_
+layer there, rendered from the entity-type registry so it never drifts:
 
-- **A corner chip that appears only when the caret is inside the `---` block**
-  (quietest; discoverable exactly when relevant). _Leaning this way._
-- A subtle always-present chip at the block's top-right.
-- A gutter marker on the `---` lines.
-
-Clicking it opens the frontmatter help (a **popover anchored to the block**, or
-the existing reference overlay scrolled to a frontmatter section — popover is more
-contextual). It must coexist with the **softened-at-rest** frontmatter rendering
-and never shift the text.
-
-## What the help shows (the valuable part)
-
-Read the file's `type:` and render from the registry:
-
-- **Common fields** — `title`, `type`, `name`, `aliases`, and (for manuscript
-  scenes) `order`, `threads`, `when` — each with a one-line purpose + a tiny
-  example.
-- **This type's fields** — e.g. a `location` shows `region`, whatever the project
-  declared; a `thread` shows its identity fields. Pulled straight from
-  `resolveEntityTypes`, so a project's custom types/fields appear automatically.
-- **The `threads:` shape** — the one that's getting complex — shown expanded:
-  bare id vs `{ name, order, summary, intensity }` (a **beat** is the scene's
-  appearance on a thread; `summary`/`intensity` describe it — see
-  [story-model.md → Thread views](../story-model.md) #1), with the
-  [order disambiguation](../manuscript.md) inline so nobody confuses the two
-  `order`s.
-- **Actions** — "insert this field" (reuses the template/intellisense path) and a
-  link to the full reference + the relevant spec.
-
-## Use cases
-
-- New writer opens a **character** file, doesn't know what belongs there → clicks
-  **?** → sees `type / name / aliases` + this type's fields, each with an example.
-  No trip to the docs.
-- A writer wiring up **threads** with the new `summary` / `order` → **?** shows
-  the object shape and which `order` is which.
-- Discovering **`when`** (story-time) exists at all — in-place help is how an
-  optional field gets found without reading a spec.
+- **Per-field one-line hints** — a `?`-on-hover or a small caption under each label
+  (`order` → "reading position"; `pos` → "position on this thread"; the two
+  `order`s disambiguated inline). The registry field's `label` is the seed; a
+  short `hint`/`help` string per field is the addition.
+- **A header "?"** on the pane → opens the existing **Markdown & syntax reference**
+  overlay scrolled to the frontmatter section (the deep-dive), so the pane stays
+  uncluttered.
+- Optionally flag the same schema issues the pane already validates (unknown enum
+  values, bad `order`/`threads`) with the "why" from the registry.
 
 ## Relationship to neighbours
 
-- **Single schema source.** Help, templates (M20), and intellisense (M19) should
-  all render from the **entity-type registry** — add a field once, it shows up in
-  all three. This feature is largely "surface the registry as readable help."
-- Complements, doesn't replace, intellisense (pull-on-type) and the global
-  reference (deep-dive).
+- **Single schema source.** Hints, the editor's controls, intellisense (M19), and
+  templates (M20) all render from the entity-type registry — add a field (and its
+  `hint`) once, it shows everywhere.
+- Complements, doesn't replace, intellisense (pull-on-type) and the global syntax
+  reference (deep-dive). The "Edit" chip is just a shortcut into the editor.
 
 ## Open questions
 
-- **Visibility** — caret-in-block only, or always-present? Does it show for
-  _every_ file or only ones with (or eligible for) a `type:`?
-- **Popover vs. overlay** — a small anchored popover, or reuse the full reference
-  overlay filtered to frontmatter?
-- **Validation** — should the same surface also **flag unknown / malformed keys**
-  (it already knows the schema), or stay purely informational? (Ties to the
-  Inspector's frontmatter warnings.)
-- **Access** — keyboard trigger + a11y; the chip shouldn't be mouse-only.
-- Does "insert field" write a stub value, and how does it interact with the
-  softened-at-rest rendering?
+- Chip visibility — always-present vs caret-in-block only.
+- Where the per-field `hint` string lives — on the registry `EntityFieldDef`
+  (shared) vs a small lookup in the pane.
+- Whether the chip should also appear on files with **no** block yet (as an "Add
+  frontmatter" entry point) — likely yes, mirroring the pane's empty state.
 
 ## Related
 
-- [story-model.md](../story-model.md) → Editing frontmatter — the shipped
-  structured editor (the editable counterpart) + entity types + the fields registry.
-- [manuscript.md](../manuscript.md) — `order` / `threads` / `when` fields.
-- [story-model.md → Thread views](../story-model.md) — the richer `threads:` this helps with.
+- [story-model.md](../story-model.md) → Editing frontmatter — the shipped editor
+  this opens into, plus entity types + the fields registry.
+- [manuscript.md](../manuscript.md) — `order` / `threads` / `when` (the fields the
+  hints disambiguate).
