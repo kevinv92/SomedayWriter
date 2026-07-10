@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ManuscriptScene, Thread } from '@shared/types'
 import { inferThreadLinks } from '../lib/thread-links'
-import { threadStats } from '../lib/thread-stats'
+import { threadStats, type ThreadStatus } from '../lib/thread-stats'
+
+// Plain-language hover help for each thread status in the List view.
+const STATUS_HELP: Record<ThreadStatus, string> = {
+  resolved: 'Resolved — a scene closes this thread, so the arc is wrapped up.',
+  open: 'Open — this thread is opened but never closed (a dangling arc).',
+  active: 'Active — this thread is running; no scene explicitly opens or closes it.'
+}
 
 interface BraidViewProps {
   /** Manuscript scene paths in reading order — the x-axis source. Only threaded
@@ -261,12 +268,18 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
                     </td>
                     <td className="thread-row__span">{span}</td>
                     <td className="thread-row__status">
-                      <span className={`thread-badge thread-badge--${s.status}`}>
+                      <span
+                        className={`thread-badge thread-badge--${s.status}`}
+                        title={STATUS_HELP[s.status]}
+                      >
                         <span className="thread-badge__dot" />
                         {s.status}
                       </span>
                       {s.silent > 0 && s.status !== 'resolved' && (
-                        <span className="thread-row__silent">
+                        <span
+                          className="thread-row__silent"
+                          title={`Silent — ${s.silent} scene${s.silent === 1 ? '' : 's'} have passed since this thread's last appearance without resolving it.`}
+                        >
                           <span className="thread-row__silent-dot" /> silent {s.silent}
                         </span>
                       )}
