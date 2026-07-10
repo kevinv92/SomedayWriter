@@ -3,12 +3,15 @@
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _in progress_ — **Foundations + Slices A (`summary`), B (`state` +
-branch/merge), C (pacing/gap lint), D (Companion thread-mode), E (#6 dashboard
-List mode), #4 (intensity → lane shape), and #3 (word-weighted axis) shipped**.
-Left: #8 minimap, plus the authoring/graduation follow-ups (nested-object
-intellisense, gap-threshold setting, companion-by-type registry, docs graduation).
-See the Tasks section for what's checked off.
+**Status:** **all 8 improvements shipped** — Foundations + Slices A (`summary`),
+B (`state` + branch/merge), C (pacing/gap lint), D (Companion thread-mode),
+E (#6 dashboard List mode), #4 (intensity → lane shape), #3 (word-weighted axis),
+and #8 (minimap / scrubber). The braid is now a full storytelling instrument, not
+a table of contents. **Remaining is polish + graduation, not core:** nested-object
+`threads:` intellisense/templates, gap-threshold setting, the full companion-by-type
+registry, and moving the shipped design out of this `todo/` doc into
+`story-model.md` (+ `DECISIONS.md` entries, Help/README coverage). See the Tasks
+section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -525,9 +528,13 @@ and the one shared dependency:
   (back-compatible). Designed first as `preview/threads-intensity.html` (Claude
   Design), then adopted. The Scandal `the-case` arc got a setup→rise→climax→fall→
   resolve tag set to demonstrate. CDP-verified (lane y 206→194→194→182→194→206).
-- **#8 minimap / scrubber** → a 2-D mini-braid from shared board geometry + a
-  viewport rect bound to the existing `view {tx,ty,k}` (two-way sync for free).
-  _Build last — it reflects #3 + #4._
+- **#8 minimap / scrubber** → _shipped._ A strip under the board maps the whole
+  braid (`viewBox 0 0 boardW boardH`, `preserveAspectRatio="none"`) into a band;
+  the viewport rect is derived from `view{tx,ty,k}` + the board's measured on-screen
+  size (`x=-tx/k, w=svgW/k`, tracked via `ResizeObserver`). Click/drag the strip to
+  centre the view there — two-way sync for free (rect follows pan/zoom; scrub sets
+  `tx/ty`). Reuses `layout.width`/`colX`. Designed first as `threads-minimap.html`.
+  CDP-verified (scrub-right moved the viewport rect 0 → 550).
 
 Shared prerequisite for #3 and #8: factor the board layout (`colX`/`laneY`/bounds)
 and the scene-words scan into reusable helpers first.
