@@ -6,6 +6,9 @@
   "author": "Kevin Varela",
   "license": "MIT",
   "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "prepare": "git config core.hooksPath .githooks || true",
     "dev": "electron-vite dev",
