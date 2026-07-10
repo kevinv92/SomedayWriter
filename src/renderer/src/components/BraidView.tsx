@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Thread } from '@shared/types'
+import { inferThreadLinks } from '../lib/thread-links'
 
 interface BraidViewProps {
   /** Manuscript scene paths in reading order — the x-axis source. Only threaded
@@ -98,6 +99,12 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
       return { path, rows }
     })
     .filter((c) => c.rows.length > 1)
+
+  // Branch/merge topology inferred from beats' `state` (#5).
+  const rowOf = new Map(threads.map((t, i) => [t.tag, i]))
+  const colorOf = (tag: string) =>
+    threads.find((t) => t.tag === tag)?.color ?? 'var(--muted)'
+  const links = inferThreadLinks(threads)
 
   // --- pan / zoom ---
   const onPointerDown = (e: React.MouseEvent) => {
@@ -208,6 +215,34 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
               )
             })}
 
+            {/* branch / merge connectors, inferred from `state` (#5) */}
+            {links.flatMap((link) => {
+              const x = colX(link.scene)
+              const openerRow = rowOf.get(link.opener)
+              if (x == null || openerRow == null) return []
+              return link.others.flatMap((other) => {
+                const otherRow = rowOf.get(other)
+                if (otherRow == null) return []
+                return [
+                  <line
+                    key={`${link.scene}-${link.opener}-${other}`}
+                    className={`braid-link braid-link--${link.kind}`}
+                    x1={x}
+                    y1={laneY(otherRow)}
+                    x2={x}
+                    y2={laneY(openerRow)}
+                    stroke={colorOf(link.opener)}
+                  >
+                    <title>
+                      {link.kind === 'branch'
+                        ? `${link.opener} branches from ${other}`
+                        : `${other} merges into ${link.opener}`}
+                    </title>
+                  </line>
+                ]
+              })
+            })}
+
             {/* lanes + nodes */}
             {threads.map((t, row) => {
               const dim = follow !== null && follow !== t.tag
@@ -245,19 +280,36 @@ export function BraidView({ sceneOrder, onOpen, refreshKey, onClose }: BraidView
                   {t.beats.map((b) => {
                     const x = colX(b.path)
                     if (x == null) return null
+                    const cap = b.state === 'opens' || b.state === 'closes'
+                    const label = b.summary ? `${b.title} — ${b.summary}` : b.title
                     return (
-                      <circle
-                        key={b.path}
-                        className="braid-node"
-                        cx={x}
-                        cy={y}
-                        r={NODE_R}
-                        fill={t.color ?? 'var(--muted)'}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onClick={() => onOpen(b.path)}
-                      >
-                        <title>{b.summary ? `${b.title} — ${b.summary}` : b.title}</title>
-                      </circle>
+                      <g key={b.path}>
+                        <circle
+                          className="braid-node"
+                          cx={x}
+                          cy={y}
+                          r={NODE_R}
+                          fill={t.color ?? 'var(--muted)'}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClick={() => onOpen(b.path)}
+                        >
+                          <title>
+                            {cap ? `${label}  (${b.state} ${t.name})` : label}
+                          </title>
+                        </circle>
+                        {/* open/close cap ring (#5) */}
+                        {cap && (
+                          <circle
+                            className={`braid-cap braid-cap--${b.state}`}
+                            cx={x}
+                            cy={y}
+                            r={NODE_R + 3}
+                            fill="none"
+                            stroke={t.color ?? 'var(--muted)'}
+                            pointerEvents="none"
+                          />
+                        )}
+                      </g>
                     )
                   })}
                 </g>

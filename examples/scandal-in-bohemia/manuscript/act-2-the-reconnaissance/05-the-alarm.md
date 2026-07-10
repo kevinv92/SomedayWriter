@@ -2,7 +2,7 @@
 order: 50
 threads:
   - { name: the-case, summary: "the photograph's hiding spot is revealed" }
-  - the-disguise
+  - { name: the-disguise, state: closes, summary: 'the disguise does its work' }
 ---
 
 # The Alarm of Fire

@@ -3,8 +3,9 @@
 _Part of the [SomedayWriter spec](../README.md) · design backlog
 ([todo](./README.md))._
 
-**Status:** _in progress_ — **Foundations + Slice A (`summary`) shipped** (beat
-data model + parse/build + the braid hover summary + Scandal example); #2–#8 are
+**Status:** _in progress_ — **Foundations + Slice A (`summary`) + Slice B (`state`
+lifecycle & branch/merge) shipped** (beat data model, braid hover summary, open/
+close caps, inferred branch/merge connectors, Scandal example, tests). #2–#4, #6–#8
 still design-drafting. See the Tasks section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
@@ -384,15 +385,18 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
 - [ ] **Follow-up:** a dedicated "arc outline" list rendering (beyond the hover)
       lands with the Companion thread-mode (#7) / dashboard (#6).
 
-### Slice B — `state` lifecycle + branch/merge [#5]
+### Slice B — `state` lifecycle + branch/merge [#5] · _shipped_
 
-- [ ] Braid: draw lane start/end **caps** at `opens` / `closes` beats.
-- [ ] Infer **branch/merge** from open/close co-occurrence in a scene; render the
-      split/join.
-- [ ] Authoring + help: `state` enum in intellisense / frontmatter help / syntax ref.
-- [ ] Example: mark `opens`/`closes` on Scandal's branch (The Disguise) and merge
-      (The Outwitting) scenes.
-- [ ] Tests: branch/merge inference from `state` co-occurrence.
+- [x] Braid: **cap rings** on `opens` (dashed) / `closes` (solid) beats. ✅
+- [x] `inferThreadLinks` (`lib/thread-links.ts`) derives **branch/merge** from
+      open/close co-occurrence; braid renders solid coloured connectors (merge
+      dashed). ✅ CDP-verified on Scandal (the-disguise branches; the-woman +
+      the-case merge into the-outwitting).
+- [x] Help: `state` enum in the in-app syntax reference. ✅ _(intellisense /
+      frontmatter-help still the shared nested-object follow-up from Slice A.)_
+- [x] Example: `opens`/`closes` on Scandal (the-woman/the-case open, the-disguise
+      branch, the merge at the Empty Nest). ✅
+- [x] Tests: `inferThreadLinks` (branch, merge, lone-close, merge-beats-branch). ✅
 
 ### Slice C — pacing / gap lint [#2]
 

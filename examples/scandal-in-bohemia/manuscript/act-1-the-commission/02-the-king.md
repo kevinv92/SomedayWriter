@@ -1,7 +1,7 @@
 ---
 order: 20
 threads:
-  - { name: the-case, summary: 'Holmes is hired to recover the photograph' }
+  - { name: the-case, state: opens, summary: 'Holmes is hired to recover the photograph' }
   - royal-scandal
 ---
 

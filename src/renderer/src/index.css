@@ -2564,6 +2564,28 @@ body {
   opacity: 0.7;
 }
 
+/* Branch/merge connector (from `state`) — a solid coloured join, vs the faint
+   dotted crossing behind it. Merges dashed to read as "flowing in". */
+.braid-link {
+  stroke-width: 2.5;
+  opacity: 0.85;
+  pointer-events: none;
+}
+
+.braid-link--merge {
+  stroke-dasharray: 5 3;
+}
+
+/* Open/close cap ring around a lifecycle beat. */
+.braid-cap {
+  stroke-width: 1.5;
+  opacity: 0.9;
+}
+
+.braid-cap--opens {
+  stroke-dasharray: 2 2;
+}
+
 .braid-node {
   cursor: pointer;
   stroke: var(--bg);

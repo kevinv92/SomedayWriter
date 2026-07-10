@@ -3,7 +3,7 @@ order: 30
 threads:
   - { name: the-case, summary: 'scouts Briony Lodge and finds the hiding place' }
   - the-woman
-  - the-disguise
+  - { name: the-disguise, state: opens, summary: 'a disguise scheme takes shape' }
 ---
 
 # Briony Lodge

@@ -58,6 +58,10 @@ const WRITER: SyntaxRow[] = [
     syntax: '- { name: the-case, summary: … }',
     desc: 'A thread with a one-line beat summary (shown on the braid; pos: sets its order on that thread).'
   },
+  {
+    syntax: '- { name: the-case, state: opens }',
+    desc: 'Mark where a thread opens/closes — branch & merge then show on the braid. state: opens | closes | touches.'
+  },
   { syntax: 'order: 10', desc: "A scene's manuscript position." }
 ]
 
