@@ -5,10 +5,10 @@ _Part of the [SomedayWriter spec](../README.md) · design backlog
 
 **Status:** _in progress_ — **Foundations + Slices A (`summary`), B (`state` +
 branch/merge), C (pacing/gap lint), D (Companion thread-mode), E (#6 dashboard
-List mode), and #4 (intensity → lane shape) shipped**. Left: #3 weighted axis and
-#8 minimap (both unblocked — Slice E shipped the shared `story:manuscriptScenes`
-helper they needed), plus the authoring/graduation follow-ups. See the Tasks
-section for what's checked off.
+List mode), #4 (intensity → lane shape), and #3 (word-weighted axis) shipped**.
+Left: #8 minimap, plus the authoring/graduation follow-ups (nested-object
+intellisense, gap-threshold setting, companion-by-type registry, docs graduation).
+See the Tasks section for what's checked off.
 
 **Intent.** Today's threads model is structurally excellent but the _views_ show
 where a thread **is**, not how it **moves**. This doc collects the gap and the
@@ -511,9 +511,13 @@ scope — its tasks live in [story-timeline.md](./story-timeline.md).
 All three now have a resolved **Design** section in their entry above. Build order
 and the one shared dependency:
 
-- **#3 word-weighted axis** → **`story:manuscriptScenes`** (`{ path, order, title,
-words }[]`) helper now **exists** (shipped in Slice E). Remaining: swap `colX` →
-  `colXWeighted` behind an `Even | By length` toggle.
+- **#3 word-weighted axis** → _shipped._ A `Width: Even | By length` header toggle
+  swaps the column layout: weighted mode sizes each column by its scene's word
+  count (`clamp(50 + words·0.18, 64, 320)`), so the x-axis reads as pacing. Column
+  centres come from a cumulative `colCenter` map (fed by `story:manuscriptScenes`);
+  everything already routes through `colX`, so headers/crossings/links/lanes follow
+  for free. Designed first as `preview/threads-weighted.html`. CDP-verified (even
+  gaps 130px → weighted 92–108px by scene length).
 - **#4 intensity → lane shape** → _shipped._ The braid lane is now a `<polyline>`
   whose per-beat vertical lift encodes intensity (`INTENSITY_LIFT`: setup/resolve
   0, rise 12, climax 24, fall 12); dots, cap rings, crossings, and branch/merge
