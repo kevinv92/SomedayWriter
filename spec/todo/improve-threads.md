@@ -155,9 +155,45 @@ implicit form is ambiguous. Keep it optional so simple projects stay simple.
 
 ### 7. Make the list view earn its place
 
-If the Timeline is the go-to, the **Threads list** should do what the timeline
-can't: per-thread **stats** — scene count, word count, first/last appearance,
-"silent for N scenes" — i.e. a dashboard, not a lesser duplicate.
+If the Timeline is the go-to, the **Threads list** (all threads) should do what
+the timeline can't: per-thread **stats** — scene count, word count, first/last
+appearance, "silent for N scenes" — i.e. a dashboard, not a lesser duplicate. The
+_single_-thread version of this lives in #8.
+
+### 8. Thread detail view — when a thread file is open
+
+**The question:** when you open a `type: thread` file (`threads/the-case.md`),
+should a dedicated view show that thread's beats?
+
+**Yes — but as a contextual mode of the right pane, not a new always-on toggle.**
+A thread's detail is only meaningful while a thread file is active, so surface it
+the way the **Companion** (auto-follows the scene's entities) and **Inspector**
+(shows the active file's parse) already do: the pane's content switches with the
+active file. An always-present rail button that's disabled for every non-thread
+file is clutter.
+
+**What it shows** — all _derived_, scanned from scenes' `threads:` tags (the beats
+live on the scenes, not in the thread file):
+
+- the thread's **beats in order** (per-thread `order`, then narrative order), each
+  a row — scene title · `summary` · `intensity` badge · click-to-jump;
+- **arc stats** — beat count, word count across the arc, first/last appearance,
+  "silent for N scenes" gaps (#7's dashboard, scoped to this one thread);
+- the thread file's own prose (its identity/description) stays in the editor; the
+  pane is the computed companion beside it.
+
+**Zoom levels.** The braid (Threads · Timeline) is the **overview** — every thread
+at once; this is the **drill-down** — one arc in depth. They pair: clicking a lane
+in the braid opens that thread file → this view. Overview → detail.
+
+**Alternative considered:** render the beats **inline in the editor**, below the
+thread file's frontmatter (the file _is_ the thread's page). Rejected as the
+default because the beats are **derived**, not file content — a read-only widget
+inside an editable file is confusing. Possible later as a collapsed "arc" section
+once the pane exists.
+
+**Open:** reuse Inspector/Companion, or a sibling "Thread" mode? Can you edit a
+`summary` from the pane (write back to the scene's frontmatter), or read-only v1?
 
 ---
 
