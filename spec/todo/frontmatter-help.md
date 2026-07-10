@@ -6,11 +6,16 @@ _Part of the [SomedayWriter spec](../README.md) · design backlog
 **Status:** _needs design_ (drafting the shape; nothing committed).
 
 **Intent.** Frontmatter is getting richer — entity `type:` + per-type fields,
-`aliases:`, `threads:` growing into objects (`name` / `order` / `summary` /
-`intensity`), a proposed `when:`, and the [two `order`s](../manuscript.md). A
-casual or new writer won't memorise that. Put a small **help affordance right at
+`aliases:`, `threads:` growing into beat objects (`name` / `pos` / `summary` /
+`intensity` / `state`), a proposed `when:`, and the [two `order`s](../manuscript.md).
+A casual or new writer won't memorise that. Put a small **help affordance right at
 the frontmatter block in the editor** that opens **schema-aware help for _this_
 file** — so the fields explain themselves where you write them.
+
+> **Sibling:** the _editable_ counterpart is
+> [frontmatter-editor.md](./frontmatter-editor.md) — a schema-driven form. This
+> spec stays the lightweight read-only affordance; if the editor ships, this "?"
+> can become its entry point. Both render from the one schema registry.
 
 ## What exists, and the gap
 
@@ -97,6 +102,7 @@ Read the file's `type:` and render from the registry:
 
 ## Related
 
+- [frontmatter-editor.md](./frontmatter-editor.md) — the editable sibling (a form).
 - [story-model.md](../story-model.md) — entity types + the fields registry.
 - [manuscript.md](../manuscript.md) — `order` / `threads` / `when` fields.
 - [story-model.md → Thread views](../story-model.md) — the richer `threads:` this helps with.

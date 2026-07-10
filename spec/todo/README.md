@@ -27,8 +27,12 @@ _before_ they're built. It's deliberately separate from the two neighbours:
 
 - [story-timeline.md](./story-timeline.md) — Story-time timeline: chronology &
   flashbacks (a `when:` field, told-vs-happened plot, flashback markers).
-- [frontmatter-help.md](./frontmatter-help.md) — an in-editor, schema-aware help
-  button for the frontmatter block (as the frontmatter grows more complex).
+- [frontmatter-editor.md](./frontmatter-editor.md) — a schema-driven **form**
+  that edits the frontmatter through real controls (enum dropdowns, thread-name
+  autocomplete, a beat repeater) and writes YAML back. The editable answer to the
+  growing `threads:` object.
+- [frontmatter-help.md](./frontmatter-help.md) — its read-only sibling: an
+  in-editor, schema-aware **help** button that explains this file's fields.
 - [companion-by-type.md](./companion-by-type.md) — a Companion pane that changes
   what it shows based on the active file's entity type (thread arc, character
   footprint, …).
