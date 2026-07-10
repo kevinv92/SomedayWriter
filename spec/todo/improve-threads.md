@@ -128,14 +128,56 @@ a dedicated "arc outline" list.
 ### 2. Pacing / gap signal
 
 Flag when a thread has gone **silent** too long — N scenes or M words since its
-last beat. A "Project Health"-style lint for **neglected arcs** (Chekhov's gun
-left on the mantel). Ride the existing health/lint surface.
+last beat — so a **neglected arc** (Chekhov's gun left on the mantel, a subplot
+that quietly died) doesn't slip by.
+
+**In the UI — it lives in the Project Health panel.** This is a lint, so it
+belongs with the existing health checks (dead references), not as a new surface.
+A row per neglected arc, click-to-jump to the thread's last beat:
+
+```text
+Project Health
+  Dead references (0)
+  Neglected threads (2)
+    ⚠ The Disguise — silent 6 scenes / ~4,200 words since “the plan”   → jump
+    ⚠ The Ring     — opened, never closed (dangling)                    → jump
+```
+
+Rides the same plumbing as the dead-reference scan (`story:health`). Optionally a
+small ⚠ badge on the lane in the braid where the gap opens. Thresholds
+(scenes/words) are settings; "opened but never closed" reuses #5's `state`.
 
 ### 3. Word-weighted axis (toggle)
 
 Scenes are equal-width columns today, so a 3,000-word scene and a 200-word aside
-look identical. An optional mode sizes columns by scene length so the braid's
-**shape reflects real pacing**.
+look identical. An optional mode sizes each column's **width by the scene's word
+count**, so the braid's horizontal rhythm mirrors where the manuscript actually
+spends words.
+
+**In the UI.** A spacing toggle in the timeline's control bar, beside the existing
+order toggle — it doesn't reorder, only rescales the x-axis.
+
+```text
+Even (today):
+Order: Manuscript        Spacing: [Even]  By length
+           Ch1    Ch2    Ch3    Ch4    Ch5
+The Case   ●──────●──────●──────●──────●
+The Woman  ●──────┼──────●──────┼──────●
+          (420)  (380) (3,000) (210) (1,850)   ← words
+
+By length (proposed):
+Order: Manuscript        Spacing:  Even  [By length]
+          Ch1 Ch2  Ch3                      Ch4  Ch5
+The Case  ●───●────●────────────────────────●────●
+The Woman ●───●────●────────────────────────┼────●
+         420 380  3,000                     210  1,850
+```
+
+The fat middle (Ch3) now _looks_ fat and thin beats compress — so a **saggy
+middle** or a **rushed climax** (a payoff sitting in a sliver of a column) shows
+at a glance. Faint per-column word counts (toggleable), exact on hover. Reuses the
+scenes' existing positions — only x-spacing changes, so it's cheap. Pairs with #4
+(intensity → lane _height_): width = page-time, height = intensity.
 
 ### 4. Beat intensity → lane shape
 
@@ -143,13 +185,42 @@ Let a beat mark its role — `setup` / `rise` / `climax` / `fall` / `resolve` �
 drive the lane's height or colour from it. Now the braid **looks like a story's
 shape** (rising action, convergence, denouement), not a flat dotted grid.
 
-### 5. Explicit branch / merge (optional)
+### 5. Thread lifecycle — `state: opens | closes | touches`
 
-Branch/merge is currently _inferred_ from shared scene membership + dotted
-verticals — clever and low-ceremony, but the reader of the diagram has to
-reconstruct the topology. Consider an **optional** explicit relation on a
-`type: thread` file (`branches-from:` / `merges-into:`) for cases where the
-implicit form is ambiguous. Keep it optional so simple projects stay simple.
+Branch/merge shouldn't need edges on the thread file. Make it a per-beat attribute
+on the **thread declaration in the scene** — the same object that already holds
+`name` / `order` / `summary`:
+
+```yaml
+threads:
+  - name: the-disguise
+    state: opens # this scene starts (or branches off) the thread
+    summary: 'the groom disguise is chosen'
+  - name: the-case # no state → 'touches' (a normal mid-thread beat)
+    summary: 'Holmes scouts the house'
+```
+
+- **`touches`** _(default — omit it)_ — a normal beat; the thread passes through.
+- **`opens`** — the thread's **first** beat: it begins, or splits off, here.
+- **`closes`** — the thread's **last** beat: it resolves / ends here.
+
+**Why this beats `branches-from:` / `merges-into:`.**
+
+- **Local & discoverable.** You mark the lifecycle _where it happens_ — on the
+  scene, beside that beat's `summary` — not in a separate thread file you must
+  remember to edit.
+- **Branch & merge fall out for free.** The braid reads topology from
+  co-occurrence: a thread that **`opens`** in a scene where another is present →
+  **branches** off it; two threads that **`close`** where a third **`opens`** →
+  **merge** into it. No explicit edges, no thread-to-thread pointers to keep in
+  sync.
+- **Lanes gain real ends.** The braid caps a lane at its `opens`/`closes` beats
+  instead of letting it float; and #2's gap lint can flag a thread that **opened
+  but never closed** (a dangling arc).
+
+**Open.** Can a thread legitimately `open`/`close` more than once (re-opening a
+resolved arc)? Is `state` enough to render branch/merge unambiguously, or do
+genuinely tangled books still want an explicit pointer as an escape hatch?
 
 ### 6. Make the list view earn its place
 
@@ -206,14 +277,15 @@ threads: # today: [the-case, the-disguise] OR [{ name, order }]
     summary: 'Holmes is hired' # NEW (#1) — the beat's one-line summary
     intensity: setup # NEW (#4)
   - name: the-disguise
+    state: opens # NEW (#5) — opens | closes | touches (default touches)
     summary: 'the groom disguise is chosen'
 ```
 
-Every added key (`summary`, `intensity`) is optional and sparse; the bare-id and
-`{ name, order }` forms keep working, so existing projects render unchanged.
-(Terminology: a **beat** is a scene's appearance on a thread; `summary` and
-`intensity` are fields _on_ a beat — see #1.) Story-time (`when:`) is a **separate
-feature** — see [story-timeline.md](./story-timeline.md).
+Every added key (`summary`, `intensity`, `state`) is optional and sparse; the
+bare-id and `{ name, order }` forms keep working, so existing projects render
+unchanged. (Terminology: a **beat** is a scene's appearance on a thread; `summary`,
+`intensity`, and `state` are fields _on_ a beat — see #1 and #5.) Story-time
+(`when:`) is a **separate feature** — see [story-timeline.md](./story-timeline.md).
 
 ## Tasks (work-breakdown when this ships)
 
@@ -224,8 +296,9 @@ Story-time / chronology is out of scope here — its tasks live in
 
 **Model & data (main / shared)**
 
-- [ ] Extend `parseThreadTags` (`story-index.ts`) to read `summary` + `intensity`
-      on the object form; keep bare-id and `{ name, order }` working. (#1, #4)
+- [ ] Extend `parseThreadTags` (`story-index.ts`) to read `summary`, `intensity`,
+      and `state` on the object form; keep bare-id and `{ name, order }` working.
+      (#1, #4, #5)
 - [ ] Carry `summary`/`intensity` through `buildThreads` → the `story:threads` IPC
       and the shared `Thread`/beat types.
 - [ ] Make per-scene **word count** available to the index (pacing + weighted
@@ -239,7 +312,8 @@ Story-time / chronology is out of scope here — its tasks live in
       file is active (beats in order, stats, jump). (#7)
 - [ ] Threads-list **stats dashboard**. (#6)
 - [ ] Pacing/**gap lint** on the health surface ("silent for N scenes"). (#2)
-- [ ] Explicit `branches-from:`/`merges-into:` rendering, if adopted. (#5)
+- [ ] Render lane start/end **caps** from `state` (opens/closes), and infer
+      **branch/merge** from open/close co-occurrence in a scene. (#5)
 
 **Frontmatter authoring**
 
@@ -270,7 +344,8 @@ Story-time / chronology is out of scope here — its tasks live in
 **Decisions**
 
 - [ ] Record in `DECISIONS.md`: the `summary`-not-`beat` field name, the per-thread
-      `order` rename call, and (if adopted) explicit branch/merge.
+      `order` rename call, and the branch/merge model (`state` on the beat vs.
+      thread-file edges).
 
 ## Open questions (roll up)
 
