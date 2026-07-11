@@ -7,7 +7,7 @@ import type { Entity } from '@shared/types'
  * from `StoryIndex` (the project's profile files) via `setEntities`; it offers
  * each entity's canonical name + every alias, inserting the braced `@{surface}`
  * form (multi-word, stripped on export). Every entity type — character, location,
- * item, faction, magic-system, or an unknown one — completes through this one
+ * item, faction, lore, or an unknown one — completes through this one
  * path, with the type shown as the completion's category badge.
  */
 export function createEntityProvider(): {

@@ -3,7 +3,7 @@
  * across the process boundary: the renderer badges the tree/inspector, drives
  * frontmatter intellisense (M19) and new-file templates (M20) off the resolved
  * list. Built-in defaults ship here so a zero-config project already knows about
- * characters, locations, items, factions and magic systems; `project.json`
+ * characters, locations, items, factions and lore; `project.json`
  * `entityTypes` merges *over* these (override a field, or add a new type).
  */
 import type { EntityFieldDef, EntityTypeDef, FieldKind, ProjectConfig } from './types'
@@ -85,12 +85,12 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
     fields: [{ name: 'leader', label: 'Leader' }]
   },
   {
-    type: 'magic-system',
-    label: 'Magic System',
-    icon: '✨',
-    iconName: 'sparkles',
+    type: 'lore',
+    label: 'Lore',
+    icon: '📖',
+    iconName: 'book-open',
     color: '#a371f7',
-    fields: [{ name: 'source', label: 'Source' }]
+    fields: [{ name: 'category', label: 'Category' }]
   },
   {
     type: 'thread',
@@ -105,8 +105,8 @@ const DEFAULT_TYPES: EntityTypeDef[] = [
   }
 ]
 
-/** Title-case a `kebab-or-single` type id for a default label ("magic-system" →
- * "Magic System"). */
+/** Title-case a `kebab-or-single` type id for a default label ("side-quest" →
+ * "Side Quest"). */
 function titleCase(type: string): string {
   return type
     .split(/[-_\s]+/)

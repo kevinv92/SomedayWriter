@@ -12,7 +12,7 @@ required** (AI is split out — see below).
 
 The entity model is **type-generic**: an entity is any profile file with a
 `type` (frontmatter), so the same machinery links characters, locations, items,
-factions, magic systems, and more. **v1 (Phase 5) ships `character` + threads**;
+factions, lore, and more. **v1 (Phase 5) ships `character` + threads**;
 the generic `EntityProvider` and additional types land in **Phase 7**.
 
 ### `StoryIndex` — the project-wide model

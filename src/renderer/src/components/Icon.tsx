@@ -37,7 +37,7 @@ export type IconName =
 
 /**
  * ICON RULE (keep it consistent): **dimensional/glossy = domain content**
- * (story entities — character, location, item, faction, magic-system, thread),
+ * (story entities — character, location, item, faction, lore, thread),
  * **flat line = UI chrome** (rail, menus, chevrons, close, reload…). Content
  * pops, controls recede. When adding an icon, put an *entity* here (SOLID) and a
  * *control* in LINE. Note a glyph may exist in both sets under different names

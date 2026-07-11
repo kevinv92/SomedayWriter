@@ -161,7 +161,7 @@ editor, the panels, and the [MCP server](#claude-as-your-editor-mcp) all read, s
 nothing drifts.
 
 - **Entities** — any profile file with a `type` in its frontmatter: characters,
-  locations, items, factions, magic-systems, threads (all extensible per
+  locations, items, factions, lore, threads (all extensible per
   project).
 - **Mentions** — explicit `@{surface}` references (name or alias), with
   **`@`-completion** from your real profiles. No bare-text auto-linking, so no

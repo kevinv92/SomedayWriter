@@ -214,7 +214,7 @@ point we have a good-enough app.** _(All milestones visually verified via CDP.)_
 ### Phase 7 — Extended entities (worldbuilding) ✅
 
 Generalize the story model beyond characters and threads to **any entity type**,
-so worldbuilding — locations, items, factions, magic systems — links exactly the
+so worldbuilding — locations, items, factions, lore — links exactly the
 way characters do. Post-v1, and the deterministic core only: entities as
 referenceable pages. (Enforcing a magic system's _rules_ against the prose is
 semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
@@ -222,14 +222,14 @@ semantic and belongs to the AI `ContinuityProvider` — see _AI features_.)
 - **M17** ✅ — **Type-generic `EntityProvider`.** Phase 5's `CharacterProvider`
   is now `createEntityProvider` (`entity-provider.ts`), parameterized by `type`
   (already the discriminator in profile frontmatter). Profile files of any `type` —
-  `location`, `item`, `faction` / `organization`, `magic-system`, `artifact` —
+  `location`, `item`, `faction` / `organization`, `lore`, `artifact` —
   get the same `@`-mention completion, find-references, go-to-definition, plus
   **`name` + `aliases`** resolution off `StoryIndex`, with **no per-type code**.
   Unknown types work with defaults. (Was already type-generic; this retired the
   character-specific name.)
 - **M18** ✅ — **Registered entity types** in `project.json` `entityTypes`:
   display name, icon, colour, **and the fields each type declares**. Built-in
-  defaults (character, location, item, faction, magic-system, thread) live in
+  defaults (character, location, item, faction, lore, thread) live in
   `src/shared/entity-types.ts`; project config merges _over_ them via
   `resolveEntityTypes`. The tree badges a location vs. an item, and the
   inspector/companion/references type badges carry the icon (lightweight —
