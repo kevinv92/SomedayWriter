@@ -4,6 +4,7 @@
  * truth. Renderer imports these type-only (erased at build); no runtime code
  * crosses the boundary through this module.
  */
+import type { ExportOptions } from './manuscript'
 
 /** Parsed `project.json`. Only the fields the app reads are typed; unknown keys
  * are ignored on read and (later) preserved on write. `project.name` is the one
@@ -48,6 +49,9 @@ export type ProjectConfig = {
     autosave?: boolean
   }
   explorer?: { ignore?: string[] }
+  /** Saved default options for the Export dialog — "remember my export settings"
+   * per project. The dialog seeds from this; absent means the built-in defaults. */
+  export?: ExportOptions
   /** Registered entity types (Phase 7, M18) — display metadata + the fields each
    * type declares. This is type *schema* (tool config), so unlike thread identity
    * it lives in `project.json`, not in content (decision #45). Merged over the

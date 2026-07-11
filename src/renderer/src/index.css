@@ -3497,3 +3497,16 @@ select.fm-ctl {
   background: var(--accent-soft);
   border-color: var(--accent);
 }
+
+.export__default {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--fg-3);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.export__default input {
+  cursor: pointer;
+}

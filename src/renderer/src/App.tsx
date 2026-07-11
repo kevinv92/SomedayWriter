@@ -314,8 +314,21 @@ export default function App() {
     []
   )
   const runExport = useCallback(
-    async (options: ExportOptions) => {
+    async (options: ExportOptions, saveDefault: boolean) => {
       setExportDialog(null)
+      // Persist the chosen options as this project's default, if asked (a quiet
+      // project.json write; the settings-form saver is the wrong tool — it also
+      // toasts + closes the settings dialog).
+      if (saveDefault && project) {
+        const res = await window.api.writeProjectConfig({
+          ...project.config,
+          export: options
+        })
+        if (res.ok) {
+          setProject(res.project)
+          settings.applyProjectConfig(res.project.config)
+        }
+      }
       const result = await window.api.exportRun(options, documents.activePath ?? null)
       if (result.ok) {
         setNotice(
@@ -325,7 +338,7 @@ export default function App() {
         setNotice(`Export failed: ${result.error ?? 'unknown error'}`)
       }
     },
-    [documents.activePath, setNotice]
+    [documents.activePath, project, settings, setNotice]
   )
 
   // Activity Log: restore a file from a pre-write backup, then refresh an open
@@ -1680,6 +1693,7 @@ export default function App() {
         <ExportDialog
           initialFormat={exportDialog.format}
           hasActiveFile={!!documents.activePath}
+          defaults={project.config.export}
           onExport={runExport}
           onClose={() => setExportDialog(null)}
         />

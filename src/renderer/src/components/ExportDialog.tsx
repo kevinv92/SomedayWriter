@@ -18,7 +18,10 @@ interface ExportDialogProps {
   initialFormat?: ExportFormat
   /** Whether a file is open — enables the "this file only" scope. */
   hasActiveFile: boolean
-  onExport: (options: ExportOptions) => void
+  /** The project's saved export defaults (project.json `export`), if any. */
+  defaults?: ExportOptions
+  /** Runs the export; `saveDefault` persists these options to project.json. */
+  onExport: (options: ExportOptions, saveDefault: boolean) => void
   onClose: () => void
 }
 
@@ -85,13 +88,16 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }): ReactNod
 export function ExportDialog({
   initialFormat,
   hasActiveFile,
+  defaults,
   onExport,
   onClose
 }: ExportDialogProps): ReactNode {
   const [opts, setOpts] = useState<ExportOptions>(() => ({
     ...DEFAULT_EXPORT_OPTIONS,
-    format: initialFormat ?? DEFAULT_EXPORT_OPTIONS.format
+    ...defaults,
+    format: initialFormat ?? defaults?.format ?? DEFAULT_EXPORT_OPTIONS.format
   }))
+  const [saveDefault, setSaveDefault] = useState(false)
   const [summary, setSummary] = useState<{ scenes: number; words: number } | null>(null)
   const primaryRef = useRef<HTMLButtonElement>(null)
 
@@ -126,12 +132,12 @@ export function ExportDialog({
         onClose()
       } else if (e.key === 'Enter' && !(e.target as HTMLElement).closest('select')) {
         e.preventDefault()
-        onExport({ ...opts, separator })
+        onExport({ ...opts, separator }, saveDefault)
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [opts, separator, onExport, onClose])
+  }, [opts, separator, saveDefault, onExport, onClose])
 
   return (
     <div className="modal-overlay" onMouseDown={onClose}>
@@ -252,6 +258,17 @@ export function ExportDialog({
                 </>
               ))}
           </span>
+          <label
+            className="export__default"
+            title="Remember these settings in project.json"
+          >
+            <input
+              type="checkbox"
+              checked={saveDefault}
+              onChange={(e) => setSaveDefault(e.target.checked)}
+            />
+            Save as project default
+          </label>
           <div className="export__btns">
             <button className="export__btn" onClick={onClose}>
               Cancel
@@ -259,7 +276,7 @@ export function ExportDialog({
             <button
               ref={primaryRef}
               className="export__btn export__btn--primary"
-              onClick={() => onExport({ ...opts, separator })}
+              onClick={() => onExport({ ...opts, separator }, saveDefault)}
             >
               Export…
             </button>
