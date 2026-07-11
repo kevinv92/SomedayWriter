@@ -14,9 +14,14 @@ export const CONFIG_FILE = 'project.json'
 /** Used when a project declares no `explorer.ignore`. */
 export const DEFAULT_IGNORE = ['.git', 'node_modules']
 
+/** App-internal folders that are *always* hidden and never scanned, regardless
+ * of a project's `explorer.ignore` (so existing projects hide them too). */
+const ALWAYS_IGNORE = ['.somedaywriter']
+
 /** Match an entry name against ignore patterns. Supports exact names and a
  * leading `*.ext` glob (e.g. `*.tmp`) — enough for the documented cases. */
 function matchesIgnore(name: string, patterns: string[]): boolean {
+  if (ALWAYS_IGNORE.includes(name)) return true
   return patterns.some((pattern) => {
     if (pattern.startsWith('*.')) return name.endsWith(pattern.slice(1))
     return name === pattern

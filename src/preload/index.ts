@@ -4,6 +4,7 @@ import type {
   CompanionEntry,
   Entity,
   EntityRef,
+  AuditEntry,
   ExportRunResult,
   FileInspection,
   FileReadResult,
@@ -106,6 +107,10 @@ const api = {
     options: ExportOptions,
     activePath: string | null
   ): Promise<ExportRunResult> => ipcRenderer.invoke('export:run', options, activePath),
+
+  /** The project's activity/audit log — every write the app made, newest first. */
+  readAuditLog: (limit?: number): Promise<AuditEntry[]> =>
+    ipcRenderer.invoke('audit:read', limit),
 
   /** Story entities (characters, …) from the project's profile files (Phase 5). */
   storyEntities: (): Promise<Entity[]> => ipcRenderer.invoke('story:entities'),

@@ -21,6 +21,7 @@ export const PANEL_KEYS = [
   'comments',
   'frontmatter',
   'health',
+  'audit',
   'help'
 ] as const
 
@@ -38,6 +39,7 @@ const ALL_CLOSED: PanelState = {
   comments: false,
   frontmatter: false,
   health: false,
+  audit: false,
   help: false
 }
 

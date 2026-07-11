@@ -4,6 +4,7 @@ import { app, BrowserWindow, dialog, ipcMain, protocol, shell } from 'electron'
 import type { OpenDialogOptions } from 'electron'
 import type {
   AppSettings,
+  AuditEntry,
   CompanionEntry,
   Entity,
   EntityRef,
@@ -56,6 +57,7 @@ import { findMatches, replaceAll } from './search'
 import { randomUUID } from 'crypto'
 import { gatherManuscript } from './export'
 import { buildEpub } from './epub'
+import { appendAudit, auditRel, auditWrite, readAudit } from './audit'
 import { buildDocx } from './docx'
 import { buildPdf } from './pdf'
 import { renderManuscriptDocument } from './manuscript-html'
@@ -569,6 +571,13 @@ function registerIpc(): void {
     }
   })
 
+  // The project's activity/audit log — every write the app made, newest first
+  // (the Activity Log viewer). Best-effort; empty if nothing's been logged.
+  ipcMain.handle('audit:read', async (_e, limit?: number): Promise<AuditEntry[]> => {
+    if (!currentProject) return []
+    return readAudit(currentProject.root, limit ?? 500)
+  })
+
   // Write, guarding against clobbering an external edit. `baseMtimeMs` is the
   // on-disk timestamp the tab last saw; if the file is now newer, we refuse and
   // report a conflict so the UI can prompt (overwrite / reload). Passing no
@@ -583,17 +592,20 @@ function registerIpc(): void {
     ): Promise<WriteFileResult> => {
       if (!guardPath(path)) return OUTSIDE_ERR
       try {
-        if (baseMtimeMs != null) {
-          const current = await fs.stat(path).catch(() => null)
-          // A newer mtime means someone else wrote it since we read it. (A missing
-          // file — externally deleted — is not a conflict; the write recreates it.)
-          if (current && current.mtimeMs > baseMtimeMs) {
-            return { ok: false, conflict: true, diskMtimeMs: current.mtimeMs }
-          }
+        const before = await fs.stat(path).catch(() => null)
+        // A newer mtime means someone else wrote it since we read it. (A missing
+        // file — externally deleted — is not a conflict; the write recreates it.)
+        if (baseMtimeMs != null && before && before.mtimeMs > baseMtimeMs) {
+          return { ok: false, conflict: true, diskMtimeMs: before.mtimeMs }
         }
         await fs.writeFile(path, contents, 'utf8')
         const { mtimeMs } = await fs.stat(path)
         invalidateStoryIndex()
+        if (currentProject) {
+          const action =
+            before == null ? 'create' : baseMtimeMs == null ? 'overwrite' : 'save'
+          void auditWrite(currentProject.root, path, action, contents, before?.size)
+        }
         return { ok: true, mtimeMs }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
@@ -609,6 +621,7 @@ function registerIpc(): void {
       // `wx` fails if the file already exists, so we never clobber content.
       await fs.writeFile(path, '', { encoding: 'utf8', flag: 'wx' })
       invalidateStoryIndex()
+      if (currentProject) void auditWrite(currentProject.root, path, 'create', '')
       return { ok: true }
     } catch (err) {
       return { ok: false, error: messageOf(err) }
@@ -646,8 +659,17 @@ function registerIpc(): void {
       return { ok: false, error: 'Cannot delete the project root.' }
     }
     try {
+      const before = await fs.stat(path).catch(() => null)
       await fs.rm(path, { recursive: true, force: false })
       invalidateStoryIndex()
+      if (currentProject) {
+        void appendAudit(currentProject.root, {
+          action: 'delete',
+          path: auditRel(currentProject.root, path),
+          bytes: 0,
+          prevBytes: before?.isFile() ? before.size : undefined
+        })
+      }
       return { ok: true }
     } catch (err) {
       return { ok: false, error: messageOf(err) }
@@ -662,8 +684,18 @@ function registerIpc(): void {
       if (!guardPath(path)) return OUTSIDE_ERR
       try {
         const text = await fs.readFile(path, 'utf8')
-        await fs.writeFile(path, writeOrder(text, value), 'utf8')
+        const next = writeOrder(text, value)
+        await fs.writeFile(path, next, 'utf8')
         invalidateStoryIndex()
+        if (currentProject) {
+          void auditWrite(
+            currentProject.root,
+            path,
+            'reorder',
+            next,
+            Buffer.byteLength(text, 'utf8')
+          )
+        }
         return { ok: true }
       } catch (err) {
         return { ok: false, error: messageOf(err) }

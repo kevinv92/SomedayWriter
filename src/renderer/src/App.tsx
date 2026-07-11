@@ -15,6 +15,7 @@ import {
   PromptModal,
   UnsavedChangesModal
 } from './components/Modal'
+import { AuditLogPanel } from './components/AuditLogPanel'
 import { BraidView } from './components/BraidView'
 import { CommentsPanel } from './components/CommentsPanel'
 import { CompanionPanel } from './components/CompanionPanel'
@@ -901,7 +902,8 @@ export default function App() {
                         'Project Health',
                         panels.open.health,
                         () => panels.toggle('health')
-                      ]
+                      ],
+                      ['Activity Log', panels.open.audit, () => panels.toggle('audit')]
                     ] as [string, boolean, () => void][]
                   ).map(([label, on, toggle]) =>
                     label === '__label__' ? (
@@ -1440,6 +1442,14 @@ export default function App() {
               documents.openFile(path, { line, column, endColumn: column + length })
             }
             onClose={() => panels.set('health', false)}
+          />
+        )}
+
+        {panels.open.audit && (
+          <AuditLogPanel
+            refreshKey={inspectorRefresh}
+            onOpen={(rel) => documents.openFile(joinPath(project.root, rel))}
+            onClose={() => panels.set('audit', false)}
           />
         )}
 

@@ -395,3 +395,27 @@ export type ReplaceResult =
 export type ExportRunResult =
   | { ok: true; path: string; scenes: number; wordCount: number }
   | { ok: false; canceled?: boolean; error?: string }
+
+/** One append-only entry in the per-project activity/audit log. Records every
+ * write the app makes to a project file, so a lost or shrunken file is traceable
+ * (`.somedaywriter/audit.jsonl`). */
+export type AuditAction =
+  | 'save' // a normal save/autosave over an existing file
+  | 'overwrite' // a forced write over a newer on-disk version (conflict "Overwrite")
+  | 'create' // a new file
+  | 'delete' // a file/folder removed
+  | 'reorder' // manuscript `order:` rewritten from the tree
+  | 'rename-refactor' // an alias rename rewrote `@{mentions}` in this file
+
+export interface AuditEntry {
+  /** ISO timestamp. */
+  ts: string
+  action: AuditAction
+  /** Project-relative POSIX path. */
+  path: string
+  /** Byte size after the write (0 for a delete). */
+  bytes: number
+  /** Byte size before the write, when the file already existed — a drop flags
+   * possible data loss. */
+  prevBytes?: number
+}
