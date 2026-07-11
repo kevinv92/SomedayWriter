@@ -3,13 +3,12 @@ order: 70
 threads:
   - {
       name: the-case,
-      state: closes,
       intensity: resolve,
       summary: 'Irene has fled; the case is lost but resolved'
     }
-  - { name: the-woman, state: closes }
+  - the-woman
   - royal-scandal
-  - { name: the-outwitting, state: opens, summary: 'Irene outwits them all' }
+  - { name: the-outwitting, summary: 'Irene outwits them all' }
 ---
 
 # The Empty Nest

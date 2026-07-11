@@ -106,7 +106,7 @@ export function frontmatterContextAt(text: string, offset: number): FrontmatterC
 
   // A `threads:` beat object in flow form — `  - { name: the-case, intensity: … `.
   // Classify by the pair being typed: no colon → an inner key; colon → that key's
-  // value (so `intensity:`/`state:` get their enums, `name:` gets thread names).
+  // value (so `intensity:` gets its enum, `name:` gets thread names).
   const flow = before.match(/^(\s*)-\s*\{(.*)$/)
   if (flow) {
     const indent = flow[1].length

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { EntityRef, NeglectedThread } from '@shared/types'
+import type { EntityRef } from '@shared/types'
 import { basename } from '../lib/paths'
 import { Icon } from './Icon'
 
@@ -13,21 +13,16 @@ interface HealthPanelProps {
 
 /**
  * Project Health panel (Phase 9). Checks: **dead references** — every
- * `@{surface}` whose surface no longer resolves to an entity — and **neglected
- * threads** (Threads v2, #2) — a thread that went quiet without ever closing.
- * Click a row to jump. More checks land in a later health/lint phase.
+ * `@{surface}` whose surface no longer resolves to an entity. Click a row to
+ * jump. More checks land in a later health/lint phase.
  */
 export function HealthPanel({ refreshKey, onOpen, onClose }: HealthPanelProps) {
   const [dead, setDead] = useState<EntityRef[] | null>(null)
-  const [neglected, setNeglected] = useState<NeglectedThread[] | null>(null)
 
   useEffect(() => {
     let cancelled = false
     void window.api.storyHealth().then((d) => {
       if (!cancelled) setDead(d)
-    })
-    void window.api.storyNeglectedThreads().then((n) => {
-      if (!cancelled) setNeglected(n)
     })
     return () => {
       cancelled = true
@@ -71,39 +66,6 @@ export function HealthPanel({ refreshKey, onOpen, onClose }: HealthPanelProps) {
                 </span>
               </span>
               <span className="comment-item__line">{ref.line}</span>
-            </button>
-          ))
-        )}
-
-        <div className="health-section">
-          Neglected threads
-          {neglected && neglected.length > 0 ? ` · ${neglected.length}` : ''}
-        </div>
-        {neglected === null ? (
-          <div className="search-panel__status">Checking…</div>
-        ) : neglected.length === 0 ? (
-          <div className="search-panel__status">
-            No neglected threads — every open arc is still active.
-          </div>
-        ) : (
-          neglected.map((n) => (
-            <button
-              key={n.tag}
-              className="comment-item comment-item--dead"
-              title={`Jump to the last beat of ${n.name}`}
-              onClick={() => onOpen(n.path, 1, 1, 0)}
-            >
-              <span className="comment-item__icon">
-                <Icon name="activity" size={14} />
-              </span>
-              <span className="comment-item__body">
-                <span className="comment-item__text">{n.name}</span>
-                <span className="comment-item__span">
-                  {n.dangling ? 'opened, never closed · ' : ''}silent {n.scenes} scene
-                  {n.scenes === 1 ? '' : 's'} / ~{n.words.toLocaleString()} words since “
-                  {n.since}”
-                </span>
-              </span>
             </button>
           ))
         )}

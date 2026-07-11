@@ -275,14 +275,7 @@ export function CompanionPanel({
             <div className="companion-arc__stats">
               {(() => {
                 const bs = threadHere.beats
-                const closed = bs.some((b) => b.state === 'closes')
-                const opened = bs.some((b) => b.state === 'opens')
-                const status = closed
-                  ? 'resolved'
-                  : opened
-                    ? 'open · unresolved'
-                    : 'active'
-                return `${bs.length} beat${bs.length === 1 ? '' : 's'} · ${status}`
+                return `${bs.length} beat${bs.length === 1 ? '' : 's'}`
               })()}
             </div>
             {threadHere.beats.length === 0 ? (
@@ -296,13 +289,6 @@ export function CompanionPanel({
                   title={`Open ${b.title}`}
                 >
                   <span className="companion-beat__title">{b.title}</span>
-                  {b.state !== 'touches' && (
-                    <span
-                      className={`companion-beat__state companion-beat__state--${b.state}`}
-                    >
-                      {b.state}
-                    </span>
-                  )}
                   {b.intensity && (
                     <span className="companion-beat__intensity">{b.intensity}</span>
                   )}

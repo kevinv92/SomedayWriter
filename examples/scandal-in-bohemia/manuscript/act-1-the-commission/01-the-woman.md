@@ -2,7 +2,7 @@
 order: 10
 threads:
   - holmes-and-watson
-  - { name: the-woman, state: opens, summary: 'the woman who bests Holmes appears' }
+  - { name: the-woman, summary: 'the woman who bests Holmes appears' }
 ---
 
 # The Woman

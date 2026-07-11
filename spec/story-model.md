@@ -60,12 +60,12 @@ Every profile's shape comes from the **entity-type registry** (`entity-types.ts`
 schema drives three surfaces, so adding a field once shows up in all of them:
 
 - **Intellisense (M19)** — completes keys/values while you type inside `---`,
-  including the `threads:` beat object (inner keys + `intensity`/`state` enums +
+  including the `threads:` beat object (inner keys + `intensity` enum +
   thread-name suggestions).
 - **New-file templates (M20)** — a type's skeleton on file creation.
 - **The Frontmatter editor** — a file-specific **rail pane** that edits the `---`
   block as a **form**: a control per field `kind` (enum → select, text, number,
-  list → chips) and a **threads beat repeater** (name + pos + intensity/state +
+  list → chips) and a **threads beat repeater** (name + pos + intensity +
   summary; add / remove / move, keyboard-operable). Available for any text file; a
   file with no block gets an **"Add frontmatter"** empty state. Unknown enum values
   and YAML parse errors are flagged in place.
@@ -167,23 +167,19 @@ sparse and back-compatible with the bare-id form:
   describing it — named `summary`, **not** `beat`, on purpose. Decision #47.)
 - **`intensity`** — `setup | rise | climax | fall | resolve`, the beat's place in
   the arc's tension; drives the braid lane's vertical shape.
-- **`state`** — `opens | closes | touches` (default `touches`). `opens` starts a
-  thread, `closes` resolves it; **branch and merge are inferred** from where an
-  `opens`/`closes` co-occurs with another thread's beats — there are no explicit
-  `branches-from` / `merges-into` fields (decision #48).
 
   ```md
   ---
   order: 30
   threads:
     - { name: the-case, pos: 3, intensity: rise, summary: 'finds the hiding place' }
-    - { name: the-disguise, state: opens, summary: 'a disguise scheme takes shape' }
+    - { name: the-disguise, summary: 'a disguise scheme takes shape' }
   ---
   ```
 
 The editor offers **frontmatter intellisense** for all of this: inside a
-`threads:` object it completes the inner keys and the `intensity` / `state`
-enums, and `name:` autocompletes thread surfaces.
+`threads:` object it completes the inner keys and the `intensity` enum, and
+`name:` autocompletes thread surfaces.
 
 ### Thread views
 
@@ -206,26 +202,18 @@ pane, like an open file):
   - **word-weighted axis** — a `Width: Even | By length` toggle sizes each column
     by its scene's word count, so the timeline reads as **pacing** (where the
     manuscript lingers vs rushes).
-  - **open/close caps + branch/merge connectors** drawn from `state`.
   - a **minimap / scrubber** strip maps the whole braid into a band with a
     draggable viewport rect, to navigate a large board.
 
   Drag to pan, wheel to zoom; click a beat to open its scene.
 
 - **List** — a per-thread **stats table**: scenes, words, span (first → last
-  appearance), status (active / open / resolved, each with hover help) and a
-  "silent N" pacing hint. Rows open the thread's file.
+  appearance), and a "silent N" pacing hint. Rows open the thread's file.
 
 **Companion thread-mode.** Opening a `type: thread` file shows its **arc** in the
-Companion pane — the beats in order (title · state · intensity · summary ·
-click-to-open) plus arc stats (`N beats · resolved/open/active`) — instead of the
-usual scene references. The first case of the Companion rendering by the active
-file's `type`.
-
-**Pacing lint.** The Project Health panel flags **neglected threads**: a thread
-that never `closes` and has gone quiet for `threads.gapScenes` scenes (default 3,
-a `project.json` setting) before the manuscript ends, with click-to-jump to its
-last beat, and a `dangling` mark for opened-but-never-closed threads.
+Companion pane — the beats in order (title · intensity · summary · click-to-open)
+plus arc stats (`N beats`) — instead of the usual scene references. The first case
+of the Companion rendering by the active file's `type`.
 
 **Deferred — drag-to-edit the braid (M11).** Rearranging structure by dragging
 beats between/along lanes (writing membership + `pos` back to files) is designed

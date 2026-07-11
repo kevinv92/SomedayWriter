@@ -15,11 +15,6 @@ describe('frontmatterContextAt — threads: beat objects', () => {
     expect(ctx).toEqual({ in: true, kind: 'value', key: 'intensity', prefix: 'cli' })
   })
 
-  it('completes the state enum', () => {
-    const ctx = at(fm('threads:\n  - { name: the-case, state: op|'))
-    expect(ctx).toEqual({ in: true, kind: 'value', key: 'state', prefix: 'op' })
-  })
-
   it('completes name: with the typed thread prefix', () => {
     const ctx = at(fm('threads:\n  - { name: the-|'))
     expect(ctx).toEqual({ in: true, kind: 'value', key: 'name', prefix: 'the-' })

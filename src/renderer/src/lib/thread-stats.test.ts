@@ -1,19 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import type { ManuscriptScene, Thread, ThreadBeat, ThreadState } from '@shared/types'
+import type { ManuscriptScene, Thread, ThreadBeat } from '@shared/types'
 import { threadStats } from './thread-stats'
 
-const beat = (
-  path: string,
-  order: number | null,
-  state: ThreadState = 'touches'
-): ThreadBeat => ({
+const beat = (path: string, order: number | null): ThreadBeat => ({
   path,
   title: path,
   manuscriptOrder: order,
   threadOrder: order,
   summary: null,
-  intensity: null,
-  state
+  intensity: null
 })
 
 const thread = (tag: string, beats: ThreadBeat[]): Thread => ({
@@ -49,24 +44,9 @@ describe('threadStats', () => {
     expect(stat.lastTitle).toBe('s3')
   })
 
-  it('marks a closed thread resolved with no silence', () => {
-    const [stat] = threadStats(
-      [thread('case', [beat('s1', 1), beat('s2', 2, 'closes')])],
-      scenes
-    )
-    expect(stat.status).toBe('resolved')
-    expect(stat.dangling).toBe(false)
-    expect(stat.silent).toBe(0)
-  })
-
-  it('flags an opened-but-unclosed thread as dangling and counts silence', () => {
+  it('counts scenes after the last placed beat as silence', () => {
     // last beat at order 2; scenes s3,s4,s5 come after → 3 silent
-    const [stat] = threadStats(
-      [thread('case', [beat('s1', 1, 'opens'), beat('s2', 2)])],
-      scenes
-    )
-    expect(stat.status).toBe('open')
-    expect(stat.dangling).toBe(true)
+    const [stat] = threadStats([thread('case', [beat('s1', 1), beat('s2', 2)])], scenes)
     expect(stat.silent).toBe(3)
   })
 

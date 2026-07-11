@@ -48,10 +48,6 @@ export type ProjectConfig = {
     autosave?: boolean
   }
   explorer?: { ignore?: string[] }
-  /** Threads settings (Threads v2). `gapScenes`: a thread that never `closes`
-   * and whose last beat sits this many manuscript scenes before the end is
-   * flagged as neglected in Project Health. Default 3. */
-  threads?: { gapScenes?: number }
   /** Registered entity types (Phase 7, M18) — display metadata + the fields each
    * type declares. This is type *schema* (tool config), so unlike thread identity
    * it lives in `project.json`, not in content (decision #45). Merged over the
@@ -295,12 +291,6 @@ export type FileInspection = {
 export const THREAD_INTENSITIES = ['setup', 'rise', 'climax', 'fall', 'resolve'] as const
 export type ThreadIntensity = (typeof THREAD_INTENSITIES)[number]
 
-/** A beat's lifecycle role on its thread: `opens` starts/branches it, `closes`
- * ends/merges it, `touches` (default) is a normal mid-thread beat (Threads v2).
- * Single source (see `THREAD_INTENSITIES`). */
-export const THREAD_STATES = ['opens', 'closes', 'touches'] as const
-export type ThreadState = (typeof THREAD_STATES)[number]
-
 export type ThreadBeat = {
   path: string
   title: string
@@ -310,7 +300,6 @@ export type ThreadBeat = {
   /** One-line note of what the thread does in this scene (Threads v2). */
   summary: string | null
   intensity: ThreadIntensity | null
-  state: ThreadState
 }
 
 /** A story thread (Phase 5, M9): a storyline running across scenes. Membership +
@@ -338,23 +327,6 @@ export type ManuscriptScene = {
   order: number
   title: string
   words: number
-}
-
-/** A thread the pacing lint flags as neglected (Threads v2, #2): it never
- *  `closes` yet has gone quiet for a while before the manuscript ends. */
-export type NeglectedThread = {
-  name: string
-  tag: string
-  /** Scenes since the thread's last beat (up to the manuscript end). */
-  scenes: number
-  /** Words in those trailing scenes (approximate). */
-  words: number
-  /** The last beat's summary (or scene title) — for "…since '<x>'". */
-  since: string
-  /** The last beat's scene path — the jump target. */
-  path: string
-  /** Opened but never closed (a dangling arc), vs. just gone quiet. */
-  dangling: boolean
 }
 
 /** One reference in the Companion pane (Phase 5, M8d) — an entity profile or a

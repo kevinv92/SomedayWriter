@@ -13,7 +13,6 @@ import type {
   FileReadResult,
   GrammarMatch,
   ManuscriptScene,
-  NeglectedThread,
   Thread,
   OpenProjectResult,
   ProjectConfig,
@@ -34,7 +33,6 @@ import {
   inspectFile,
   loadCompanionEntry,
   manuscriptScenes,
-  neglectedThreads,
   referencesTo,
   renameMentions,
   sceneEntities
@@ -510,14 +508,6 @@ function registerIpc(): void {
     if (!currentProject) return []
     const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
     return deadReferences(currentProject.root, ignore, await getEntities())
-  })
-
-  // Pacing lint: threads that went quiet without closing (Threads v2, #2).
-  ipcMain.handle('story:neglectedThreads', async (): Promise<NeglectedThread[]> => {
-    if (!currentProject) return []
-    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-    const gap = currentProject.config.threads?.gapScenes
-    return neglectedThreads(currentProject.root, ignore, await getThreads(), gap)
   })
 
   // The ordered manuscript scene spine (Threads v2, #3/#6/#8 — dashboard stats).

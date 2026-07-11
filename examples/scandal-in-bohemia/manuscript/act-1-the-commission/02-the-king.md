@@ -3,7 +3,6 @@ order: 20
 threads:
   - {
       name: the-case,
-      state: opens,
       intensity: setup,
       summary: 'Holmes is hired to recover the photograph'
     }

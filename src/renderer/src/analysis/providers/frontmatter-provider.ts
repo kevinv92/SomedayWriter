@@ -1,6 +1,6 @@
 import type { AnalysisProvider, Completion, CompletionContext } from '../types'
 import type { Entity } from '@shared/types'
-import { THREAD_INTENSITIES, THREAD_STATES } from '@shared/types'
+import { THREAD_INTENSITIES } from '@shared/types'
 import {
   COMMON_FIELDS,
   entityTypeMeta,
@@ -33,16 +33,14 @@ export function createFrontmatterProvider(): {
 
   // The keys and enums of a `threads:` beat object (Threads v2). Kept here (not the
   // type registry) because a beat isn't an entity type — it's frontmatter shape.
-  const THREAD_BEAT_KEYS = ['name', 'pos', 'summary', 'intensity', 'state']
+  const THREAD_BEAT_KEYS = ['name', 'pos', 'summary', 'intensity']
   const THREAD_BEAT_KEY_LABEL: Record<string, string> = {
     name: 'thread this scene belongs to',
     pos: 'order within this thread',
     summary: 'what the thread does here (one line)',
-    intensity: 'setup · rise · climax · fall · resolve',
-    state: 'opens · closes · touches'
+    intensity: 'setup · rise · climax · fall · resolve'
   }
   const INTENSITY = THREAD_INTENSITIES
-  const STATE = THREAD_STATES
 
   /** Thread surfaces (kebab alias + display name), deduped case-insensitively —
    * offered for `threads:` and a beat object's `name:`. */
@@ -115,8 +113,6 @@ export function createFrontmatterProvider(): {
     if (key === 'threads' || key === 'name') return threadSurfaces()
     if (key === 'intensity')
       return INTENSITY.map((v) => ({ label: v, detail: 'intensity', type: 'enum' }))
-    if (key === 'state')
-      return STATE.map((v) => ({ label: v, detail: 'state', type: 'enum' }))
     const field = fieldsFor(text).find((f) => f.name === key)
     return (field?.values ?? []).map((v) => ({ label: v, detail: key, type: 'enum' }))
   }

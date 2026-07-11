@@ -6,13 +6,11 @@ import type {
   EntityRef,
   FileInspection,
   ManuscriptScene,
-  NeglectedThread,
   Thread,
   ThreadBeat,
-  ThreadIntensity,
-  ThreadState
+  ThreadIntensity
 } from '../shared/types'
-import { THREAD_INTENSITIES, THREAD_STATES } from '../shared/types'
+import { THREAD_INTENSITIES } from '../shared/types'
 import { listMarkdownFiles } from './fs-project'
 import {
   deriveTitle,
@@ -419,15 +417,13 @@ type ParsedTag = {
   order: number | null
   summary: string | null
   intensity: ThreadIntensity | null
-  state: ThreadState
 }
 
 /** Parse a scene's `threads:` frontmatter (M9; extended in Threads v2). Supports
  * the plain form `[rebellion, romance]` and the object form
- * `[{ name: rebellion, pos: 3, summary: '…', intensity: setup, state: opens }]`.
+ * `[{ name: rebellion, pos: 3, summary: '…', intensity: setup }]`.
  * `pos` is the per-thread order (renamed from `order`); unknown enum values are
- * dropped and `state` defaults to `touches`. Malformed entries are ignored.
- * Exported for unit tests. */
+ * dropped. Malformed entries are ignored. Exported for unit tests. */
 export function parseThreadTags(value: unknown): ParsedTag[] {
   if (!Array.isArray(value)) return []
   const out: ParsedTag[] = []
@@ -437,8 +433,7 @@ export function parseThreadTags(value: unknown): ParsedTag[] {
         tag: item.trim(),
         order: null,
         summary: null,
-        intensity: null,
-        state: 'touches'
+        intensity: null
       })
     } else if (item && typeof item === 'object') {
       const o = item as Record<string, unknown>
@@ -452,10 +447,7 @@ export function parseThreadTags(value: unknown): ParsedTag[] {
           summary,
           intensity: THREAD_INTENSITIES.includes(o.intensity as ThreadIntensity)
             ? (o.intensity as ThreadIntensity)
-            : null,
-          state: THREAD_STATES.includes(o.state as ThreadState)
-            ? (o.state as ThreadState)
-            : 'touches'
+            : null
         })
       }
     }
@@ -480,8 +472,7 @@ function parseInlineThreadTags(text: string): ParsedTag[] {
         tag: m[1],
         order: null,
         summary: null,
-        intensity: null,
-        state: 'touches'
+        intensity: null
       })
     }
   }
@@ -542,7 +533,7 @@ export async function buildThreads(
     if (!tags.length) continue
     const title = deriveTitle(text, path)
     const manuscriptOrder = readOrder(text)
-    for (const { tag, order, summary, intensity, state } of tags) {
+    for (const { tag, order, summary, intensity } of tags) {
       const key = tag.toLowerCase()
       let group = groups.get(key)
       if (!group) {
@@ -555,8 +546,7 @@ export async function buildThreads(
         manuscriptOrder,
         threadOrder: order,
         summary,
-        intensity,
-        state
+        intensity
       })
     }
   }
@@ -577,54 +567,11 @@ export async function buildThreads(
   return threads.sort((a, b) => a.name.localeCompare(b.name))
 }
 
-/** A scene in manuscript order, with its (approx) word count. */
-export type SceneGap = { order: number; words: number }
-
-/** Default: a thread silent for this many scenes (with no `closes`) is flagged.
- *  A setting later (#2). */
-const GAP_SCENES = 3
-
-/**
- * The pacing lint (Threads v2, #2): threads that never `close` yet have gone
- * quiet — their last beat sits `GAP_SCENES`+ scenes before the manuscript ends.
- * Pure: takes the thread model + the ordered scene list; the caller reads files.
- * A `closes` beat marks a thread resolved, so it's never flagged.
- */
-export function computeNeglected(
-  threads: Thread[],
-  scenes: SceneGap[],
-  gapScenes = GAP_SCENES
-): NeglectedThread[] {
-  const ordered = [...scenes].sort((a, b) => a.order - b.order)
-  const out: NeglectedThread[] = []
-  for (const t of threads) {
-    if (!t.beats.length) continue
-    if (t.beats.some((b) => b.state === 'closes')) continue // resolved
-    const withOrder = t.beats.filter((b) => b.manuscriptOrder != null)
-    if (!withOrder.length) continue
-    const last = withOrder.reduce((a, b) =>
-      (b.manuscriptOrder ?? -Infinity) > (a.manuscriptOrder ?? -Infinity) ? b : a
-    )
-    const after = ordered.filter((s) => s.order > (last.manuscriptOrder as number))
-    if (after.length < gapScenes) continue
-    out.push({
-      name: t.name,
-      tag: t.tag,
-      scenes: after.length,
-      words: after.reduce((n, s) => n + s.words, 0),
-      since: last.summary ?? last.title,
-      path: last.path,
-      dangling: t.beats.some((b) => b.state === 'opens')
-    })
-  }
-  return out.sort((a, b) => b.scenes - a.scenes)
-}
-
 /**
  * The manuscript scene spine (Threads v2, #3/#6/#8): every ordered `.md` that is
  * NOT an entity (`type:`), with its path, order, title, and approximate word
- * count, sorted by reading order. The shared source for the pacing lint, the
- * threads dashboard's per-thread stats, and the word-weighted braid axis.
+ * count, sorted by reading order. The shared source for the threads dashboard's
+ * per-thread stats and the word-weighted braid axis.
  */
 export async function manuscriptScenes(
   root: string,
@@ -651,19 +598,6 @@ export async function manuscriptScenes(
     })
   }
   return scenes.sort((a, b) => a.order - b.order)
-}
-
-/** Read the manuscript scenes (ordered, with word counts) and run the pacing
- *  lint over `threads`. `gapScenes` overrides the default silence threshold
- *  (from `project.json` → `threads.gapScenes`). */
-export async function neglectedThreads(
-  root: string,
-  ignore: string[],
-  threads: Thread[],
-  gapScenes = GAP_SCENES
-): Promise<NeglectedThread[]> {
-  const scenes = await manuscriptScenes(root, ignore)
-  return computeNeglected(threads, scenes, gapScenes)
 }
 
 async function buildThread(

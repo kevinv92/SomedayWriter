@@ -90,8 +90,7 @@ character's page.
 `intensity` and the lane rises and falls with the arc's tension; flip the axis to
 **By length** and columns re-space by word count, so the timeline reads as pacing;
 a minimap scrubs a large board. The **List** shows each thread's scenes, words,
-span and status, and Project Health flags any thread that's gone quiet without
-resolving.
+and span.
 
 <div align="center">
 <img src="docs/images/demo-threads.gif" width="820" alt="Threads timeline reordering as you follow different threads" />
@@ -172,10 +171,9 @@ nothing drifts.
   **Companion** that auto-follows the current scene's entities (with pin-to-freeze),
   a **References** browser, **Threads**, and a **Threads Dashboard** with a
   `Timeline` braid (one lane per thread; intensity-shaped lanes, a word-weighted
-  axis toggle, open/close + branch/merge topology, and a minimap) and a `List` of
-  per-thread stats. Give a beat a one-line **summary**, `intensity`, and `state`
-  in its `threads:` frontmatter (with completion for all three); opening a thread
-  file shows its arc in the Companion.
+  axis toggle, and a minimap) and a `List` of per-thread stats. Give a beat a
+  one-line **summary** and `intensity` in its `threads:` frontmatter (with
+  completion for both); opening a thread file shows its arc in the Companion.
 - **Project Health** — every `@{surface}` that no longer resolves (a dead
   reference from a rename or typo), click-to-jump.
 - **Alias rename refactor** — rename a character in its frontmatter and the app

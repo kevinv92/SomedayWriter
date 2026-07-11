@@ -1,6 +1,6 @@
 import { useRef, useState, type ReactElement } from 'react'
 import type { Entity, EntityFieldDef, FieldKind } from '@shared/types'
-import { THREAD_INTENSITIES, THREAD_STATES } from '@shared/types'
+import { THREAD_INTENSITIES } from '@shared/types'
 import {
   COMMON_FIELDS,
   entityTypeMeta,
@@ -33,7 +33,6 @@ type Beat = {
   name: string
   pos?: number
   intensity?: string
-  state?: string
   summary?: string
 }
 
@@ -45,7 +44,6 @@ function toBeat(x: unknown): Beat {
       name: typeof o.name === 'string' ? o.name : '',
       pos: typeof o.pos === 'number' ? o.pos : undefined,
       intensity: typeof o.intensity === 'string' ? o.intensity : undefined,
-      state: typeof o.state === 'string' ? o.state : undefined,
       summary: typeof o.summary === 'string' ? o.summary : undefined
     }
   }
@@ -58,7 +56,6 @@ function fromBeat(b: Beat): string | Record<string, unknown> {
   if (b.pos != null) o.pos = b.pos
   if (b.summary) o.summary = b.summary
   if (b.intensity) o.intensity = b.intensity
-  if (b.state && b.state !== 'touches') o.state = b.state
   return Object.keys(o).length === 1 ? b.name : o
 }
 
@@ -267,8 +264,7 @@ export function FrontmatterPanel({
         if (isMap(d.getIn(['threads', i], true))) {
           for (const [k, v] of Object.entries(p)) {
             if (k === 'name') d.setIn(['threads', i, 'name'], v)
-            else if (v === undefined || v === '' || (k === 'state' && v === 'touches'))
-              d.deleteIn(['threads', i, k])
+            else if (v === undefined || v === '') d.deleteIn(['threads', i, k])
             else d.setIn(['threads', i, k], v)
           }
         } else {
@@ -386,14 +382,6 @@ export function FrontmatterPanel({
                         options={THREAD_INTENSITIES}
                         allowEmpty
                         onChange={(v) => patch(i, { intensity: v || undefined })}
-                      />
-                    </label>
-                    <label className="fm-sub">
-                      State
-                      <EnumSelect
-                        value={b.state ?? 'touches'}
-                        options={THREAD_STATES}
-                        onChange={(v) => patch(i, { state: v })}
                       />
                     </label>
                   </div>

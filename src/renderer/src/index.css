@@ -2286,7 +2286,6 @@ body {
   font-weight: 500;
 }
 
-.companion-beat__state,
 .companion-beat__intensity {
   font-size: 0.62rem;
   text-transform: uppercase;
@@ -2295,10 +2294,6 @@ body {
   border-radius: var(--radius-xs);
   background: var(--bg-3);
   color: var(--fg-3);
-}
-
-.companion-beat__state--opens {
-  color: var(--accent);
 }
 
 .companion-beat__summary {

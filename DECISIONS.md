@@ -345,16 +345,14 @@ initial design conversation.)
     collided with the noun (a beat is the dot; you'd be putting a "beat" on a
     beat). `summary` reads correctly in the frontmatter and in the follow-a-thread
     outline. Part of Threads v2 (improvement #1).
-48. **Thread lifecycle is a per-beat `state`; branch/merge are inferred, not
-    declared.** A beat carries `state: opens | closes | touches` (default
-    `touches`) in its `threads:` object. `opens` starts an arc, `closes` resolves
-    it. **Branch and merge are derived** from topology — where an `opens`/`closes`
-    beat co-occurs (same scene) with another thread's beats — rather than from
-    explicit `branches-from` / `merges-into` fields. _Why:_ one small, local field
-    per beat is easier to author and keeps the relationship in the scene where it
-    happens; the braid already knows co-occurrence, so it can infer the connectors
-    for free. Powers the open/close caps, branch/merge connectors, and the
-    "opened-but-never-closed" pacing lint. Threads v2 (#5, #2).
+48. **REMOVED — Thread lifecycle `state` (opens/closes/touches).** Superseded and
+    removed. A beat once carried `state: opens | closes | touches`, from which the
+    braid inferred open/close caps and branch/merge connectors and Project Health
+    inferred an "opened-but-never-closed" pacing lint. In practice `state` overlapped
+    and conflicted with the beat `intensity` field (the arc position), so it was
+    dropped entirely — knowingly giving up the List-view STATUS column, the braid's
+    branch/merge connectors, and the neglected-thread lint. **`intensity` (`setup |
+rise | climax | fall | resolve`) is now the sole per-beat descriptor.**
 49. **The per-thread order key is `pos`, renamed from `order`.** A membership's
     position within one thread is **`pos`** (`{ name: the-case, pos: 3 }`), not
     `order`. Root frontmatter `order` stays the one narrative/reading-order axis

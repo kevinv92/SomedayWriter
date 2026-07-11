@@ -7,7 +7,7 @@ threads:
       summary: 'scouts Briony Lodge and finds the hiding place'
     }
   - the-woman
-  - { name: the-disguise, state: opens, summary: 'a disguise scheme takes shape' }
+  - { name: the-disguise, summary: 'a disguise scheme takes shape' }
 ---
 
 # Briony Lodge

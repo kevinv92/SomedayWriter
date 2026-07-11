@@ -10,7 +10,6 @@ import type {
   FileReadResult,
   GrammarMatch,
   ManuscriptScene,
-  NeglectedThread,
   ProjectConfig,
   Thread,
   WriteConfigResult,
@@ -138,9 +137,6 @@ const api = {
   /** The project-wide thread model — membership + per-thread order (M9). */
   storyThreads: (): Promise<Thread[]> => ipcRenderer.invoke('story:threads'),
   storyHealth: (): Promise<EntityRef[]> => ipcRenderer.invoke('story:health'),
-  /** Pacing lint: threads that went quiet without closing (Threads v2, #2). */
-  storyNeglectedThreads: (): Promise<NeglectedThread[]> =>
-    ipcRenderer.invoke('story:neglectedThreads'),
   /** The ordered manuscript scene spine (Threads v2, #3/#6/#8). */
   storyManuscriptScenes: (): Promise<ManuscriptScene[]> =>
     ipcRenderer.invoke('story:manuscriptScenes'),

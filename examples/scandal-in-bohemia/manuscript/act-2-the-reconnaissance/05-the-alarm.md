@@ -6,7 +6,7 @@ threads:
       intensity: climax,
       summary: "the photograph's hiding spot is revealed"
     }
-  - { name: the-disguise, state: closes, summary: 'the disguise does its work' }
+  - { name: the-disguise, summary: 'the disguise does its work' }
 ---
 
 # The Alarm of Fire
