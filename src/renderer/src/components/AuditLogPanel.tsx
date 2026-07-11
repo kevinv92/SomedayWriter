@@ -7,6 +7,8 @@ interface AuditLogPanelProps {
   refreshKey: number
   /** Open the file an entry refers to (project-relative path). */
   onOpen: (relPath: string) => void
+  /** Restore a backup over its file (backup path + target project-relative path). */
+  onRestore: (backup: string, relPath: string) => void
   onClose: () => void
 }
 
@@ -44,6 +46,7 @@ function fmtBytes(n: number): string {
 export function AuditLogPanel({
   refreshKey,
   onOpen,
+  onRestore,
   onClose
 }: AuditLogPanelProps): ReactNode {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null)
@@ -79,31 +82,48 @@ export function AuditLogPanel({
             const removed = e.action === 'delete'
             const shrank = !removed && e.prevBytes != null && e.bytes < e.prevBytes
             return (
-              <button
+              <div
                 key={`${e.ts}-${i}`}
-                className={`audit-row${shrank || removed ? ' audit-row--warn' : ''}`}
-                title={removed ? 'File deleted' : 'Open this file'}
-                onClick={() => {
-                  if (!removed) onOpen(e.path)
-                }}
+                className={`audit-item${shrank || removed ? ' audit-item--warn' : ''}`}
               >
-                <div className="audit-row__top">
-                  <span className="audit-row__action">{ACTION_LABEL[e.action]}</span>
-                  <span className="audit-row__time">{fmtTime(e.ts)}</span>
-                </div>
-                <div className="audit-row__path">{e.path}</div>
-                <div className="audit-row__size">
-                  {removed
-                    ? e.prevBytes != null
-                      ? `was ${fmtBytes(e.prevBytes)}`
-                      : ''
-                    : e.prevBytes != null
-                      ? `${fmtBytes(e.prevBytes)} → ${fmtBytes(e.bytes)}${
-                          shrank ? ` (−${fmtBytes(e.prevBytes - e.bytes)})` : ''
-                        }`
-                      : fmtBytes(e.bytes)}
-                </div>
-              </button>
+                <button
+                  className="audit-row"
+                  title={removed ? 'File was deleted' : 'Open this file'}
+                  onClick={() => {
+                    if (!removed) onOpen(e.path)
+                  }}
+                >
+                  <div className="audit-row__top">
+                    <span className="audit-row__action">{ACTION_LABEL[e.action]}</span>
+                    <span className="audit-row__time">{fmtTime(e.ts)}</span>
+                  </div>
+                  <div className="audit-row__path">{e.path}</div>
+                  <div className="audit-row__size">
+                    {removed
+                      ? e.prevBytes != null
+                        ? `was ${fmtBytes(e.prevBytes)}`
+                        : ''
+                      : e.prevBytes != null
+                        ? `${fmtBytes(e.prevBytes)} → ${fmtBytes(e.bytes)}${
+                            shrank ? ` (−${fmtBytes(e.prevBytes - e.bytes)})` : ''
+                          }`
+                        : fmtBytes(e.bytes)}
+                  </div>
+                </button>
+                {e.backup && (
+                  <button
+                    className="audit-restore"
+                    title={
+                      removed
+                        ? 'Recreate this file from its backup'
+                        : 'Restore the version from before this write'
+                    }
+                    onClick={() => onRestore(e.backup as string, e.path)}
+                  >
+                    Restore
+                  </button>
+                )}
+              </div>
             )
           })
         )}

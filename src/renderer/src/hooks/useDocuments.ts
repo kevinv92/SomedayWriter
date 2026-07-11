@@ -97,6 +97,10 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
   // The text to load into the editor for the active tab — set only on switch, so
   // the editor doesn't reload on every keystroke (the live buffer is in docsRef).
   const [activeLoadText, setActiveLoadText] = useState('')
+  // Bumped to force the editor to reload the active tab even when `activeLoadText`
+  // is unchanged — e.g. restoring a backup whose content equals what the tab was
+  // opened with, while the live editor has since diverged.
+  const [reloadNonce, setReloadNonce] = useState(0)
   const [dirtyPaths, setDirtyPaths] = useState<Set<string>>(new Set())
   const [closingTab, setClosingTab] = useState<string | null>(null)
   const [conflictTab, setConflictTab] = useState<string | null>(null)
@@ -122,7 +126,10 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
       activePath && !isImageFile(activePath)
         ? { uri: activePath, text: activeLoadText }
         : null,
-    [activePath, activeLoadText]
+    // reloadNonce: a forced-reload signal (see reloadBuffer) — a fresh object even
+    // when text is unchanged makes the editor re-load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activePath, activeLoadText, reloadNonce]
   )
 
   // A writer-asset:// URL when the active file is an image (shown in ImageView).
@@ -252,7 +259,12 @@ export function useDocuments(options: UseDocumentsOptions): DocumentsApi {
       if (!docsRef.current.has(path)) return
       docsRef.current.set(path, { saved: text, current: text, mtimeMs })
       markDirty(path, false)
-      if (path === activePath) setActiveLoadText(text)
+      if (path === activePath) {
+        setActiveLoadText(text)
+        // Force a reload even if `text` matches the last loaded value — the live
+        // editor may have diverged (unsaved edits, or a restore to the open version).
+        setReloadNonce((n) => n + 1)
+      }
     },
     [activePath, markDirty]
   )

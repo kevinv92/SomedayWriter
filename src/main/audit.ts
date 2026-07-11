@@ -12,9 +12,12 @@ import type { AuditAction, AuditEntry } from '../shared/types'
 
 const DIR = '.somedaywriter'
 const FILE = 'audit.jsonl'
+const BACKUP_DIR = 'backups'
 /** Keep the log bounded — trim to the newest N lines when it grows past this. */
 const MAX_LINES = 5000
 const TRIM_TO = 4000
+/** How many pre-write backups to keep per file. */
+const KEEP_BACKUPS = 15
 
 function logPath(root: string): string {
   return join(root, DIR, FILE)
@@ -23,6 +26,49 @@ function logPath(root: string): string {
 /** Project-relative POSIX path for a log entry. */
 export function auditRel(root: string, abs: string): string {
   return relative(root, abs).split(sep).join('/')
+}
+
+/**
+ * Copy a file's current on-disk content to a timestamped backup *before* it's
+ * overwritten/deleted, so the write is recoverable. Returns the backup's path
+ * relative to `.somedaywriter/` (for the audit entry), or undefined if there was
+ * nothing to back up (new file) or it failed — best-effort, never throws.
+ */
+export async function backupBefore(
+  root: string,
+  abs: string
+): Promise<string | undefined> {
+  try {
+    const content = await fs.readFile(abs) // Buffer — preserve exact bytes
+    const rel = auditRel(root, abs)
+    const dir = join(root, DIR, BACKUP_DIR, rel)
+    await fs.mkdir(dir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    await fs.writeFile(join(dir, `${stamp}.bak`), content)
+    // Prune to the newest KEEP_BACKUPS (timestamp names sort lexically = chrono).
+    const kept = (await fs.readdir(dir)).filter((f) => f.endsWith('.bak')).sort()
+    for (const old of kept.slice(0, Math.max(0, kept.length - KEEP_BACKUPS))) {
+      await fs.rm(join(dir, old)).catch(() => {})
+    }
+    return `${BACKUP_DIR}/${rel}/${stamp}.bak`
+  } catch {
+    return undefined
+  }
+}
+
+/** Restore a backup (path relative to `.somedaywriter/`) onto a target file. */
+export async function restoreBackup(
+  root: string,
+  backupRel: string,
+  targetAbs: string
+): Promise<boolean> {
+  try {
+    const content = await fs.readFile(join(root, DIR, backupRel))
+    await fs.writeFile(targetAbs, content)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Append one entry. Best-effort: any failure is swallowed. */
@@ -40,19 +86,22 @@ export async function appendAudit(
   }
 }
 
-/** Convenience: log a content write, capturing before/after byte sizes. */
+/** Convenience: log a content write, capturing before/after byte sizes and the
+ *  pre-write backup (if one was taken). */
 export async function auditWrite(
   root: string,
   abs: string,
   action: AuditAction,
   contents: string,
-  prevBytes?: number
+  prevBytes?: number,
+  backup?: string
 ): Promise<void> {
   await appendAudit(root, {
     action,
     path: auditRel(root, abs),
     bytes: Buffer.byteLength(contents, 'utf8'),
-    prevBytes
+    prevBytes,
+    backup
   })
 }
 

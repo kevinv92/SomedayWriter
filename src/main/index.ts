@@ -57,7 +57,14 @@ import { findMatches, replaceAll } from './search'
 import { randomUUID } from 'crypto'
 import { gatherManuscript } from './export'
 import { buildEpub } from './epub'
-import { appendAudit, auditRel, auditWrite, readAudit } from './audit'
+import {
+  appendAudit,
+  auditRel,
+  auditWrite,
+  backupBefore,
+  readAudit,
+  restoreBackup
+} from './audit'
 import { buildDocx } from './docx'
 import { buildPdf } from './pdf'
 import { renderManuscriptDocument } from './manuscript-html'
@@ -578,6 +585,39 @@ function registerIpc(): void {
     return readAudit(currentProject.root, limit ?? 500)
   })
 
+  // Restore a pre-write backup onto its file (from the Activity Log). The restore
+  // is itself an audited write (backing up whatever's there now first), so it's
+  // reversible too. `targetRel` + `backup` come straight from an audit entry.
+  ipcMain.handle(
+    'audit:restore',
+    async (_e, backup: string, targetRel: string): Promise<WriteResult> => {
+      if (!currentProject) return { ok: false, error: 'No project open.' }
+      const target = join(currentProject.root, targetRel)
+      if (!guardPath(target)) return OUTSIDE_ERR
+      try {
+        const before = await fs.stat(target).catch(() => null)
+        const priorBackup = before
+          ? await backupBefore(currentProject.root, target)
+          : undefined
+        const ok = await restoreBackup(currentProject.root, backup, target)
+        if (!ok) return { ok: false, error: 'Backup not found.' }
+        invalidateStoryIndex()
+        const restored = await fs.readFile(target, 'utf8')
+        void auditWrite(
+          currentProject.root,
+          target,
+          'overwrite',
+          restored,
+          before?.size,
+          priorBackup
+        )
+        return { ok: true }
+      } catch (err) {
+        return { ok: false, error: messageOf(err) }
+      }
+    }
+  )
+
   // Write, guarding against clobbering an external edit. `baseMtimeMs` is the
   // on-disk timestamp the tab last saw; if the file is now newer, we refuse and
   // report a conflict so the UI can prompt (overwrite / reload). Passing no
@@ -598,13 +638,26 @@ function registerIpc(): void {
         if (baseMtimeMs != null && before && before.mtimeMs > baseMtimeMs) {
           return { ok: false, conflict: true, diskMtimeMs: before.mtimeMs }
         }
+        // Back up the current content before overwriting, so the write is
+        // recoverable from the Activity Log.
+        const backup =
+          before && currentProject
+            ? await backupBefore(currentProject.root, path)
+            : undefined
         await fs.writeFile(path, contents, 'utf8')
         const { mtimeMs } = await fs.stat(path)
         invalidateStoryIndex()
         if (currentProject) {
           const action =
             before == null ? 'create' : baseMtimeMs == null ? 'overwrite' : 'save'
-          void auditWrite(currentProject.root, path, action, contents, before?.size)
+          void auditWrite(
+            currentProject.root,
+            path,
+            action,
+            contents,
+            before?.size,
+            backup
+          )
         }
         return { ok: true, mtimeMs }
       } catch (err) {
@@ -660,6 +713,11 @@ function registerIpc(): void {
     }
     try {
       const before = await fs.stat(path).catch(() => null)
+      // Back up a file before deleting it (folders aren't backed up).
+      const backup =
+        before?.isFile() && currentProject
+          ? await backupBefore(currentProject.root, path)
+          : undefined
       await fs.rm(path, { recursive: true, force: false })
       invalidateStoryIndex()
       if (currentProject) {
@@ -667,7 +725,8 @@ function registerIpc(): void {
           action: 'delete',
           path: auditRel(currentProject.root, path),
           bytes: 0,
-          prevBytes: before?.isFile() ? before.size : undefined
+          prevBytes: before?.isFile() ? before.size : undefined,
+          backup
         })
       }
       return { ok: true }
@@ -685,6 +744,9 @@ function registerIpc(): void {
       try {
         const text = await fs.readFile(path, 'utf8')
         const next = writeOrder(text, value)
+        const backup = currentProject
+          ? await backupBefore(currentProject.root, path)
+          : undefined
         await fs.writeFile(path, next, 'utf8')
         invalidateStoryIndex()
         if (currentProject) {
@@ -693,7 +755,8 @@ function registerIpc(): void {
             path,
             'reorder',
             next,
-            Buffer.byteLength(text, 'utf8')
+            Buffer.byteLength(text, 'utf8'),
+            backup
           )
         }
         return { ok: true }

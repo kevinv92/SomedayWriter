@@ -418,4 +418,7 @@ export interface AuditEntry {
   /** Byte size before the write, when the file already existed — a drop flags
    * possible data loss. */
   prevBytes?: number
+  /** Path (relative to `.somedaywriter/`) of the pre-write backup of the previous
+   * content, when one was taken — lets the Activity Log restore it. */
+  backup?: string
 }

@@ -328,6 +328,30 @@ export default function App() {
     [documents.activePath, setNotice]
   )
 
+  // Activity Log: restore a file from a pre-write backup, then refresh an open
+  // tab's buffer from disk so the editor shows the restored content.
+  const restoreFromBackup = useCallback(
+    async (backup: string, rel: string) => {
+      if (!project) return
+      const result = await window.api.restoreBackup(backup, rel)
+      if (!result.ok) {
+        setNotice(`Restore failed: ${result.error ?? 'unknown error'}`)
+        return
+      }
+      // Refresh any open tab of this file from disk (match the exact tab key so a
+      // path-normalisation difference can't leave a stale — and dangerous — buffer).
+      const abs = joinPath(project.root, rel)
+      for (const key of documents.openPaths) {
+        if (key !== abs && !key.endsWith(`/${rel}`)) continue
+        const read = await window.api.readFile(key)
+        if (read.ok) documents.reloadBuffer(key, read.text, read.mtimeMs)
+      }
+      bumpInspector()
+      setNotice(`Restored ${rel} from its backup.`)
+    },
+    [project, documents, bumpInspector, setNotice]
+  )
+
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
   useEffect(() => {
@@ -1449,6 +1473,7 @@ export default function App() {
           <AuditLogPanel
             refreshKey={inspectorRefresh}
             onOpen={(rel) => documents.openFile(joinPath(project.root, rel))}
+            onRestore={(backup, rel) => void restoreFromBackup(backup, rel)}
             onClose={() => panels.set('audit', false)}
           />
         )}

@@ -112,6 +112,10 @@ const api = {
   readAuditLog: (limit?: number): Promise<AuditEntry[]> =>
     ipcRenderer.invoke('audit:read', limit),
 
+  /** Restore a pre-write backup (from an audit entry) over its file. */
+  restoreBackup: (backup: string, targetRel: string): Promise<WriteResult> =>
+    ipcRenderer.invoke('audit:restore', backup, targetRel),
+
   /** Story entities (characters, …) from the project's profile files (Phase 5). */
   storyEntities: (): Promise<Entity[]> => ipcRenderer.invoke('story:entities'),
 

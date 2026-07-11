@@ -2,7 +2,14 @@ import { describe, it, expect } from 'vitest'
 import { promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { appendAudit, auditRel, auditWrite, readAudit } from './audit'
+import {
+  appendAudit,
+  auditRel,
+  auditWrite,
+  backupBefore,
+  readAudit,
+  restoreBackup
+} from './audit'
 
 function tmpRoot(): Promise<string> {
   return fs.mkdtemp(join(tmpdir(), 'sw-audit-'))
@@ -56,5 +63,29 @@ describe('audit log', () => {
 
   it('auditRel returns a project-relative path', () => {
     expect(auditRel('/root', '/root/a/b.md')).toBe('a/b.md')
+  })
+
+  it('backs up content and restores it (the recovery path)', async () => {
+    const root = await tmpRoot()
+    const abs = join(root, 'core', 'story.md')
+    await fs.mkdir(join(root, 'core'), { recursive: true })
+    await fs.writeFile(abs, 'the real manuscript', 'utf8')
+
+    const backup = await backupBefore(root, abs)
+    expect(backup).toBeTruthy()
+    expect(backup?.startsWith('backups/core/story.md/')).toBe(true)
+
+    // A bad overwrite clobbers the file…
+    await fs.writeFile(abs, 'oops', 'utf8')
+    expect(await fs.readFile(abs, 'utf8')).toBe('oops')
+
+    // …and the backup brings it back.
+    expect(await restoreBackup(root, backup as string, abs)).toBe(true)
+    expect(await fs.readFile(abs, 'utf8')).toBe('the real manuscript')
+  })
+
+  it('backupBefore returns undefined when there is nothing to back up', async () => {
+    const root = await tmpRoot()
+    expect(await backupBefore(root, join(root, 'missing.md'))).toBeUndefined()
   })
 })

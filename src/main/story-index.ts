@@ -1,5 +1,5 @@
 import { promises as fs } from 'fs'
-import { auditWrite } from './audit'
+import { auditWrite, backupBefore } from './audit'
 import type {
   CompanionEntry,
   Entity,
@@ -212,8 +212,16 @@ export async function renameMentions(
       continue
     }
     const next = text.replace(re, replacement)
+    const backup = await backupBefore(root, path)
     await fs.writeFile(path, next, 'utf8')
-    void auditWrite(root, path, 'rename-refactor', next, Buffer.byteLength(text, 'utf8'))
+    void auditWrite(
+      root,
+      path,
+      'rename-refactor',
+      next,
+      Buffer.byteLength(text, 'utf8'),
+      backup
+    )
     changed.push(path)
     count += matches.length
   }
