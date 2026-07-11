@@ -1,5 +1,6 @@
 import JSZip from 'jszip'
 import { marked } from 'marked'
+import { READING_CSS, escHtml as esc } from './manuscript-html'
 
 /** One chapter: a nav/TOC title plus the scene's (already stripped) Markdown. */
 export interface EpubChapter {
@@ -14,29 +15,6 @@ export interface EpubMeta {
   /** A unique book id, e.g. `urn:uuid:<uuid>`. Caller supplies it (main has
    *  crypto); required by the OPF `dc:identifier`. */
   identifier: string
-}
-
-const READING_CSS = `
-body { font-family: Georgia, 'Iowan Old Style', serif; line-height: 1.6; margin: 5% 6%; }
-h1 { font-size: 1.6em; margin: 1.2em 0 0.6em; line-height: 1.2; }
-h2 { font-size: 1.3em; margin: 1.2em 0 0.5em; }
-p { margin: 0 0 0.9em; text-indent: 0; }
-p + p { text-indent: 1.4em; margin-top: 0; }
-blockquote { margin: 1em 1.5em; font-style: italic; }
-hr { border: 0; text-align: center; margin: 1.5em 0; }
-hr:after { content: '* * *'; letter-spacing: 0.4em; }
-em { font-style: italic; }
-strong { font-weight: bold; }
-`.trim()
-
-/** XML entities in raw text (for titles injected into XHTML/OPF). */
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
 }
 
 /** Make marked's HTML5 output well-formed XHTML: self-close void elements so a
@@ -160,7 +138,9 @@ ${ncxPoints}
   oebps.file('content.opf', opf)
   oebps.file('nav.xhtml', nav)
   oebps.file('toc.ncx', ncx)
-  oebps.file('style.css', READING_CSS)
+  // READING_CSS is margin-neutral (PDF sets page margins via printToPDF); an EPUB
+  // wants its own page inset so text doesn't hug a reader's screen edge.
+  oebps.file('style.css', `${READING_CSS}\nbody { margin: 5% 6%; }`)
   for (const f of files) oebps.file(f.href, f.xhtml)
 
   return zip.generateAsync({ type: 'nodebuffer', mimeType: 'application/epub+zip' })

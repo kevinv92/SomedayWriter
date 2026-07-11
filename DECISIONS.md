@@ -375,3 +375,16 @@ initial design conversation.)
     intellisense (M19), and templates (M20) all render from the one entity-type
     registry, so a field is defined once. See
     [story-model.md](./spec/story-model.md) → Editing frontmatter.
+
+51. **Export is one dialog over four formats; `.docx` via the `docx` library, PDF
+    via Chromium `printToPDF`.** A single **Export dialog** compiles Markdown / EPUB
+    / Word / PDF off the shared spine + strip-on-export contract, with one
+    `ExportOptions` model (tracked changes, scene titles, separator, title page,
+    scope; PDF adds page size + margins). `.docx` maps marked's tokens with the
+    pure-JS **`docx`** package — chosen over Pandoc (external binary, install
+    friction) and HTML→docx converters (patchy fidelity/maintenance), matching the
+    own-the-pipeline stance of `marked`/`jszip`. **PDF** renders the shared reading
+    HTML in an offscreen `BrowserWindow` and `printToPDF`s it — Chromium typography,
+    zero new deps. The options surface was built first so every format gained the
+    knobs at once. Heading **levels** stay flat until the manuscript `level` field
+    lands. See [manuscript.md](./spec/manuscript.md) → Export & compile.

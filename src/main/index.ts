@@ -7,9 +7,7 @@ import type {
   CompanionEntry,
   Entity,
   EntityRef,
-  ExportManuscriptResult,
-  ExportSaveResult,
-  ExportEpubResult,
+  ExportRunResult,
   FileInspection,
   FileReadResult,
   GrammarMatch,
@@ -52,18 +50,23 @@ import {
   readTree,
   writeProjectConfig
 } from './fs-project'
-import { writeOrder } from './frontmatter'
+import { deriveTitle, readOrder, writeOrder } from './frontmatter'
 import { writeDefaultAgentsDoc } from './agents-doc'
 import { findMatches, replaceAll } from './search'
 import { randomUUID } from 'crypto'
 import { gatherManuscript } from './export'
 import { buildEpub } from './epub'
+import { buildDocx } from './docx'
+import { buildPdf } from './pdf'
+import { renderManuscriptDocument } from './manuscript-html'
 import {
   compileManuscript,
   countManuscriptWords,
+  markdownSeparator,
   stripEditorial,
   stripFrontmatter
 } from '../shared/manuscript'
+import type { ExportOptions } from '../shared/manuscript'
 
 // The project the renderer is currently allowed to touch. Every file op is
 // validated against this root, so a renderer can't reach outside it.
@@ -725,96 +728,126 @@ function registerIpc(): void {
 
   // --- export / compile (Phase: manuscript export) ---
 
-  // Compile the ordered manuscript scenes into one clean prose string (editorial
-  // marks stripped, tracked changes accepted). Returns the text + a scene summary
-  // so the renderer can report what it exported and offer to save it.
-  ipcMain.handle('export:manuscript', async (): Promise<ExportManuscriptResult> => {
-    if (!currentProject) return { ok: false, error: 'No project open.' }
-    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-    try {
-      const scenes = await gatherManuscript(currentProject.root, ignore)
-      if (!scenes.length) {
-        return {
-          ok: false,
-          error:
-            'No ordered manuscript scenes found — add `order:` frontmatter to your scenes.'
-        }
-      }
-      const text = compileManuscript(scenes)
-      return {
-        ok: true,
-        text,
-        scenes: scenes.map((s) => ({ title: s.title, order: s.order, path: s.path })),
-        wordCount: countManuscriptWords(text)
-      }
-    } catch (err) {
-      return { ok: false, error: messageOf(err) }
-    }
-  })
-
-  // Write a compiled manuscript to disk via a native Save dialog. Separate from
-  // the compile step so the renderer can compile/preview without a dialog.
+  // One handler for every format. Gather the scenes (whole manuscript or just the
+  // active file), apply the strip-on-export contract with the chosen options,
+  // render to the target format, and save via a native dialog.
   ipcMain.handle(
-    'export:save',
-    async (_e, text: string, defaultName: string): Promise<ExportSaveResult> => {
-      const win = BrowserWindow.getFocusedWindow()
-      const opts = {
-        defaultPath: defaultName,
-        filters: [
-          { name: 'Markdown', extensions: ['md'] },
-          { name: 'Plain Text', extensions: ['txt'] }
-        ]
-      }
-      const result = win
-        ? await dialog.showSaveDialog(win, opts)
-        : await dialog.showSaveDialog(opts)
-      if (result.canceled || !result.filePath) return { ok: false, canceled: true }
+    'export:run',
+    async (
+      _e,
+      options: ExportOptions,
+      activePath: string | null
+    ): Promise<ExportRunResult> => {
+      if (!currentProject) return { ok: false, error: 'No project open.' }
+      const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
       try {
-        await fs.writeFile(result.filePath, text, 'utf8')
-        return { ok: true, path: result.filePath }
+        // Scope: the whole ordered spine, or just the file that's open.
+        let scenes
+        if (options.scope === 'file') {
+          if (!activePath) return { ok: false, error: 'No file is open to export.' }
+          const text = await fs.readFile(activePath, 'utf8')
+          scenes = [
+            {
+              text,
+              title: deriveTitle(text, activePath),
+              order: readOrder(text) ?? 0,
+              path: activePath
+            }
+          ]
+        } else {
+          scenes = await gatherManuscript(currentProject.root, ignore)
+        }
+        if (!scenes.length) {
+          return {
+            ok: false,
+            error:
+              'No ordered manuscript scenes found — add `order:` frontmatter to your scenes.'
+          }
+        }
+
+        const meta = {
+          title: currentProject.name,
+          author: currentProject.config.project.author
+        }
+        const chapters = scenes.map((s) => ({
+          title: s.title,
+          markdown: stripEditorial(stripFrontmatter(s.text), options.changes)
+        }))
+        const docOpts = {
+          titlePage: options.titlePage,
+          sceneTitles: options.sceneTitles,
+          separator: options.separator
+        }
+
+        let data: Buffer | string
+        let ext: string
+        let filterName: string
+        switch (options.format) {
+          case 'markdown': {
+            const body = compileManuscript(scenes, {
+              changes: options.changes,
+              separator: markdownSeparator(options.separator),
+              sceneTitles: options.sceneTitles
+            })
+            const head =
+              options.titlePage && meta.title
+                ? `# ${meta.title}\n\n${meta.author ? `by ${meta.author}\n\n` : ''}`
+                : ''
+            data = head + body
+            ext = 'md'
+            filterName = 'Markdown'
+            break
+          }
+          case 'epub':
+            data = await buildEpub(
+              {
+                title: meta.title,
+                author: meta.author,
+                identifier: `urn:uuid:${randomUUID()}`
+              },
+              chapters
+            )
+            ext = 'epub'
+            filterName = 'EPUB'
+            break
+          case 'docx':
+            data = await buildDocx(meta, chapters, docOpts)
+            ext = 'docx'
+            filterName = 'Word'
+            break
+          case 'pdf':
+            data = await buildPdf(renderManuscriptDocument(meta, chapters, docOpts), {
+              pageSize: options.pageSize,
+              margins: options.margins
+            })
+            ext = 'pdf'
+            filterName = 'PDF'
+            break
+        }
+
+        const win = BrowserWindow.getFocusedWindow()
+        const dlgOpts = {
+          defaultPath: `${currentProject.name}.${ext}`,
+          filters: [{ name: filterName, extensions: [ext] }]
+        }
+        const result = win
+          ? await dialog.showSaveDialog(win, dlgOpts)
+          : await dialog.showSaveDialog(dlgOpts)
+        if (result.canceled || !result.filePath) return { ok: false, canceled: true }
+        await fs.writeFile(result.filePath, data)
+        return {
+          ok: true,
+          path: result.filePath,
+          scenes: scenes.length,
+          wordCount: countManuscriptWords(
+            compileManuscript(scenes, { changes: options.changes })
+          )
+        }
       } catch (err) {
         return { ok: false, error: messageOf(err) }
       }
     }
   )
-
-  // Compile the manuscript as an EPUB (one chapter per scene, editorial marks
-  // stripped) and save it via a native dialog.
-  ipcMain.handle('export:epub', async (): Promise<ExportEpubResult> => {
-    if (!currentProject) return { ok: false, error: 'No project open.' }
-    const ignore = currentProject.config.explorer?.ignore ?? DEFAULT_IGNORE
-    try {
-      const scenes = await gatherManuscript(currentProject.root, ignore)
-      if (!scenes.length) {
-        return {
-          ok: false,
-          error:
-            'No ordered manuscript scenes found — add `order:` frontmatter to your scenes.'
-        }
-      }
-      const chapters = scenes.map((s) => ({
-        title: s.title,
-        markdown: stripEditorial(stripFrontmatter(s.text))
-      }))
-      const buffer = await buildEpub(
-        { title: currentProject.name, identifier: `urn:uuid:${randomUUID()}` },
-        chapters
-      )
-      const win = BrowserWindow.getFocusedWindow()
-      const opts = {
-        defaultPath: `${currentProject.name}.epub`,
-        filters: [{ name: 'EPUB', extensions: ['epub'] }]
-      }
-      const result = win
-        ? await dialog.showSaveDialog(win, opts)
-        : await dialog.showSaveDialog(opts)
-      if (result.canceled || !result.filePath) return { ok: false, canceled: true }
-      await fs.writeFile(result.filePath, buffer)
-      return { ok: true, path: result.filePath, chapters: chapters.length }
-    } catch (err) {
-      return { ok: false, error: messageOf(err) }
-    }
-  })
 }
 
 app.whenReady().then(() => {

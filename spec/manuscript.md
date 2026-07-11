@@ -150,3 +150,30 @@ free as the text around it changes.
 - **Seam fit** — rendering is a codemirror-adapter decoration (like the `%%`
   notes + frontmatter plugins already are); a comments _panel_ would surface
   parsed comments through the analysis facade. No new architecture.
+
+## Export & compile
+
+Export turns the project into a finished artifact in one of four formats, all
+off the same spine and the same **strip-on-export contract** (nothing above the
+"stripped on export" line ever reaches the reader). One **Export dialog**
+(`ExportDialog.tsx`) collects options; the compile + save runs in main via the
+`export:run` IPC.
+
+- **Pipeline (one path, four renderers).** `gatherManuscript` → `compileManuscript`
+  / `stripEditorial` (clean prose) → `marked` + the shared reading stylesheet
+  (`manuscript-html.ts`). Markdown writes the clean text; **EPUB** wraps each scene
+  as a chapter (`epub.ts`); **Word (.docx)** walks marked's tokens into Word
+  runs/paragraphs (`docx.ts`, via the `docx` library — no external binary); **PDF**
+  prints the shared HTML with Chromium (`pdf.ts`, Electron `printToPDF` — no extra
+  dep). docx/PDF share the exact typography EPUB already used.
+- **Options (shared model, `ExportOptions`).** Tracked-changes accept/reject,
+  scene-titles-as-headings, scene separator (blank line · `* * *` · page break —
+  the last only for paged formats), a title page (project title + optional
+  `project.json` `author`), and scope (whole manuscript vs. the active file). PDF
+  adds page size (A4/Letter) and margins. Defaults reproduce the pre-dialog
+  behaviour, so "just export" stays one step.
+- **Hierarchy.** Headings are flat (`# scene`) until the explicit `level` field
+  lands (see _Manuscript hierarchy_); then docx/PDF/EPUB map units → heading
+  levels / part breaks / nav. Embedded images aren't packaged yet.
+
+See DECISIONS #51 for the format/library calls.

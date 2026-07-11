@@ -18,6 +18,7 @@ import {
 import { BraidView } from './components/BraidView'
 import { CommentsPanel } from './components/CommentsPanel'
 import { CompanionPanel } from './components/CompanionPanel'
+import { ExportDialog } from './components/ExportDialog'
 import { FrontmatterPanel } from './components/FrontmatterPanel'
 import { HealthPanel } from './components/HealthPanel'
 import { InspectorPanel } from './components/InspectorPanel'
@@ -38,6 +39,7 @@ import type {
   RecentProject,
   TreeNode
 } from '@shared/types'
+import type { ExportFormat, ExportOptions } from '@shared/manuscript'
 import { BUILTIN_THEME_OPTIONS } from './lib/theme'
 import { usePanels } from './hooks/usePanels'
 import { ACCENTS, useSettings } from './hooks/useSettings'
@@ -303,34 +305,27 @@ export default function App() {
     )
   }, [projectData.forceRefresh, documents, setNotice])
 
-  // Export/compile: gather the ordered scenes into one clean manuscript (editorial
-  // marks stripped, tracked changes accepted) and save it via a native dialog.
-  const exportManuscript = useCallback(async () => {
-    const result = await window.api.exportManuscript()
-    if (!result.ok) {
-      setNotice(result.error)
-      return
-    }
-    const defaultName = `${project?.name ?? 'Manuscript'}.md`
-    const saved = await window.api.exportSave(result.text, defaultName)
-    if (saved.ok) {
-      setNotice(
-        `Exported ${result.scenes.length} scene(s), ${result.wordCount.toLocaleString()} words → ${saved.path}`
-      )
-    } else if (!saved.canceled) {
-      setNotice(`Export failed: ${saved.error ?? 'unknown error'}`)
-    }
-  }, [project, setNotice])
-
-  // Export to EPUB: one chapter per ordered scene, editorial marks stripped.
-  const exportEpub = useCallback(async () => {
-    const result = await window.api.exportEpub()
-    if (result.ok) {
-      setNotice(`Exported ${result.chapters} chapter(s) → ${result.path}`)
-    } else if (!result.canceled) {
-      setNotice(`EPUB export failed: ${result.error ?? 'unknown error'}`)
-    }
-  }, [setNotice])
+  // Export/compile: the dialog collects options; compiling + saving runs in main
+  // (export:run) for the chosen format (Markdown / EPUB / Word / PDF).
+  const [exportDialog, setExportDialog] = useState<{ format?: ExportFormat } | null>(null)
+  const openExport = useCallback(
+    (format?: ExportFormat) => setExportDialog({ format }),
+    []
+  )
+  const runExport = useCallback(
+    async (options: ExportOptions) => {
+      setExportDialog(null)
+      const result = await window.api.exportRun(options, documents.activePath ?? null)
+      if (result.ok) {
+        setNotice(
+          `Exported ${result.scenes} scene${result.scenes === 1 ? '' : 's'}, ${result.wordCount.toLocaleString()} words → ${result.path}`
+        )
+      } else if (!result.canceled) {
+        setNotice(`Export failed: ${result.error ?? 'unknown error'}`)
+      }
+    },
+    [documents.activePath, setNotice]
+  )
 
   // Autosave (opt-in, M14): when on, save the active tab a beat after it goes
   // dirty. Whole-file write for now; explicit Cmd/Ctrl+S stays the default.
@@ -664,8 +659,7 @@ export default function App() {
     editorHandle,
     newProject,
     openProject,
-    exportManuscript,
-    exportEpub,
+    openExport,
     forceRefresh: reloadFromDisk,
     goToDefinition: projectData.goToDefinition,
     togglePin: projectData.togglePin,
@@ -1079,8 +1073,11 @@ export default function App() {
                 <div className="menu-pop" role="menu">
                   {(
                     [
-                      ['Manuscript (Markdown)…', exportManuscript],
-                      ['EPUB…', exportEpub]
+                      ['Export…', () => openExport()],
+                      ['Markdown…', () => openExport('markdown')],
+                      ['EPUB…', () => openExport('epub')],
+                      ['Word (.docx)…', () => openExport('docx')],
+                      ['PDF…', () => openExport('pdf')]
                     ] as [string, () => void][]
                   ).map(([label, run]) => (
                     <button
@@ -1641,6 +1638,15 @@ export default function App() {
           projectRoot={project.root}
           projectName={project.name}
           onClose={() => panels.set('help', false)}
+        />
+      )}
+
+      {exportDialog && (
+        <ExportDialog
+          initialFormat={exportDialog.format}
+          hasActiveFile={!!documents.activePath}
+          onExport={runExport}
+          onClose={() => setExportDialog(null)}
         />
       )}
 

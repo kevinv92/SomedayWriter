@@ -4,9 +4,7 @@ import type {
   CompanionEntry,
   Entity,
   EntityRef,
-  ExportEpubResult,
-  ExportManuscriptResult,
-  ExportSaveResult,
+  ExportRunResult,
   FileInspection,
   FileReadResult,
   GrammarMatch,
@@ -23,6 +21,7 @@ import type {
   WriteFileResult,
   WriteResult
 } from '../shared/types'
+import type { ExportOptions } from '../shared/manuscript'
 
 /**
  * The complete surface the renderer is allowed to reach. Every capability the
@@ -100,17 +99,13 @@ const api = {
   ): Promise<ReplaceResult> =>
     ipcRenderer.invoke('project:replace', query, replacement, opts),
 
-  /** Compile the ordered manuscript into one clean prose string (editorial marks
-   *  stripped). Returns the text plus a scene summary. */
-  exportManuscript: (): Promise<ExportManuscriptResult> =>
-    ipcRenderer.invoke('export:manuscript'),
-
-  /** Write a compiled manuscript to disk via a native Save dialog. */
-  exportSave: (text: string, defaultName: string): Promise<ExportSaveResult> =>
-    ipcRenderer.invoke('export:save', text, defaultName),
-
-  /** Compile the manuscript as an EPUB and save it via a native dialog. */
-  exportEpub: (): Promise<ExportEpubResult> => ipcRenderer.invoke('export:epub'),
+  /** Compile the manuscript in the chosen format (Markdown/EPUB/Word/PDF) with
+   *  the given options and save it via a native dialog. `activePath` backs the
+   *  "this file only" scope. */
+  exportRun: (
+    options: ExportOptions,
+    activePath: string | null
+  ): Promise<ExportRunResult> => ipcRenderer.invoke('export:run', options, activePath),
 
   /** Story entities (characters, …) from the project's profile files (Phase 5). */
   storyEntities: (): Promise<Entity[]> => ipcRenderer.invoke('story:entities'),

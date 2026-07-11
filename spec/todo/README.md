@@ -59,24 +59,6 @@ draw from, with **user-overridable** shortcuts.
 **Related:** [roadmap.md](../roadmap.md) Phase 12 (M29–M31),
 [navigation.md](../navigation.md).
 
-### Export — options UI & more formats · _needs design_
-
-**Intent:** grow export past the shipped Markdown/EPUB into a configurable,
-multi-format compile.
-
-**Open questions:**
-
-- Options surface — a dialog or a config block? Which knobs: accept vs. reject
-  tracked changes, scene-title headings, scene separators, front matter / title
-  page, which files to include.
-- New targets — `.docx` (writers' lingua franca) and PDF. Library vs. Pandoc vs.
-  hand-rolled. Styling/theming of the output.
-- Does export consume the manuscript **hierarchy** (see next item) for heading
-  levels / part breaks / EPUB nav, or stay flat-by-`order`?
-
-**Related:** the shipped pipeline (`src/shared/manuscript.ts`, `src/main/epub.ts`),
-[manuscript.md](../manuscript.md), [roadmap.md](../roadmap.md) "Export & compile".
-
 ### Manuscript hierarchy — explicit `level` field · _needs design_
 
 **Intent:** promote the implicit scene→chapter→act nesting to an explicit,
@@ -122,6 +104,10 @@ Windows/Linux targets. Today's DMG is unsigned and arm64-only.
 - **Real Neovim integration** — an optional "raw Neovim mode" (embed `nvim`);
   heavy, trades away prose decorations. See the deferred note in
   [roadmap.md](../roadmap.md).
+- **Export follow-ups** — the multi-format export dialog shipped
+  ([manuscript.md](../manuscript.md) → Export & compile, decision #51); deferred:
+  packaging embedded `![](…)` images into EPUB/docx/PDF, per-format page controls
+  for docx, and heading **levels** once the manuscript `level` field lands.
 
 ---
 

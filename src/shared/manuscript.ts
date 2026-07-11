@@ -96,3 +96,44 @@ export function compileManuscript(
 export function countManuscriptWords(compiled: string): number {
   return compiled.trim().match(/\S+/g)?.length ?? 0
 }
+
+// --- Export options (the dialog's model; shared by every format renderer) ---
+
+export type ExportFormat = 'markdown' | 'epub' | 'docx' | 'pdf'
+/** Between-scene device. Paged formats (docx/pdf) interpret `pagebreak`; flat
+ *  formats fall back to a blank line. */
+export type SceneSeparator = 'blank' | 'stars' | 'pagebreak'
+
+export interface ExportOptions {
+  format: ExportFormat
+  /** How to resolve CriticMarkup tracked changes. */
+  changes: ChangeResolution
+  /** Prefix each scene with its title as a heading. */
+  sceneTitles: boolean
+  separator: SceneSeparator
+  /** A leading title page (project title + author). */
+  titlePage: boolean
+  /** Whole manuscript spine, or just the active file. */
+  scope: 'manuscript' | 'file'
+  /** PDF page size. */
+  pageSize: 'A4' | 'Letter'
+  /** PDF margins. */
+  margins: 'normal' | 'wide'
+}
+
+export const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
+  format: 'markdown',
+  changes: 'accept',
+  sceneTitles: false,
+  separator: 'blank',
+  titlePage: true,
+  scope: 'manuscript',
+  pageSize: 'A4',
+  margins: 'normal'
+}
+
+/** The plain-text separator a Markdown compile uses for a scene separator.
+ *  `pagebreak` is meaningless in flat text, so it degrades to a blank line. */
+export function markdownSeparator(sep: SceneSeparator): string {
+  return sep === 'stars' ? '\n\n* * *\n\n' : '\n\n'
+}

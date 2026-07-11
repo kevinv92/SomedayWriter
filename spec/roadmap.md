@@ -38,11 +38,12 @@ clear exit criterion; milestones (M#) are the concrete steps inside it.
 > marks** — comments, highlights, tracked changes, inline thread markers (9),
 > **external grammar/LSP analysis** — LanguageTool HTTP + a real LSP client (10),
 > and the **MCP server** (11). Beyond the original plan, this line also shipped
-> **manuscript export (Markdown + EPUB)**, a **Vitest** test suite, and
-> **GitHub + CI + a tagged-release DMG workflow**.
+> **manuscript export — an Export dialog over Markdown + EPUB + Word + PDF**
+> (decision #51), a **Vitest** test suite, and **GitHub + CI + a tagged-release
+> DMG workflow**.
 >
 > **Remaining:** Phase 12 (unified command/keybinding system) and the deferred
-> lane — AI continuity (`ContinuityProvider`) and more export targets. M11 (edit
+> lane — AI continuity (`ContinuityProvider`). M11 (edit
 > the braid) stays deferred. Everything built is **CDP-verified** (launch with
 > `ELECTRON_RUN_AS_NODE` unset). NB the visual design system was pulled forward to
 > Phase 8 (decision #42).

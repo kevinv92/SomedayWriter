@@ -24,7 +24,7 @@ export type ThemeDef = {
 }
 
 export type ProjectConfig = {
-  project: { name: string; version?: string }
+  project: { name: string; version?: string; author?: string }
   /** Default theme id for this project (built-in `auto`/`light`/`dark`, a user
    * theme, or one of this project's own `themes`). Phase 8. */
   theme?: string
@@ -391,23 +391,7 @@ export type SearchFileResult = {
 export type ReplaceResult =
   { ok: true; files: number; replacements: number } | { ok: false; error: string }
 
-/** One scene in a compiled manuscript (for the export summary). */
-export interface ExportScene {
-  title: string
-  order: number
-  path: string
-}
-
-/** Result of compiling the manuscript (export:manuscript). */
-export type ExportManuscriptResult =
-  | { ok: true; text: string; scenes: ExportScene[]; wordCount: number }
-  | { ok: false; error: string }
-
-/** Result of writing an exported manuscript to disk via the save dialog. */
-export type ExportSaveResult =
-  { ok: true; path: string } | { ok: false; canceled?: boolean; error?: string }
-
-/** Result of compiling + saving the manuscript as an EPUB. */
-export type ExportEpubResult =
-  | { ok: true; path: string; chapters: number }
+/** Result of compiling + saving the manuscript in any format (export:run). */
+export type ExportRunResult =
+  | { ok: true; path: string; scenes: number; wordCount: number }
   | { ok: false; canceled?: boolean; error?: string }

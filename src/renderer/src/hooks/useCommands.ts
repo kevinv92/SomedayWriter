@@ -2,6 +2,7 @@ import type { RefObject } from 'react'
 import type { QuickCommand } from '../components/QuickInput'
 import type { EditorHandle } from '../components/Editor'
 import type { ResolvedEntityType } from '@shared/entity-types'
+import type { ExportFormat } from '@shared/manuscript'
 import type { DocumentsApi } from './useDocuments'
 import type { PanelsApi } from './usePanels'
 import type { SettingsApi } from './useSettings'
@@ -17,10 +18,8 @@ export interface CommandContext {
   editorHandle: RefObject<EditorHandle | null>
   newProject: () => void
   openProject: () => void
-  /** Compile the manuscript and save it to a single Markdown file. */
-  exportManuscript: () => void
-  /** Compile the manuscript to an EPUB and save it. */
-  exportEpub: () => void
+  /** Open the Export dialog (optionally pre-selecting a format). */
+  openExport: (format?: ExportFormat) => void
   forceRefresh: () => void
   goToDefinition: (lineText: string, column: number) => void
   togglePin: (path: string) => void
@@ -51,16 +50,14 @@ export function useCommands(ctx: CommandContext): QuickCommand[] {
     },
     { id: 'new-project', title: 'New Project…', run: () => ctx.newProject() },
     { id: 'open-project', title: 'Open Project…', run: () => ctx.openProject() },
+    { id: 'export', title: 'Export…', run: () => ctx.openExport() },
     {
-      id: 'export-manuscript',
-      title: 'Export Manuscript (Markdown)…',
-      run: () => ctx.exportManuscript()
+      id: 'export-docx',
+      title: 'Export to Word (.docx)…',
+      run: () => ctx.openExport('docx')
     },
-    {
-      id: 'export-epub',
-      title: 'Export to EPUB…',
-      run: () => ctx.exportEpub()
-    },
+    { id: 'export-pdf', title: 'Export to PDF…', run: () => ctx.openExport('pdf') },
+    { id: 'export-epub', title: 'Export to EPUB…', run: () => ctx.openExport('epub') },
     {
       id: 'format-bold',
       title: 'Bold',
