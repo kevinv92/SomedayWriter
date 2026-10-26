@@ -386,3 +386,16 @@ rise | climax | fall | resolve`) is now the sole per-beat descriptor.**
     zero new deps. The options surface was built first so every format gained the
     knobs at once. Heading **levels** stay flat until the manuscript `level` field
     lands. See [manuscript.md](./spec/manuscript.md) → Export & compile.
+
+52. **Renderer input is untrusted; privileged settings are main-only.** A
+    security review (2026-10-27) found `settings:update` merged any renderer patch
+    into `settings.json` — including `grammar.lsp.command`, which main spawns — so
+    a compromised renderer could escape the sandbox, and the merged response leaked
+    the grammar API key that `settings:get` redacts. Main now drops `grammar` and
+    `userThemes` from renderer patches and redacts every settings response
+    (`settings-boundary.ts`). A **denylist** of main-only keys was chosen over an
+    allowlist so new preference keys keep working without touching main; the rule
+    for future keys is: if main acts on it (spawns, fetches, reads outside the
+    project), it's hand-edited only and goes on the list. The same review gated
+    `shell.openExternal` to `http(s)` and gave export HTML a strict CSP. See
+    [architecture.md](./spec/architecture.md) → Process / IPC design.

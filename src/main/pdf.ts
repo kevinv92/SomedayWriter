@@ -22,6 +22,11 @@ export async function buildPdf(html: string, opts: PdfOptions): Promise<Buffer> 
     height: 1200,
     webPreferences: { javascript: false, sandbox: true }
   })
+  // The document's CSP blocks subresources; this blocks the rest. A
+  // `<meta http-equiv="refresh">` in raw manuscript HTML could otherwise
+  // navigate the hidden window away and print someone else's page.
+  win.webContents.on('will-navigate', (event) => event.preventDefault())
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   // A temp file avoids data:-URL size limits on a book-length manuscript.
   const file = join(tmpdir(), `sw-export-${randomUUID()}.html`)
   try {

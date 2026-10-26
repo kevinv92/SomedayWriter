@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { escHtml, renderManuscriptDocument } from './manuscript-html'
+import { EXPORT_CSP, escHtml, renderManuscriptDocument } from './manuscript-html'
 
 const chapters = [
   { title: 'The Woman', markdown: 'To **Sherlock** she is the woman.' },
@@ -70,5 +70,20 @@ describe('renderManuscriptDocument', () => {
       separator: 'blank'
     })
     expect(html).not.toContain('class="titlepage"')
+  })
+})
+
+describe('export CSP', () => {
+  it('locks the document down so raw HTML cannot load files or phone home', () => {
+    const html = renderManuscriptDocument({ title: 'T' }, chapters, {
+      titlePage: false,
+      sceneTitles: false,
+      separator: 'blank'
+    })
+    expect(html).toContain(
+      `<meta http-equiv="Content-Security-Policy" content="${EXPORT_CSP}" />`
+    )
+    expect(EXPORT_CSP).toContain("default-src 'none'")
+    expect(EXPORT_CSP).not.toMatch(/https?:|file:|\*/)
   })
 })

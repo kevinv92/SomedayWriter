@@ -38,6 +38,7 @@ import {
   sceneEntities
 } from './story-index'
 import { addRecentProject, readSettings, updateSettings } from './settings'
+import { redactSettings, rendererSettingsPatch } from './settings-boundary'
 import { checkGrammar } from './grammar'
 import { lspSync, lspClose, shutdownLsp, setLspDiagnosticsSink } from './lsp'
 import {
@@ -185,6 +186,11 @@ function invalidateStoryIndex(): void {
   threadCache = null
 }
 
+/** True for a URL that's safe to hand to the OS browser (http/https only). */
+function isWebUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url)
+}
+
 function createWindow(): void {
   const win = new BrowserWindow({
     width: 1100,
@@ -206,9 +212,10 @@ function createWindow(): void {
   })
   win.on('ready-to-show', () => win.show())
 
-  // Open external links in the OS browser, never in-app.
+  // Open external links in the OS browser, never in-app. Only http(s): handing
+  // `file:`, `smb:` or another app's custom scheme to the OS can launch programs.
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    if (isWebUrl(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
 
@@ -233,7 +240,7 @@ function createWindow(): void {
       /* unparseable → block below */
     }
     event.preventDefault()
-    if (/^https?:\/\//i.test(url)) shell.openExternal(url)
+    if (isWebUrl(url)) void shell.openExternal(url)
   })
 
   // electron-vite sets this in dev; in prod we load the built file.
@@ -395,16 +402,9 @@ function registerIpc(): void {
     openProjectPath(root)
   )
 
-  // Strip the grammar secrets before settings ever reach the renderer — the
-  // premium API key lives only in main (Phase 10).
-  ipcMain.handle('settings:get', async (): Promise<AppSettings> => {
-    const s = await readSettings()
-    if (s.grammar && (s.grammar.apiKey || s.grammar.username)) {
-      const { apiKey: _k, username: _u, ...safe } = s.grammar
-      return { ...s, grammar: safe }
-    }
-    return s
-  })
+  ipcMain.handle('settings:get', async (): Promise<AppSettings> =>
+    redactSettings(await readSettings())
+  )
 
   // Write an edited project.json back (the Project Settings form). Callers pass
   // the full config so unknown keys (themes, entityTypes) are preserved.
@@ -546,9 +546,10 @@ function registerIpc(): void {
   // a git checkout) are picked up on the next fetch.
   ipcMain.handle('story:refresh', (): void => invalidateStoryIndex())
 
-  ipcMain.handle(
-    'settings:update',
-    (_e, patch: Partial<AppSettings>): Promise<AppSettings> => updateSettings(patch)
+  // The patch is untrusted renderer input: main-only keys are dropped, and the
+  // merged result is redacted like `settings:get` so the API key never leaks.
+  ipcMain.handle('settings:update', async (_e, patch: unknown): Promise<AppSettings> =>
+    redactSettings(await updateSettings(rendererSettingsPatch(patch)))
   )
 
   ipcMain.handle('project:readTree', async (): Promise<TreeNode | null> => {

@@ -58,6 +58,13 @@ export interface ManuscriptDocOptions {
 /** Render the whole manuscript as one self-contained HTML document (for PDF).
  *  Title page + one `<section class="scene">` per chapter, joined per the
  *  separator (`* * *` rule, or a page break, or nothing). */
+/** `marked` passes raw HTML in the manuscript through, and Chromium renders this
+ *  document from `file://` for PDF export. Lock it down so an `<iframe>` can't
+ *  pull a local file into the PDF and an `<img>` can't phone home: only inline
+ *  styles and `data:` images/fonts load. */
+export const EXPORT_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src data:; base-uri 'none'; form-action 'none'"
+
 export function renderManuscriptDocument(
   meta: ManuscriptDocMeta,
   chapters: ManuscriptChapter[],
@@ -88,6 +95,7 @@ export function renderManuscriptDocument(
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="${EXPORT_CSP}" />
 <title>${escHtml(meta.title)}</title>
 <style>${READING_CSS}
 body { padding: 0 1em; }
