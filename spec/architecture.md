@@ -95,3 +95,16 @@ Rules that keep the seam cheap:
   - `createFile(path)` / `createFolder(path)` / `rename(from, to)` / `remove(path)`
   - `readProjectConfig(root): Promise<ProjectConfig>`
 - Renderer never touches `fs` directly.
+- **Renderer input is untrusted.** Treat every IPC payload as if a compromised
+  renderer sent it — the sandbox only holds if main doesn't hand back the
+  privileges it took away:
+  - **Main-only settings.** `settings:update` drops hand-edited keys that drive
+    privileged behaviour (`grammar` — its `lsp.command` is spawned and its `url`
+    receives prose; `userThemes`), and every settings response is redacted so the
+    grammar API key never reaches the renderer (`src/main/settings-boundary.ts`,
+    decision #52).
+  - **External links** go to `shell.openExternal` only for `http(s)` URLs — other
+    schemes (`file:`, `smb:`, app handlers) can launch programs.
+  - **Export HTML** carries a strict CSP (`EXPORT_CSP`) and the hidden PDF window
+    refuses navigation: `marked` passes raw manuscript HTML through, which could
+    otherwise embed local files into the PDF or make network requests.

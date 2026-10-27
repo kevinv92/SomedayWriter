@@ -108,6 +108,17 @@ Windows/Linux targets. Today's DMG is unsigned and arm64-only.
   ([manuscript.md](../manuscript.md) → Export & compile, decision #51); deferred:
   packaging embedded `![](…)` images into EPUB/docx/PDF, per-format page controls
   for docx, and heading **levels** once the manuscript `level` field lands.
+- **Repomix: keep or drop?** — `npm run pack:ai` was added to give LLMs a
+  one-file digest of the repo, but it's turned out less useful than expected.
+  Agents with file tools (Claude Code etc.) don't need it: they read files
+  on demand, and
+  for a status review the spec, DECISIONS, `git log` and the verify commands
+  carry the context, so loading a whole-repo dump just burns context. It only
+  helps when pasting into a chat UI with **no** file access, and then only if
+  regenerated first — the local `repomix-output.xml` had gone stale since July
+  (pre-Phase 3), which risks misleading whoever pastes it. Lean: drop it (remove
+  `pack:ai`, `repomix.config.json`, `.repomixignore`, the AGENTS.md "For AI
+  indexing" note, and the dev dep) unless chat-UI pasting is a real workflow.
 
 ---
 
