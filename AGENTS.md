@@ -291,6 +291,3 @@ and the decision (if any) is logged.
   listed in `.cursorignore` — **don't index or read them**; they're noise.
 - Start from `spec/` (design) and this file (practices) before reading source.
 - The source of truth for _decisions_ is **DECISIONS.md**.
-- `npm run pack:ai` runs **repomix** → a single-file digest (`repomix-output.xml`)
-  of the whole repo for pasting into an LLM. Config: `repomix.config.json`;
-  extra excludes: `.repomixignore`. The output is git-ignored.

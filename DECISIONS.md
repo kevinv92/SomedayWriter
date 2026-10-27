@@ -399,3 +399,14 @@ rise | climax | fall | resolve`) is now the sole per-beat descriptor.**
     project), it's hand-edited only and goes on the list. The same review gated
     `shell.openExternal` to `http(s)` and gave export HTML a strict CSP. See
     [architecture.md](./spec/architecture.md) → Process / IPC design.
+
+53. **No whole-repo AI digest (repomix removed).** `npm run pack:ai` produced a
+    single-file repo dump for LLMs. In practice it didn't earn its keep: agents
+    with file tools read what they need on demand (for a status review, `spec/`,
+    DECISIONS, `git log` and the verify commands carry the context), so a dump
+    only burns context. It helped only chat UIs without file access, and only
+    when freshly regenerated — the local copy had silently gone stale for months,
+    which risks misleading whoever pastes it. It also pulled in the only two
+    critical-rated (if unreachable) advisories in the tree. Removed the script,
+    dependency, configs, and AGENTS.md note. If a digest is ever needed, run
+    `npx repomix` ad hoc rather than re-adding the dependency.
