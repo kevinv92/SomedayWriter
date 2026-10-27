@@ -36,11 +36,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.2.0",
-    "electron": "^43.0.0",
+    "electron": "^43.8.3",
     "electron-builder": "^26.15.3",
     "electron-vite": "^5.0.0",
     "eslint": "^9.39.4",
@@ -54,7 +55,8 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.62.1",
     "vite": "^7.3.6",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "zod": "^4.6.7"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
@@ -66,14 +68,12 @@
     "@codemirror/state": "^6.7.0",
     "@codemirror/view": "^6.43.5",
     "@lezer/highlight": "^1.2.3",
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "@replit/codemirror-vim": "^6.3.0",
     "docx": "^9.7.1",
     "jszip": "^3.10.1",
     "marked": "^18.0.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "yaml": "^2.9.0",
-    "zod": "^4.4.3"
+    "yaml": "^2.9.0"
   }
 }
